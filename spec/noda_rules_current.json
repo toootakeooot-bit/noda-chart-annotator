@@ -1,5 +1,5 @@
 {
-  "schema_version": "noda-draw-rules/0.5",
+  "schema_version": "noda-draw-rules/0.6",
   "rules": [
     {"id":"R01","summary":"High/low are the base facts."},
     {"id":"R02","summary":"Trend is recognized from higher/lower highs and lows."},
