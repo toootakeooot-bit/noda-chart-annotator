@@ -1,0 +1,37 @@
+{
+  "schema_version": "noda-draw-rules/0.5",
+  "rules": [
+    {"id":"R01","summary":"High/low are the base facts."},
+    {"id":"R02","summary":"Trend is recognized from higher/lower highs and lows."},
+    {"id":"R03","summary":"Small/large turns are distinct structural units."},
+    {"id":"R04","summary":"Large/mid/small Dow structures are separated."},
+    {"id":"R05","summary":"A line is selected according to purpose."},
+    {"id":"R06","summary":"HL at reversal high/low; rising TL through two higher lows; falling TL through two lower highs; CH is parallel to TL and aligned to the corresponding recent opposite-side extreme."},
+    {"id":"R07","summary":"Large-Dow line selection uses a line basically unbroken at selection and is not required to start at the absolute extreme."},
+    {"id":"R08","summary":"Small-Dow lines are handled within one phase and may use near-symmetry/price clusters."},
+    {"id":"R09","summary":"TL Zone uses wick-to-body around the start candle; body extension is allowed only with evidence/reason; no fixed numeric width."},
+    {"id":"R10","summary":"Field and Action are separate concepts."},
+    {"id":"R11","summary":"Three phases are recognized; no fixed timeframe mapping."},
+    {"id":"R12","summary":"Upper-timeframe line/zone edge matters; proximity threshold is not fixed."},
+    {"id":"R13","summary":"Full-phase confirmation after reaching a large-Dow edge; detector details remain TBD."},
+    {"id":"R14","summary":"Small-Dow break detector remains TBD."},
+    {"id":"R15","summary":"Small awareness revival."},
+    {"id":"R16","summary":"Large awareness revival."},
+    {"id":"R17","summary":"Intermediate TL and mid-Dow counter TL are separate."},
+    {"id":"R18","summary":"Break -> new outer high/low -> higher structural priority -> TL/CH update -> Field remap; exact update timing remains TBD."},
+    {"id":"R19","summary":"Return after TL break is an observation/search cue, not an entry trigger."},
+    {"id":"R20","summary":"TL side reflects stronger/new participation and CH side freer/weaker behavior; TL break is structural-change candidate and CH break continuation/acceleration candidate; no numeric score and no entry trigger."}
+  ],
+  "selection_semantics": [
+    "High/low detection is separate from Anchor selection.",
+    "Retain multiple Anchor and TL candidates before Selection.",
+    "Compare only the same role.",
+    "When otherwise comparable, gentler/slower slope is preferred.",
+    "Evaluate historical reactions on both TL Zone and CH Zone as a channel structure.",
+    "CH Zone uses the same width as TL Zone as a user-confirmed implementation semantic.",
+    "Use qualitative reaction labels only: CLEAR, WEAK, UNKNOWN.",
+    "Upper-timeframe/body-level reactions are more reliable than lower-timeframe wick-only reactions.",
+    "Reaction Cluster groups nearby candles into one reaction event.",
+    "Do not invent fixed pip, ATR, score, or timeframe thresholds."
+  ]
+}
