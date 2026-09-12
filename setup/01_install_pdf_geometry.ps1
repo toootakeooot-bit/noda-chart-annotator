@@ -1,0 +1,5 @@
+$ErrorActionPreference = "Stop"
+Write-Host "NODA Chart Annotator v0.6 - deterministic PDF geometry setup"
+python -m pip install -r "$PSScriptRoot\..\requirements-local.txt"
+Write-Host "PASS: PDF geometry dependencies are installed."
+Write-Host "Next: .\setup\02_verify_pdf_geometry.ps1"
