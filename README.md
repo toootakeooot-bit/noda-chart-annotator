@@ -1,20 +1,25 @@
-# NODA Chart Annotator — PDF-only Local Mode v0.5
+# NODA Chart Annotator — PDF Geometry Direct Extraction v0.6
 
-Purpose: reproduce/annotate Teacher-drawn chart structures from the weekly chart material without using video and without OpenAI API calls.
+Purpose: reproduce Teacher-drawn chart geometry from the weekly chart PDF without video, OpenAI API, Ollama, or cloud AI.
 
-## Scope
-- Primary source: Teacher chart PDF / chart images.
-- Secondary source: Chatwork `分析共有` post metadata.
-- Rule context: current NODA R01–R20 + confirmed Selection semantics.
-- Video: HOLD / not used.
-- OpenAI API: HOLD / not used.
-- No-chart week: `NO_CHART_WEEK` and clean PASS.
-- Unknown teacher rationale: `UNKNOWN` / `VIDEO_RATIONALE_PENDING`; do not invent.
+## Pipeline
+Chatwork -> Archive -> Queue -> Package -> deterministic PDF geometry extraction -> Teacher Geometry/Observation -> existing comparison/mapping stages -> MT4 Bridge/Renderer.
 
-## Hard boundary
-This project is separate from NODA Engine. It must not emit Entry/SL/TP/RR/Lot/Long/Short/Order/Ticket fields or trading actions.
+## v0.6 rules
+- Teacher PDF/chart image is the primary source.
+- Prefer embedded PDF vector drawings; use raster/Hough fallback when vector geometry is insufficient.
+- Extract visible lines and parallel-pair candidates only.
+- Do not infer Teacher rationale.
+- Do not assert TL-vs-CH or HL semantic meaning from pixels alone.
+- `UNKNOWN` is a valid result and does not stop geometry extraction.
+- Video / OpenAI API / Ollama are HOLD and not used.
+- FIB / Scenario auto-generation remains HOLD.
+- No trading actions or Entry/SL/TP/RR/Lot/Order/Ticket fields.
 
-## Local pipeline
-Chatwork -> Archive -> Queue -> Package -> PDF-only Local Teacher Parser -> Teacher Observation -> existing P5-5 Parser/Comparator -> MT4 Bridge/Renderer.
-
-The local parser uses Ollama + a vision-language model only on the PC. No cloud AI API is required.
+## Install into current live root
+1. `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+2. `./setup/00_install_into_live_root.ps1`
+3. Move to the live root.
+4. `./setup/01_install_pdf_geometry.ps1`
+5. `./setup/02_verify_pdf_geometry.ps1`
+6. `./run_pdf_only_once.cmd`
