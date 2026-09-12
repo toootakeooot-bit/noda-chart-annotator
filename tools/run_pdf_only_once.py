@@ -1,54 +1,34 @@
 from __future__ import annotations
-
-import argparse
-import json
-import subprocess
-import sys
+import argparse, json, subprocess, sys
 from pathlib import Path
 
+COMPLETE={"PDF_GEOMETRY_READY","NO_CHART_WEEK"}
 
-def is_complete(pkg: Path) -> bool:
-    status = pkg / "pdf_only_status.json"
-    if not status.exists():
-        return False
-    try:
-        value = json.loads(status.read_text(encoding="utf-8")).get("status")
-    except Exception:
-        return False
-    return value in {"PDF_ONLY_OBSERVATION_READY", "NO_CHART_WEEK"}
+def is_complete(pkg:Path)->bool:
+    p=pkg/"pdf_only_status.json"
+    if not p.exists(): return False
+    try: return json.loads(p.read_text(encoding="utf-8")).get("status") in COMPLETE
+    except Exception: return False
 
-
-def find_next_package(root: Path) -> Path | None:
-    roots = [root / "teacher_observation_packages" / "pending_api", root / "teacher_observation_packages" / "pending", root / "teacher_observation_packages"]
-    seen = set()
-    candidates = []
+def find_next(root:Path)->Path|None:
+    roots=[root/"teacher_observation_packages"/"pending_api",root/"teacher_observation_packages"/"pending",root/"teacher_observation_packages"]
+    seen=set(); c=[]
     for base in roots:
-        if not base.exists():
-            continue
+        if not base.exists(): continue
         for p in base.glob("pkg_*"):
-            if not p.is_dir() or p in seen:
-                continue
+            if not p.is_dir() or p in seen: continue
             seen.add(p)
-            if not is_complete(p):
-                candidates.append(p)
-    candidates.sort(key=lambda p: p.name)
-    return candidates[0] if candidates else None
+            if not is_complete(p): c.append(p)
+    c.sort(key=lambda p:p.name)
+    return c[0] if c else None
 
-
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--live-root", default=".")
-    ap.add_argument("--model", default="qwen3-vl:8b")
-    args = ap.parse_args()
-    live = Path(args.live_root).resolve()
-    pkg = find_next_package(live)
+def main()->int:
+    ap=argparse.ArgumentParser(); ap.add_argument("--live-root",default="."); args=ap.parse_args()
+    root=Path(args.live_root).resolve(); pkg=find_next(root)
     if pkg is None:
-        print("NO_WORK / PASS")
-        return 0
-    parser_script = Path(__file__).resolve().parent / "local_pdf_teacher_parser.py"
+        print("NO_WORK / PASS"); return 0
+    tool=Path(__file__).resolve().parent/"pdf_geometry_extractor.py"
     print(f"RESUME PACKAGE: {pkg.name}")
-    return subprocess.call([sys.executable, str(parser_script), "--package", str(pkg), "--model", args.model])
+    return subprocess.call([sys.executable,str(tool),"--package",str(pkg)])
 
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__=="__main__": raise SystemExit(main())
