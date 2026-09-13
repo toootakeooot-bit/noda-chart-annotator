@@ -41,9 +41,24 @@ def main() -> int:
         except Exception as e:
             results[tf] = {'status': 'ERROR', 'error': f'{type(e).__name__}: {e}'}
 
+    statuses = [v.get('status') for v in results.values()]
+    if all(s == 'NO_INPUT' for s in statuses):
+        overall_status = 'WAITING_MARKET_INPUT'
+        exit_code = 2
+    elif any(s == 'ERROR' for s in statuses):
+        overall_status = 'ERROR'
+        exit_code = 1
+    elif any(s == 'NO_INPUT' for s in statuses):
+        overall_status = 'PARTIAL_INPUT'
+        exit_code = 3
+    else:
+        overall_status = 'PASS'
+        exit_code = 0
+
     overall = {
         'mode': 'TEST',
         'symbol': 'USDJPY',
+        'overall_status': overall_status,
         'timeframes': list(TFS),
         'results': results,
         'snapshot': str(snapshot_path),
@@ -55,7 +70,7 @@ def main() -> int:
         json.dumps(overall, ensure_ascii=False, indent=2), encoding='utf-8'
     )
     print(json.dumps(overall, ensure_ascii=False, indent=2))
-    return 1 if any(v.get('status') == 'ERROR' for v in results.values()) else 0
+    return exit_code
 
 
 if __name__ == '__main__':
