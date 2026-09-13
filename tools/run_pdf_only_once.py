@@ -27,7 +27,7 @@ def main()->int:
     root=Path(args.live_root).resolve(); pkg=find_next(root)
     if pkg is None:
         print("NO_WORK / PASS"); return 0
-    tool=Path(__file__).resolve().parent/"pdf_geometry_extractor.py"
+    tool=Path(__file__).resolve().parent/"pdf_geometry_extractor_compat.py"
     print(f"RESUME PACKAGE: {pkg.name}")
     return subprocess.call([sys.executable,str(tool),"--package",str(pkg)])
 
