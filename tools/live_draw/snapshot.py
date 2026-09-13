@@ -27,6 +27,15 @@ def _line_from_state(s: dict, role: str) -> tuple[datetime, float, datetime, flo
     raise ValueError(role)
 
 
+def _mt4_datetime(dt: datetime) -> str:
+    """Emit the date format accepted reliably by MQL4 StringToTime.
+
+    MQL4 documents StringToTime around the yyyy.mm.dd hh:mi form.  Using dot
+    separators avoids locale/parser ambiguity seen with ISO yyyy-mm-dd input.
+    """
+    return dt.strftime('%Y.%m.%d %H:%M:%S')
+
+
 def write_snapshot(path: str | Path, state: dict) -> int:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -40,8 +49,8 @@ def write_snapshot(path: str | Path, state: dict) -> int:
                 t1, p1, t2, p2 = _line_from_state(s, role)
                 rows.append([
                     f"{s['line_id']}__{role}", s['symbol'], s['timeframe'], s['structure_level'], role,
-                    t1.strftime('%Y-%m-%d %H:%M:%S'), f'{p1:.8f}',
-                    t2.strftime('%Y-%m-%d %H:%M:%S'), f'{p2:.8f}',
+                    _mt4_datetime(t1), f'{p1:.8f}',
+                    _mt4_datetime(t2), f'{p2:.8f}',
                     generation_role.upper(), str(s['generation']), s['status'], 'RAY_RIGHT',
                 ])
     with path.open('w', encoding='utf-8', newline='') as f:
