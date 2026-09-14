@@ -11,7 +11,6 @@ from live_draw.market_input import load_ohlc_csv
 from live_draw.normal_run import (
     TFS,
     normal_input_name,
-    rebuild_timeframe_from_csv,
     safe_symbol_filename,
     structural_event_end_indices,
 )
@@ -115,6 +114,10 @@ def _validate_snapshot(snapshot: Path, symbol: str) -> dict:
     }
 
 
+def _load_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description='NR7-1 USDJPY# regression audit')
     ap.add_argument('--input-dir', required=True)
@@ -130,20 +133,52 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     safe = safe_symbol_filename(symbol)
 
+    state_path = output_dir / f'NORMAL_{safe}_live_state.json'
+    normal_audit_path = output_dir / f'NORMAL_{safe}_run_audit.json'
+
     report = {
         'test': 'NR7-1_USDJPY_REGRESSION',
         'symbol': symbol,
         'baseline_symbol': baseline_symbol,
         'baseline_semantics': 'LAST_CONFIRMED_STRUCTURAL_EVENT',
+        'regression_source': 'PUBLISHED_NORMAL_RUN_STATE_AND_AUDIT',
         'timeframes': {},
         'checks': {
             'same_final_current_geometry_as_baseline': True,
             'previous_is_immediate_rebuilt_generation': True,
             'all_inputs_present': True,
+            'normal_run_state_present': state_path.exists(),
             'normal_run_audit_pass': False,
             'snapshot_valid': False,
         },
     }
+
+    rebuilt_state = None
+    if state_path.exists():
+        try:
+            rebuilt_state = _load_json(state_path)
+        except Exception as exc:
+            report['state_read_error'] = f'{type(exc).__name__}: {exc}'
+            report['checks']['normal_run_state_present'] = False
+    else:
+        report['state_read_error'] = f'MISSING: {state_path}'
+
+    normal_audit = None
+    if normal_audit_path.exists():
+        try:
+            normal_audit = _load_json(normal_audit_path)
+            report['normal_run_audit'] = normal_audit
+            report['checks']['normal_run_audit_pass'] = (
+                normal_audit.get('status') == 'PASS'
+                and normal_audit.get('snapshot_published') is True
+            )
+        except Exception as exc:
+            report['normal_run_audit'] = {
+                'status': 'READ_ERROR',
+                'error': f'{type(exc).__name__}: {exc}',
+            }
+    else:
+        report['normal_run_audit'] = {'status': 'MISSING', 'path': str(normal_audit_path)}
 
     for tf in TFS:
         src = input_dir / normal_input_name(symbol, tf)
@@ -156,13 +191,27 @@ def main() -> int:
             report['timeframes'][tf] = tf_result
             continue
 
+        if rebuilt_state is None or normal_audit is None:
+            tf_result['status'] = 'FAIL_NORMAL_RUN_OUTPUT_MISSING'
+            report['checks']['same_final_current_geometry_as_baseline'] = False
+            report['checks']['previous_is_immediate_rebuilt_generation'] = False
+            report['timeframes'][tf] = tf_result
+            continue
+
         bars = load_ohlc_csv(src)
         event_indices = structural_event_end_indices(bars)
         baseline_bars = bars[:event_indices[-1] + 1] if event_indices else bars
         baseline_selected, baseline_meta = _selected_by_level(baseline_symbol, tf, baseline_bars)
         baseline_meta['structural_event_count'] = len(event_indices)
         baseline_meta['last_structural_event_index'] = event_indices[-1] if event_indices else None
-        rebuilt_state, rebuild_audit = rebuild_timeframe_from_csv(src, symbol, tf)
+
+        rebuild_audit = (normal_audit.get('timeframes') or {}).get(tf)
+        if not isinstance(rebuild_audit, dict) or rebuild_audit.get('status') != 'PASS':
+            tf_result['status'] = 'FAIL_REBUILD_AUDIT_MISSING'
+            report['checks']['same_final_current_geometry_as_baseline'] = False
+            report['checks']['previous_is_immediate_rebuilt_generation'] = False
+            report['timeframes'][tf] = tf_result
+            continue
 
         level_results = {}
         for level in LEVELS:
@@ -176,7 +225,7 @@ def main() -> int:
             if not same:
                 report['checks']['same_final_current_geometry_as_baseline'] = False
 
-            transitions = [x for x in rebuild_audit['transitions'] if x['level'] == level]
+            transitions = [x for x in rebuild_audit.get('transitions', []) if x.get('level') == level]
             adjacency_ok = True
             if current is None:
                 adjacency_ok = baseline_selected[level] is None
@@ -206,31 +255,23 @@ def main() -> int:
             }
 
         tf_result.update({
-            'status': 'PASS' if all(v['same_current_geometry'] and v['previous_adjacency_ok'] for v in level_results.values()) else 'FAIL',
+            'status': 'PASS' if all(
+                v['same_current_geometry'] and v['previous_adjacency_ok']
+                for v in level_results.values()
+            ) else 'FAIL',
             'bars': len(bars),
             'baseline_meta': baseline_meta,
             'rebuild': {
-                'replay_strategy': rebuild_audit['replay_strategy'],
-                'structural_event_count': rebuild_audit['structural_event_count'],
-                'evaluated_prefixes': rebuild_audit['evaluated_prefixes'],
-                'transition_count': rebuild_audit['transition_count'],
-                'full_history_detector': rebuild_audit['full_history_detector'],
-                'last_event_detector': rebuild_audit['last_event_detector'],
+                'replay_strategy': rebuild_audit.get('replay_strategy'),
+                'structural_event_count': rebuild_audit.get('structural_event_count'),
+                'evaluated_prefixes': rebuild_audit.get('evaluated_prefixes'),
+                'transition_count': rebuild_audit.get('transition_count'),
+                'full_history_detector': rebuild_audit.get('full_history_detector'),
+                'last_event_detector': rebuild_audit.get('last_event_detector'),
             },
             'levels': level_results,
         })
         report['timeframes'][tf] = tf_result
-
-    normal_audit = output_dir / f'NORMAL_{safe}_run_audit.json'
-    if normal_audit.exists():
-        try:
-            payload = json.loads(normal_audit.read_text(encoding='utf-8'))
-            report['normal_run_audit'] = payload
-            report['checks']['normal_run_audit_pass'] = payload.get('status') == 'PASS' and payload.get('snapshot_published') is True
-        except Exception as exc:
-            report['normal_run_audit'] = {'status': 'READ_ERROR', 'error': f'{type(exc).__name__}: {exc}'}
-    else:
-        report['normal_run_audit'] = {'status': 'MISSING', 'path': str(normal_audit)}
 
     snapshot = output_dir / f'NORMAL_{safe}_live_snapshot.csv'
     snap_result = _validate_snapshot(snapshot, symbol)
