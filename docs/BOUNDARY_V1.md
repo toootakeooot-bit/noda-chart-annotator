@@ -7,6 +7,10 @@ Revision note: runtime judgment ownership corrected on **2026-09-14** to match t
 This document is the top-level boundary contract for the MT4① drawing system.
 When another NCA document conflicts with this Boundary v1, **Boundary v1 takes precedence**.
 
+Operational behavior beneath this boundary is fixed separately in:
+
+- `docs/DRAWING_OPERATION_V1.md` — **FIXED**
+
 ## Fixed boundary
 
 | Item | Fixed definition | Status |
@@ -43,7 +47,7 @@ This file supersedes conflicting statements in older NCA documents, including bu
 - schedule or market-hours rules presented as a Boundary-level execution condition,
 - any wording that makes ChatGPT part of the runtime drawing judgment path.
 
-Items not addressed by Boundary v1 remain governed by their existing document until separately reviewed and fixed.
+Items not addressed by Boundary v1 remain governed by their existing document until separately reviewed and fixed. Operational items explicitly fixed in `docs/DRAWING_OPERATION_V1.md` are governed by that document beneath this Boundary.
 
 ```text
 NCA BOUNDARY V1
