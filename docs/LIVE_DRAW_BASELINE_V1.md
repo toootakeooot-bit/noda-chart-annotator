@@ -1,6 +1,8 @@
 # NCA Live Draw Baseline v1
 
-Status: **FIXED**
+Status: **FIXED / SUBORDINATE TO BOUNDARY V1**
+
+> **Boundary precedence notice (2026-09-14):** `docs/BOUNDARY_V1.md` is now the top-level NCA boundary contract. Where this older Live Draw Baseline conflicts with Boundary v1, **Boundary v1 takes precedence**. In particular, Boundary v1 controls the MT4①-only target, XM MT4 canonical symbol names, TC non-use/no-dependency/no-future-plan, market-hours non-gating, NODA Engine separation, no trade execution, TL/HL/CH/direction-arrow drawing scope, and ChatGPT judgment ownership. Other non-conflicting technical clauses below remain in force until separately reviewed.
 
 This document fixes the contract for the NODA Chart Annotator Live Draw path. It does **not** change NODA Engine rules R01–R20. Detector details explicitly marked PROVISIONAL may be tuned in TEST without changing this fixed contract.
 
@@ -214,5 +216,5 @@ Do not introduce:
 
 ```text
 NCA LIVE DRAW BASELINE V1
-STATUS: FIXED
+STATUS: FIXED / SUBORDINATE TO BOUNDARY V1
 ```
