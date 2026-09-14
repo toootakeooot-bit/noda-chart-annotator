@@ -24,6 +24,19 @@ SNAPSHOT_HEADER = [
 ALLOWED_ROLES = {'TL', 'CH', 'TL_ZONE_EDGE', 'CH_ZONE_EDGE'}
 
 
+def detect_latest_export_symbol(input_dir: Path) -> str:
+    candidates = list(input_dir.glob('NORMAL_*_export_status.csv'))
+    if not candidates:
+        raise ValueError('no NORMAL_*_export_status.csv found; run NCA_NormalRun_Exporter in MT4 first')
+    status_path = max(candidates, key=lambda p: p.stat().st_mtime)
+    with status_path.open('r', encoding='utf-8-sig', newline='') as f:
+        reader = csv.DictReader(f)
+        row = next(reader, None)
+    if not row or not (row.get('symbol') or '').strip():
+        raise ValueError(f'invalid export status: {status_path}')
+    return row['symbol'].strip()
+
+
 def validate_snapshot(path: Path, expected_symbol: str) -> dict:
     seen: set[str] = set()
     rows = 0
@@ -80,19 +93,27 @@ def publish_validated_snapshot(path: Path, state: dict, expected_symbol: str) ->
 
 def main() -> int:
     ap = argparse.ArgumentParser(description='NCA Normal Run - XM symbol history rebuild')
-    ap.add_argument('--symbol', required=True, help='Exact XM MT4 symbol name, e.g. GOLD#')
+    ap.add_argument('--symbol', help='Exact XM MT4 symbol name. If omitted, use latest MT4 Normal Run export status.')
     ap.add_argument('--input-dir', required=True, help='MT4 Common Files live_input directory')
     ap.add_argument('--output-dir', required=True, help='MT4 Common Files live_output directory')
     args = ap.parse_args()
 
-    symbol = args.symbol.strip()
-    if not symbol:
-        raise SystemExit('--symbol must be non-empty')
-    safe = safe_symbol_filename(symbol)
     input_dir = Path(args.input_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    try:
+        symbol = (args.symbol or '').strip() or detect_latest_export_symbol(input_dir)
+    except Exception as exc:
+        print(json.dumps({
+            'status': 'FAIL_KEEP_LAST_VALID_DRAWING',
+            'mode': 'NORMAL_RUN',
+            'error': f'{type(exc).__name__}: {exc}',
+            'snapshot_published': False,
+        }, ensure_ascii=False, indent=2))
+        return 2
+
+    safe = safe_symbol_filename(symbol)
     final_state = output_dir / f'NORMAL_{safe}_live_state.json'
     final_snapshot = output_dir / f'NORMAL_{safe}_live_snapshot.csv'
     final_audit = output_dir / f'NORMAL_{safe}_run_audit.json'
@@ -134,18 +155,19 @@ def main() -> int:
         rebuilt = merge_rebuilt_states(rebuilt_states)
         state_validation = validate_rebuilt_state(rebuilt, symbol)
 
-        # State is rebuilt from scratch every Normal Run. Persist it for audit,
-        # but never use it as authority for the next run's `previous`.
+        # Rebuilt from scratch every Normal Run. Persist only as evidence/output,
+        # never as authority for the next run's `previous`.
         atomic_write_json(final_state, rebuilt)
 
-        # The old published snapshot remains untouched until the new temp
-        # snapshot passes validation. os.replace performs the publication.
+        # Preserve the old valid snapshot until the new temporary snapshot has
+        # passed validation; publish with atomic os.replace.
         snapshot_validation = publish_validated_snapshot(final_snapshot, rebuilt, symbol)
 
         overall = {
             'status': 'PASS',
             'mode': 'NORMAL_RUN',
             'symbol': symbol,
+            'symbol_source': 'CLI' if args.symbol else 'LATEST_MT4_EXPORT_STATUS',
             'timeframes': timeframe_audits,
             'state_validation': state_validation,
             'snapshot_validation': snapshot_validation,
