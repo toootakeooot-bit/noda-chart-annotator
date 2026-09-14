@@ -1,0 +1,41 @@
+name: normal-run-ci
+
+on:
+  push:
+    branches:
+      - feature/normal-run-v1
+  workflow_dispatch:
+
+jobs:
+  python-normal-run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile Normal Run Python
+        run: |
+          python -m py_compile \
+            tools/live_draw/normal_run.py \
+            tools/run_normal.py \
+            tools/nr7_1_usdjpy_regression.py \
+            tests/selftest_normal_run.py
+
+      - name: Run Normal Run selftest
+        run: python tests/selftest_normal_run.py
+
+      - name: Compile existing Live Draw core
+        run: |
+          python -m py_compile \
+            tools/live_draw/model.py \
+            tools/live_draw/market_input.py \
+            tools/live_draw/turn_detector.py \
+            tools/live_draw/geometry.py \
+            tools/live_draw/lifecycle.py \
+            tools/live_draw/snapshot.py \
+            tools/live_draw/pipeline.py
