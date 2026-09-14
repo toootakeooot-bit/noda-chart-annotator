@@ -1,8 +1,12 @@
 # NCA Live Draw Lifecycle v1
 
-Status: **FIXED CONTRACT**
+Status: **FIXED CONTRACT**  
+Normal Run precedence note: **updated 2026-09-14**
 
-This document fixes how TL-centered draw objects are added, retained, replaced, and removed. CH and Zones inherit their lifecycle from the parent TL unless explicitly noted.
+This document fixes how TL-centered draw objects are added, retained, replaced, and removed.
+`docs/BOUNDARY_V1.md` is the top-level contract and `docs/DRAWING_OPERATION_V1.md` is the active operating contract. Where prior state-retention wording in this Lifecycle document conflicts with Normal Run history rebuild, **Drawing Operation v1 takes precedence**.
+
+CH and Zones inherit their lifecycle from the parent TL unless explicitly noted.
 
 ## 1. Primary lifecycle object
 
@@ -30,6 +34,8 @@ Minimum required TL states:
 
 State names may be implemented differently internally, but these semantics must be preserved.
 
+For **Normal Run**, `ACTIVE` and `PREVIOUS` must be derived from the present chronological rebuild of closed-bar history. A persisted slot from a prior run may be used as implementation data or audit evidence, but it is **not authoritative** merely because it was saved previously.
+
 ## 3. Break is observational, not replacement
 
 A break event alone does not redraw or delete.
@@ -40,16 +46,11 @@ ACTIVE
 BROKEN_WAIT_TURN
 ```
 
-While `BROKEN_WAIT_TURN`:
-
-- keep the old TL visible,
-- keep its CH and Zones visible unless another independent display-safety rule requires otherwise,
-- do not generate a replacement TL solely because of the break,
-- continue observing until a new Turn confirms a new high or low.
+During chronological reconstruction, a break remains observational until a new Turn / new high or low confirms the replacement structure. A line must not become a new generation solely because price crossed the prior line.
 
 ## 4. New TL creation
 
-A new TL may be created only after the structural sequence below:
+A new TL generation may be created only after the structural sequence below:
 
 ```text
 existing TL
@@ -64,9 +65,11 @@ existing TL
 
 The key gate is **new structural confirmation**, not the line break itself.
 
+During Normal Run, this sequence is evaluated chronologically across the acquired closed-bar history so intervening TL generations can be reconstructed even when NCA was not run at the time they originally occurred.
+
 ## 5. TL selection occurs inside generation
 
-Do not expose a pool of unresolved TL candidates as normal Live output.
+Do not expose a pool of unresolved TL candidates as normal output.
 
 The generator may temporarily evaluate multiple anchor combinations internally. Selection must consider:
 
@@ -75,19 +78,21 @@ The generator may temporarily evaluate multiple anchor combinations internally. 
 - CH-side reaction,
 - overall TL+CH channel coherence.
 
-Only the selected TL is published to the Live Snapshot / MT4 layer.
+Only the selected TL generation is published to the validated snapshot / MT4 layer.
 
 ## 6. Old TL removal
 
-Creating a new TL does not automatically erase the old TL.
+Creating a new TL does not automatically erase the old TL from lifecycle history.
 
-An old TL becomes removable only when:
+An old TL becomes display-retirable only when:
 
 1. a new Turn / new high or low has been confirmed,
 2. a replacement TL has been established, and
 3. the old TL has no remaining current structural role.
 
-If the line is still referenced by either Large-Dow or Mid-Dow structure, it is not immediately removed.
+If the line is still referenced by another tracked structural level, it is not treated as structurally ended solely because one role changed.
+
+For Normal Run display output, the final validated result is reduced to the fixed visible generation limit in Section 7.
 
 ## 7. Maximum visible generations
 
@@ -99,21 +104,28 @@ current TL
 immediately previous TL
 ```
 
-Example:
+Under Normal Run these identities mean:
+
+- `current` = current valid TL generation reconstructed from closed-bar history in the present run.
+- `previous` = the valid TL generation established immediately before `current` in that same reconstruction.
+
+Example reconstructed sequence:
 
 ```text
-TL_001 = previous-previous
-TL_002 = previous
-TL_003 = current
+TL_001 -> TL_002 -> TL_003
 ```
 
-When `TL_003` is established:
+Final Normal Run display:
 
-- `TL_003` -> `ACTIVE`
-- `TL_002` -> `PREVIOUS`
-- `TL_001` -> `RETIRED` and removed from the MT4 display
+```text
+TL_003 = current
+TL_002 = previous
+TL_001 = retired from MT4 display
+```
 
-The child CH and Zones follow the same retirement operation.
+The child CH and Zones follow the same parent-generation display retirement operation.
+
+If no prior valid generation can be established from available history, `current` alone may be displayed. `previous` must not be fabricated.
 
 ## 8. Cross-structure retention
 
@@ -127,9 +139,9 @@ LARGE_DOW = replaced
 MID_DOW   = active
 ```
 
-Result: do not retire the line solely because the Large-Dow role ended.
+Result: do not treat the line as structurally ended solely because the Large-Dow role ended.
 
-Only after all active structural references end may the line be retired from display, subject to the two-generation display rule.
+The Normal Run rebuild must resolve the final structural references before the validated two-generation display result is produced.
 
 ## 9. CH-only update
 
@@ -141,11 +153,13 @@ CH may be re-positioned without changing TL when:
 
 The updated CH remains parallel to the same TL. This operation must not create a new TL generation.
 
+CH remains a child of its parent TL generation. Therefore current and previous TL generations may each carry their corresponding CH in the final validated drawing state.
+
 ## 10. Zone lifecycle
 
 - `TL_ZONE` follows the parent TL.
 - `CH_ZONE` follows the current CH associated with that TL.
-- retiring the parent TL retires both Zones.
+- retiring the parent TL retires both Zones from display.
 - CH-only movement moves the CH Zone with CH while preserving the TL-Zone-derived width.
 
 ## 11. History contract
@@ -174,6 +188,25 @@ Recommended reason codes for later implementation:
 
 These reason-code names are implementation suggestions, not NODA Engine rules.
 
+Normal Run history reconstruction may rebuild lifecycle generations without having persisted every event at the time it originally occurred. The reconstructed generation order is authoritative for selecting final `current` and `previous` display generations.
+
 ## 12. Closed-bar requirement
 
-Lifecycle transitions that depend on Turn, new high/low, or structural reclassification use closed bars only. An unfinished candle cannot promote a replacement TL.
+Lifecycle transitions that depend on Turn, new high/low, or structural reclassification use **closed bars only**. An unfinished candle cannot promote a replacement TL.
+
+## 13. Normal Run safe-replacement boundary
+
+This Lifecycle document does not authorize deletion of the last valid MT4 drawing before a new Normal Run result is validated.
+
+The required operating sequence is defined by `docs/DRAWING_OPERATION_V1.md`:
+
+```text
+history acquisition
+ -> chronological rebuild
+ -> current / previous determination
+ -> snapshot generation
+ -> snapshot validation PASS
+ -> replace owned NCA_DRAW__ objects
+```
+
+If rebuild or validation fails, the last valid MT4① drawing remains unchanged. Objects outside the `NCA_DRAW__` managed identity must not be modified.
