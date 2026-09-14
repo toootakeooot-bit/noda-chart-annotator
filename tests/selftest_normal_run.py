@@ -13,6 +13,7 @@ from live_draw.model import Bar
 from live_draw.normal_run import (
     rebuild_timeframe_from_bars,
     safe_symbol_filename,
+    structural_event_end_indices,
     validate_rebuilt_state,
 )
 from run_normal import publish_validated_snapshot, validate_snapshot
@@ -44,11 +45,15 @@ def main() -> None:
     assert safe_symbol_filename('XAU/USD') == 'XAU_USD'
 
     bars = make_bars()
+    event_indices = structural_event_end_indices(bars)
     state, audit = rebuild_timeframe_from_bars(bars, 'USDJPY#', 'M15')
     validation = validate_rebuilt_state(state, 'USDJPY#')
 
     assert audit['status'] == 'PASS'
-    assert audit['evaluated_prefixes'] == len(bars) - 2
+    assert audit['replay_strategy'] == 'CONFIRMED_TURN_EVENTS_ONLY'
+    assert audit['structural_event_count'] == len(event_indices)
+    assert audit['evaluated_prefixes'] == len(event_indices)
+    assert audit['evaluated_prefixes'] <= len(bars) - 2
     assert validation['current_count'] >= 1
 
     # Every displayed previous must be the generation immediately before its
@@ -71,6 +76,8 @@ def main() -> None:
     print('NORMAL_RUN_SELFTEST_PASS')
     print(json.dumps({
         'state_validation': validation,
+        'structural_event_count': audit['structural_event_count'],
+        'evaluated_prefixes': audit['evaluated_prefixes'],
         'transition_count': audit['transition_count'],
     }, ensure_ascii=False, indent=2))
 
