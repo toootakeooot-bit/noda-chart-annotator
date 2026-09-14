@@ -8,7 +8,13 @@ from pathlib import Path
 
 from live_draw.geometry import build_channel_candidates, select_large_mid
 from live_draw.market_input import load_ohlc_csv
-from live_draw.normal_run import TFS, normal_input_name, rebuild_timeframe_from_csv, safe_symbol_filename
+from live_draw.normal_run import (
+    TFS,
+    normal_input_name,
+    rebuild_timeframe_from_csv,
+    safe_symbol_filename,
+    structural_event_end_indices,
+)
 from live_draw.turn_detector import detect_turns
 
 LEVELS = ('LARGE_DOW', 'MID_DOW')
@@ -75,8 +81,7 @@ def _validate_snapshot(snapshot: Path, symbol: str) -> dict:
     rows = []
     with snapshot.open('r', encoding='utf-8-sig', newline='') as f:
         reader = csv.DictReader(f)
-        for row in reader:
-            rows.append(row)
+        rows.extend(reader)
     if not rows:
         return {'status': 'FAIL', 'reason': 'SNAPSHOT_EMPTY', 'path': str(snapshot)}
 
@@ -129,6 +134,7 @@ def main() -> int:
         'test': 'NR7-1_USDJPY_REGRESSION',
         'symbol': symbol,
         'baseline_symbol': baseline_symbol,
+        'baseline_semantics': 'LAST_CONFIRMED_STRUCTURAL_EVENT',
         'timeframes': {},
         'checks': {
             'same_final_current_geometry_as_baseline': True,
@@ -151,7 +157,11 @@ def main() -> int:
             continue
 
         bars = load_ohlc_csv(src)
-        baseline_selected, baseline_meta = _selected_by_level(baseline_symbol, tf, bars)
+        event_indices = structural_event_end_indices(bars)
+        baseline_bars = bars[:event_indices[-1] + 1] if event_indices else bars
+        baseline_selected, baseline_meta = _selected_by_level(baseline_symbol, tf, baseline_bars)
+        baseline_meta['structural_event_count'] = len(event_indices)
+        baseline_meta['last_structural_event_index'] = event_indices[-1] if event_indices else None
         rebuilt_state, rebuild_audit = rebuild_timeframe_from_csv(src, symbol, tf)
 
         level_results = {}
@@ -200,9 +210,12 @@ def main() -> int:
             'bars': len(bars),
             'baseline_meta': baseline_meta,
             'rebuild': {
+                'replay_strategy': rebuild_audit['replay_strategy'],
+                'structural_event_count': rebuild_audit['structural_event_count'],
                 'evaluated_prefixes': rebuild_audit['evaluated_prefixes'],
                 'transition_count': rebuild_audit['transition_count'],
-                'final_detector': rebuild_audit['final_detector'],
+                'full_history_detector': rebuild_audit['full_history_detector'],
+                'last_event_detector': rebuild_audit['last_event_detector'],
             },
             'levels': level_results,
         })
