@@ -110,7 +110,7 @@ def main() -> int:
             'mode': 'NORMAL_RUN',
             'error': f'{type(exc).__name__}: {exc}',
             'snapshot_published': False,
-        }, ensure_ascii=False, indent=2))
+        }, ensure_ascii=False, indent=2), flush=True)
         return 2
 
     safe = safe_symbol_filename(symbol)
@@ -122,21 +122,32 @@ def main() -> int:
     timeframe_audits = {}
     missing = []
 
-    for tf in TFS:
+    print(f'NCA NORMAL RUN START: {symbol}', flush=True)
+    for pos, tf in enumerate(TFS, start=1):
         src = input_dir / normal_input_name(symbol, tf)
         if not src.exists():
             missing.append(str(src))
+            print(f'[{pos}/4] {tf}: INPUT MISSING', flush=True)
             continue
         try:
+            print(f'[{pos}/4] {tf}: rebuilding structural history...', flush=True)
             tf_state, tf_audit = rebuild_timeframe_from_csv(src, symbol, tf)
             rebuilt_states.append(tf_state)
             timeframe_audits[tf] = tf_audit
+            print(
+                f'[{pos}/4] {tf}: PASS '
+                f'bars={tf_audit["closed_bars"]} '
+                f'events={tf_audit["structural_event_count"]} '
+                f'transitions={tf_audit["transition_count"]}',
+                flush=True,
+            )
         except Exception as exc:
             timeframe_audits[tf] = {
                 'status': 'ERROR',
                 'error': f'{type(exc).__name__}: {exc}',
                 'input': str(src),
             }
+            print(f'[{pos}/4] {tf}: ERROR {type(exc).__name__}: {exc}', flush=True)
 
     if missing or any(a.get('status') == 'ERROR' for a in timeframe_audits.values()):
         overall = {
@@ -148,19 +159,17 @@ def main() -> int:
             'snapshot_published': False,
         }
         atomic_write_json(final_audit, overall)
-        print(json.dumps(overall, ensure_ascii=False, indent=2))
+        print(json.dumps(overall, ensure_ascii=False, indent=2), flush=True)
         return 2 if missing else 1
 
     try:
+        print('Merging rebuilt states...', flush=True)
         rebuilt = merge_rebuilt_states(rebuilt_states)
         state_validation = validate_rebuilt_state(rebuilt, symbol)
 
-        # Rebuilt from scratch every Normal Run. Persist only as evidence/output,
-        # never as authority for the next run's `previous`.
         atomic_write_json(final_state, rebuilt)
 
-        # Preserve the old valid snapshot until the new temporary snapshot has
-        # passed validation; publish with atomic os.replace.
+        print('Validating and publishing snapshot...', flush=True)
         snapshot_validation = publish_validated_snapshot(final_snapshot, rebuilt, symbol)
 
         overall = {
@@ -180,7 +189,8 @@ def main() -> int:
             'tc_dependency': False,
         }
         atomic_write_json(final_audit, overall)
-        print(json.dumps(overall, ensure_ascii=False, indent=2))
+        print('NCA NORMAL RUN PASS', flush=True)
+        print(json.dumps(overall, ensure_ascii=False, indent=2), flush=True)
         return 0
     except Exception as exc:
         overall = {
@@ -192,7 +202,7 @@ def main() -> int:
             'snapshot_published': False,
         }
         atomic_write_json(final_audit, overall)
-        print(json.dumps(overall, ensure_ascii=False, indent=2))
+        print(json.dumps(overall, ensure_ascii=False, indent=2), flush=True)
         return 1
 
 
