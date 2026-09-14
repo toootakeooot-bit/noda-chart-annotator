@@ -36,20 +36,41 @@ def normal_input_name(symbol: str, timeframe: str) -> str:
     return f'NORMAL_{safe_symbol_filename(symbol)}_{timeframe}.csv'
 
 
+def structural_event_end_indices(bars: list[Bar]) -> list[int]:
+    """Return closed-bar indices where confirmed Turn information changes.
+
+    Normal Run lifecycle generations are allowed to advance only on structural
+    confirmation, not on every ordinary closed bar.  The full closed-bar Turn
+    detector already records the bar index that confirmed each pivot.  Replaying
+    only those confirmation points preserves chronological reconstruction while
+    avoiding repeated expensive channel-candidate generation on bars that cannot
+    create a new TL generation under Lifecycle v1.
+    """
+    if len(bars) < 3:
+        return []
+    turns = detect_turns(bars)
+    indices = {
+        int(p.confirmed_by_index)
+        for p in turns.pivots
+        if 2 <= int(p.confirmed_by_index) < len(bars)
+    }
+    return sorted(indices)
+
+
 def rebuild_timeframe_from_bars(
     bars: list[Bar],
     symbol: str,
     timeframe: str,
 ) -> tuple[dict, dict]:
-    """Chronologically rebuild TL generations from closed-bar history.
+    """Rebuild TL generations chronologically at confirmed structural events.
 
-    The rebuild starts from an empty lifecycle state on every Normal Run. Each
-    historical closed-bar prefix is evaluated in chronological order using the
-    existing detector / selector. This makes `previous` the generation that
-    actually preceded the final `current` under the current NCA logic, rather
-    than the TL that merely happened to be persisted by the prior run.
+    Every Normal Run starts from an empty lifecycle state.  Closed-bar history
+    is still authoritative, but expensive detector/candidate/selector replay is
+    performed only at confirmed-Turn event points.  Ordinary bars between those
+    events cannot by themselves create a replacement TL under Lifecycle v1.
 
-    This deliberately favors correctness and auditability over speed for v1.
+    This keeps `previous` as the true immediately prior reconstructed TL while
+    avoiding the original O(600-prefix) repeated candidate-generation path.
     """
     if timeframe not in TFS:
         raise ValueError(f'unsupported timeframe: {timeframe}')
@@ -60,17 +81,20 @@ def rebuild_timeframe_from_bars(
 
     state = empty_state()
     transitions: list[dict] = []
+    event_indices = structural_event_end_indices(bars)
     evaluated_prefixes = 0
-    final_detector = None
+    final_event_detector = None
     final_classifier = None
     final_candidate_count = 0
+    last_event_end_index = None
 
-    for end in range(3, len(bars) + 1):
-        prefix = bars[:end]
+    for end_index in event_indices:
+        prefix = bars[:end_index + 1]
         turns = detect_turns(prefix)
         candidates = build_channel_candidates(prefix, turns.pivots)
         large, mid, class_audit = select_large_mid(symbol, timeframe, candidates)
         evaluated_prefixes += 1
+        last_event_end_index = end_index
 
         for selected in (large, mid):
             if selected is None:
@@ -81,35 +105,59 @@ def rebuild_timeframe_from_bars(
                 slot = state['slots'][key]
                 transitions.append({
                     'closed_bar_time': prefix[-1].time.isoformat(),
+                    'closed_bar_index': end_index,
                     'level': selected.level,
                     'generation': slot['current']['generation'],
                     'line_id': slot['current']['line_id'],
                     'candidate_id': selected.candidate.id_key,
                 })
 
-        if end == len(bars):
-            final_detector = turns
-            final_classifier = class_audit
-            final_candidate_count = len(candidates)
+        final_event_detector = turns
+        final_classifier = class_audit
+        final_candidate_count = len(candidates)
 
-    assert final_detector is not None
+    # Full-history detector is cheap compared with channel candidate generation
+    # and is useful audit evidence even when the last structural event occurred
+    # before the final exported bar.
+    full_detector = detect_turns(bars)
+
+    if not event_indices:
+        # No confirmed structural event means no TL generation can be rebuilt.
+        final_event_detector = full_detector
+        final_classifier = None
+        final_candidate_count = 0
+
     audit = {
         'status': 'PASS',
         'mode': 'NORMAL_RUN_HISTORY_REBUILD',
+        'replay_strategy': 'CONFIRMED_TURN_EVENTS_ONLY',
         'symbol': symbol,
         'timeframe': timeframe,
         'closed_bars': len(bars),
+        'structural_event_count': len(event_indices),
         'evaluated_prefixes': evaluated_prefixes,
+        'skipped_non_structural_prefixes': max(0, (len(bars) - 2) - evaluated_prefixes),
+        'last_structural_event_index': last_event_end_index,
+        'last_structural_event_time': (
+            bars[last_event_end_index].time.isoformat() if last_event_end_index is not None else None
+        ),
         'transition_count': len(transitions),
         'transitions': transitions,
-        'final_detector': {
-            'version': final_detector.detector_version,
-            'status': final_detector.status,
-            'confirmed_turns': len(final_detector.pivots),
-            'active_leg': final_detector.active_leg,
-            'active_threshold': final_detector.active_threshold,
+        'full_history_detector': {
+            'version': full_detector.detector_version,
+            'status': full_detector.status,
+            'confirmed_turns': len(full_detector.pivots),
+            'active_leg': full_detector.active_leg,
+            'active_threshold': full_detector.active_threshold,
         },
-        'final_geometry': {
+        'last_event_detector': {
+            'version': final_event_detector.detector_version,
+            'status': final_event_detector.status,
+            'confirmed_turns': len(final_event_detector.pivots),
+            'active_leg': final_event_detector.active_leg,
+            'active_threshold': final_event_detector.active_threshold,
+        },
+        'last_event_geometry': {
             'candidate_count': final_candidate_count,
             'classifier': final_classifier,
         },
