@@ -1,6 +1,6 @@
-# NR7-1 USDJPY# Regression Audit — 2026-09-14
+# NR7-1 USDJPY# Regression Audit — 2026-09-15
 
-Status: **AUTOMATED HARNESS READY / MT4 RUNTIME EVIDENCE PENDING**
+Status: **FUNCTIONAL RUNTIME PASS / PERFORMANCE + FAILURE-INJECTION PENDING**
 
 Repository: `toootakeooot-bit/noda-chart-annotator`  
 Branch: `feature/normal-run-v1`  
@@ -10,11 +10,11 @@ Target: `USDJPY#`
 
 Verify that the new Normal Run / History Rebuild implementation preserves the known-good final USDJPY drawing-selection semantics while adding true immediate-previous reconstruction and safe publication.
 
-This is a regression gate. It must not change detector/geometry/selection semantics merely to make the test pass.
+This is a regression gate. Detector / geometry / selection semantics must not be changed merely to make the test pass.
 
 ## 2. Automated regression criterion
 
-`tools/nr7_1_usdjpy_regression.py` uses the exact same Normal Run closed-bar input files for both comparison paths.
+`tools/nr7_1_usdjpy_regression.py` uses the same Normal Run closed-bar input files for both comparison paths.
 
 For each of `D1 / H4 / H1 / M15`:
 
@@ -41,73 +41,150 @@ Normal Run rebuilt current geometry
 
 for both `LARGE_DOW` and `MID_DOW` wherever a selection exists.
 
-## 3. Normal Run publication checks
+## 3. Actual host evidence — PASS
 
-The regression also requires:
+Observed on the target XM MT4 host.
+
+### Export
+
+`NCA_NormalRun_Exporter` completed on `USDJPY#` with:
+
+```text
+D1=600
+H4=600
+H1=600
+M15=600
+```
+
+Closed-bar export for all four required timeframes therefore passed.
+
+### Automated regression
+
+`RUN_NR7_1_USDJPY.cmd` completed with:
+
+```text
+snapshot.status = PASS
+snapshot.rows = 64
+snapshot.unique_object_ids = 64
+overall_status = PASS
+NR7-1 AUTOMATED CHECK PASS
+```
+
+This establishes the automated geometry / reconstructed-previous / snapshot gate for the captured USDJPY# dataset.
+
+### MT4 render
+
+Observed renderer results:
+
+```text
+USDJPY# H1  objects=16  PASS
+USDJPY# M15 objects=16  PASS
+USDJPY# H4  objects=16  PASS
+USDJPY# D1  objects=16  PASS
+```
+
+Total expected Normal Run snapshot rows:
+
+```text
+4 timeframes
+x 2 structure levels (LARGE_DOW / MID_DOW)
+x 2 generations (previous / current)
+x 4 drawing roles (TL / CH / TL_ZONE_EDGE / CH_ZONE_EDGE)
+= 64 rows
+```
+
+Observed snapshot row count = **64**, consistent with the render contract.
+
+## 4. H1 object-level evidence
+
+MT4 object list for `USDJPY#,H1` showed exactly 16 production-managed Normal Run objects:
+
+```text
+LARGE_DOW G019 = 4 objects
+LARGE_DOW G020 = 4 objects
+MID_DOW   G027 = 4 objects
+MID_DOW   G028 = 4 objects
+```
+
+Each generation contained:
+
+```text
+TL
+CH
+TL_ZONE_EDGE
+CH_ZONE_EDGE
+```
+
+Interpretation for the reconstructed H1 state:
+
+```text
+LARGE_DOW previous = G019
+LARGE_DOW current  = G020
+MID_DOW   previous = G027
+MID_DOW   current  = G028
+```
+
+The same H1 object list still contained the prior `NCA_TEST__` objects. This is direct evidence that the production renderer did not indiscriminately delete non-`NCA_DRAW__` objects during this test.
+
+## 5. Publication checks — PASS
+
+The automated regression established:
 
 - all four Normal Run input CSV files present;
-- `NORMAL_USDJPY#_run_audit.json` status = `PASS`;
+- Normal Run audit status = `PASS`;
 - `snapshot_published = true`;
-- validated snapshot exists and is non-empty;
-- snapshot symbol = exact XM symbol `USDJPY#`;
-- timeframe in D1/H4/H1/M15;
-- role in TL/CH/TL_ZONE_EDGE/CH_ZONE_EDGE;
-- generation role in CURRENT/PREVIOUS;
-- object IDs unique;
-- price fields numeric.
+- validated snapshot non-empty;
+- exact snapshot symbol = `USDJPY#`;
+- supported timeframe values only;
+- supported drawing roles only;
+- CURRENT / PREVIOUS generation roles only;
+- unique object IDs;
+- numeric prices;
+- 64 valid snapshot rows.
 
-## 4. One-command host runner
+## 6. Functional PASS judgment
 
-Added:
-
-`setup/run_nr7_1_usdjpy.ps1`
-
-Host-side sequence:
+The following NR7-1 functional checks are now PASS:
 
 ```text
-MT4: run NCA_NormalRun_Exporter once on USDJPY#
- -> setup/run_nr7_1_usdjpy.ps1
-      -> tools/run_normal.py
-      -> tools/nr7_1_usdjpy_regression.py
- -> PASS/FAIL JSON report
+MT4 EXPORTER COMPILE/RUN: PASS
+USDJPY# 600 CLOSED BARS x 4TF: PASS
+AUTOMATED BASELINE-vs-REBUILD REGRESSION: PASS
+TRUE IMMEDIATE PREVIOUS REBUILD CHECK: PASS
+SNAPSHOT VALIDATION: PASS (64/64)
+H1 RENDER: PASS (16)
+M15 RENDER: PASS (16)
+H4 RENDER: PASS (16)
+D1 RENDER: PASS (16)
+NCA_DRAW__ OWNERSHIP: PASS ON OBSERVED TEST
+NON-NCA_DRAW__ RETENTION: PASS ON OBSERVED NCA_TEST__ OBJECTS
 ```
 
-Output report:
+Therefore **NR7-1 USDJPY# functional runtime regression is PASS**.
+
+## 7. Items not yet closed
+
+Two items remain outside the functional PASS and must not be silently treated as complete:
+
+### A. Performance
+
+The captured pre-optimization Normal Run took approximately:
 
 ```text
-%APPDATA%\MetaQuotes\Terminal\Common\Files\noda_draw\live_output\NR7_1_USDJPY#_regression.json
+380.62 seconds
 ```
 
-The runner also records elapsed Normal Run time to the console for performance observation.
+This is functionally correct but not an acceptable target for routine Normal Run operation. A performance optimization has been implemented separately to reduce rebuild evaluations to structural/confirmed-turn event points, but that optimized revision still requires host timing verification.
 
-## 5. Automated PASS conditions
+Performance status: **PENDING RE-TEST**.
 
-NR7-1 automated gate is PASS only when all are true:
+### B. Failure-injection / last-valid-drawing preservation
 
-```text
-same_final_current_geometry_as_baseline = true
-previous_is_immediate_rebuilt_generation = true
-all_inputs_present = true
-normal_run_audit_pass = true
-snapshot_valid = true
-```
+The safe-publication design is implemented, but the host test has not yet deliberately supplied a failed rebuild / invalid snapshot to prove that the previously displayed valid `NCA_DRAW__` drawing remains intact.
 
-Any failure returns a non-zero process exit code.
+Failure-preservation status: **PENDING HOST TEST**.
 
-## 6. MT4 runtime checks still required
-
-These cannot be truthfully certified from GitHub-only execution and require the user's actual MT4① host:
-
-1. `NCA_NormalRun_Exporter.mq4` compiles in the target XM MT4 environment.
-2. Exporter writes valid D1/H4/H1/M15 closed-bar CSV files for `USDJPY#`.
-3. `NCA_NormalRun_Renderer.mq4` compiles in the target environment.
-4. Renderer displays the validated snapshot on each supported timeframe.
-5. Current + previous TL/CH placement is visually reasonable versus the known-good USDJPY chart.
-6. Manual/user objects remain untouched.
-7. A failed rebuild / invalid new snapshot does not erase the last valid displayed NCA drawing.
-8. Normal Run elapsed time with 600 bars x 4 TF is operationally acceptable.
-
-## 7. Safety / scope
+## 8. Safety / scope
 
 NR7-1 does not add or permit:
 
@@ -115,19 +192,22 @@ NR7-1 does not add or permit:
 - ChatGPT runtime dependency;
 - NODA Engine write-back;
 - trade execution;
-- order/SL/TP/lot/ticket control.
+- order / SL / TP / lot / ticket control.
 
-The baseline specification branch remains unchanged.
+The specification baseline branch remains unchanged.
 
-## 8. Current audit judgment
+## 9. Current audit judgment
 
 ```text
 NR7-1 USDJPY#
-AUTOMATED HARNESS: READY
-CODE-LEVEL REGRESSION CRITERIA: FIXED
-HOST RUNNER: READY
-ACTUAL USDJPY# DATA EXECUTION: PENDING USER PC
-MT4 COMPILE: PENDING USER PC
-MT4 VISUAL REGRESSION: PENDING USER PC
-FINAL NR7-1 PASS: NOT YET CLAIMED
+FUNCTIONAL RUNTIME REGRESSION: PASS
+4TF EXPORT: PASS
+AUTOMATED REGRESSION: PASS
+SNAPSHOT: PASS 64/64
+4TF RENDER: PASS 16 EACH
+CURRENT + TRUE PREVIOUS: PASS
+OWNED PREFIX BEHAVIOR: PASS ON OBSERVED RUN
+PERFORMANCE: PENDING RE-TEST
+FAILURE-INJECTION SAFE-KEEP: PENDING
+FULL PRODUCTION GATE: NOT YET CLAIMED
 ```
