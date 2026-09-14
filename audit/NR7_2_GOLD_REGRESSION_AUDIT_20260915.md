@@ -1,6 +1,6 @@
 # NR7-2 GOLD# Symbol-Generalization Audit — 2026-09-15
 
-Status: **AUTOMATED HARNESS READY / MT4 HOST EVIDENCE PENDING**
+Status: **MT4 EXPORT PASS / AUTOMATED RUN PENDING**
 
 Repository: `toootakeooot-bit/noda-chart-annotator`  
 Branch: `feature/normal-run-v1`  
@@ -14,7 +14,7 @@ The goal is not to redesign detector / geometry / lifecycle semantics. The goal 
 
 ## 2. Reused production path
 
-NR7-2 must use the same production-path components already validated on USDJPY#:
+NR7-2 uses the same production-path components already validated on USDJPY#:
 
 ```text
 NCA_NormalRun_Exporter
@@ -28,9 +28,9 @@ No GOLD-specific detector or drawing logic is permitted.
 
 Exact MT4 `Symbol()` value `GOLD#` remains the canonical symbol identity in state / audit / snapshot.
 
-## 3. Generic harness added
+## 3. Generic harness
 
-Added:
+Added and ready:
 
 ```text
 tools/nr7_symbol_regression.py
@@ -39,11 +39,33 @@ setup/run_nr7_symbol.ps1
 setup/RUN_NR7_2_GOLD.cmd
 ```
 
-These are symbol-parameterized. USDJPY#-specific NR7-1 evidence files remain unchanged.
+These are symbol-parameterized. USDJPY#-specific NR7-1 evidence remains unchanged.
 
-## 4. Automated checks
+## 4. Actual MT4 export evidence — PASS
 
-After one MT4 export of `GOLD#`, `RUN_NR7_2_GOLD.cmd` performs:
+Observed on the target XM MT4 host on 2026-09-15.
+
+`NCA_NormalRun_Exporter` completed on `GOLD#` and reported:
+
+```text
+NCA NORMAL RUN EXPORT COMPLETE: GOLD# D1=600 H4=600 H1=600 M15=600
+```
+
+The same completion line was observed from multiple GOLD# chart timeframes because the exporter was run more than once. This is not required for normal operation, but it confirms that the one-shot exporter resolves the exact chart symbol consistently regardless of which GOLD# timeframe initiated it.
+
+Result:
+
+```text
+GOLD# exact symbol identity: PASS
+D1 closed bars: 600 PASS
+H4 closed bars: 600 PASS
+H1 closed bars: 600 PASS
+M15 closed bars: 600 PASS
+```
+
+## 5. Automated checks to run next
+
+`setup/RUN_NR7_2_GOLD.cmd` will perform:
 
 1. shared Normal Run synthetic selftest;
 2. Normal Run rebuild for D1 / H4 / H1 / M15;
@@ -53,9 +75,7 @@ After one MT4 export of `GOLD#`, `RUN_NR7_2_GOLD.cmd` performs:
 6. snapshot schema / exact symbol / timeframe / role / generation-role / unique-ID validation;
 7. failed-publication safe-retention probe proving the valid GOLD# snapshot is not overwritten by an invalid new state.
 
-The regression compares geometry at the last confirmed structural event using the existing detector / candidate-builder / selector. It does not compare GOLD# to USDJPY# geometry.
-
-## 5. Expected automated PASS contract
+Expected automated PASS contract:
 
 ```text
 all_inputs_present = true
@@ -68,20 +88,16 @@ safe snapshot retention = PASS
 overall_status = PASS
 ```
 
-Snapshot object counts are derived from the actual validated GOLD# snapshot and printed per timeframe; NR7-2 does not assume every symbol/timeframe must always have exactly 16 rows.
+Snapshot object counts are derived from the actual validated GOLD# snapshot; NR7-2 does not assume every symbol/timeframe must always have exactly 16 rows.
 
-## 6. Host checks still required
+## 6. Host checks remaining after automated PASS
 
-These cannot be certified from GitHub-only execution:
+1. run `setup/RUN_NR7_2_GOLD.cmd` and require automated PASS;
+2. run `NCA_NormalRun_Renderer` once on GOLD# D1 / H4 / H1 / M15;
+3. renderer object counts must match the snapshot-derived expected count printed by the runner;
+4. `Ctrl+B` on at least H1 must show production names beginning `NCA_DRAW__NCA_GOLD#_...` and preserve non-`NCA_DRAW__` objects.
 
-1. open actual XM `GOLD#` chart in MT4①;
-2. run `NCA_NormalRun_Exporter` once;
-3. confirm D1 / H4 / H1 / M15 closed-bar exports are non-zero (target 600 when available);
-4. run `setup/RUN_NR7_2_GOLD.cmd`;
-5. require automated PASS;
-6. run `NCA_NormalRun_Renderer` once on GOLD# D1 / H4 / H1 / M15;
-7. renderer object counts must match the snapshot-derived expected count printed by the runner;
-8. `Ctrl+B` on at least H1 must show production names beginning `NCA_DRAW__NCA_GOLD#_...` and preserve non-`NCA_DRAW__` objects.
+A repeat of the NR7-1 renderer-failure-retention probe is optional unless GOLD# exposes symbol-specific failure behavior; the production renderer code path is shared and already closed on USDJPY#.
 
 ## 7. Performance treatment
 
@@ -107,7 +123,7 @@ GENERIC REGRESSION HARNESS: READY
 GENERIC SAFE RETENTION: READY
 DOUBLE-CLICK GOLD RUNNER: READY
 DETECTOR / SELECTION SEMANTICS CHANGED: NO
-GOLD# MT4 EXPORT: PENDING USER PC
+GOLD# MT4 EXPORT: PASS (600 x 4TF)
 GOLD# AUTOMATED RUN: PENDING USER PC
 GOLD# 4TF RENDER: PENDING USER PC
 FINAL NR7-2 PASS: NOT YET CLAIMED
