@@ -1,6 +1,6 @@
 # NCA Normal Run Implementation Progress — 2026-09-14
 
-Status: **NR0-NR6 IMPLEMENTED IN BRANCH / RUNTIME VERIFICATION PENDING**
+Status: **NR0-NR6 IMPLEMENTED / NR7-1 HARNESS READY / MT4 RUNTIME VERIFICATION PENDING**
 
 Repository: `toootakeooot-bit/noda-chart-annotator`  
 Specification baseline branch: `feature/live-draw-baseline-v1`  
@@ -115,17 +115,39 @@ Automated execution has not yet been performed in this connector environment.
 
 ## NR7 — regression / multi-symbol runtime verification
 
-PENDING. Requires actual MT4/Python host execution.
+IN PROGRESS.
 
-Required order:
+### NR7-1 USDJPY#
 
-1. USDJPY# — compare with existing known-good drawing;
+AUTOMATED HARNESS READY / MT4 RUNTIME EVIDENCE PENDING.
+
+Added:
+
+- `tools/nr7_1_usdjpy_regression.py`
+  - uses the same Normal Run closed-bar files for both comparison paths;
+  - compares legacy full-history final selection geometry against Normal Run rebuilt `current` for D1/H4/H1/M15 and LARGE_DOW/MID_DOW;
+  - checks direction, anchors, CH offset and zone width;
+  - checks that rebuilt `previous` is generation-adjacent and is the second-last reconstructed transition when present;
+  - validates Normal Run PASS audit and published snapshot.
+- `setup/run_nr7_1_usdjpy.ps1`
+  - verifies all 4 exported inputs exist;
+  - runs Normal Run;
+  - records elapsed time;
+  - runs the regression harness;
+  - returns non-zero on mismatch.
+- `audit/NR7_1_USDJPY_REGRESSION_AUDIT_20260914.md`
+  - fixes automated PASS criteria and remaining host checks.
+
+Final NR7-1 PASS is not claimed until actual USDJPY# data is exported and MT4 compile/render/manual-object checks are observed on the user's PC.
+
+Remaining NR7 order after USDJPY# PASS:
+
 2. GOLD#;
 3. US100Cash#;
 4. JP225Cash#;
 5. at least one additional XM MT4 symbol to prove no initial-symbol hard-code remains.
 
-Also verify:
+Also verify across NR7:
 
 - current + true previous behavior after a long gap;
 - CH follows each TL generation;
