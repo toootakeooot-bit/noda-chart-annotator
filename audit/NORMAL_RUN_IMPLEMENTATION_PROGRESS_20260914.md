@@ -1,6 +1,6 @@
-# NCA Normal Run Implementation Progress — 2026-09-14
+# NCA Normal Run Implementation Progress — 2026-09-15
 
-Status: **NR0-NR6 IMPLEMENTED / NR7-1 HARNESS READY / MT4 RUNTIME VERIFICATION PENDING**
+Status: **NR0-NR6 IMPLEMENTED / NR7-1 CLOSED / NR7-2 READY FOR GOLD# HOST RUN**
 
 Repository: `toootakeooot-bit/noda-chart-annotator`  
 Specification baseline branch: `feature/live-draw-baseline-v1`  
@@ -16,159 +16,204 @@ PASS.
 
 ## NR1 — user-initiated Normal Run input
 
-IMPLEMENTED, MT4 COMPILE/RUNTIME CHECK PENDING.
+IMPLEMENTED / HOST VERIFIED ON USDJPY#.
 
-Added `mt4/NCA_NormalRun_Exporter.mq4`:
+`mt4/NCA_NormalRun_Exporter.mq4`:
 
 - one-shot MT4 Script;
-- no timer;
-- no continuous monitoring;
-- exports only closed bars (`shift >= 1`);
+- no timer / continuous monitoring;
+- exact current MT4 `Symbol()` identity;
+- exports closed bars only (`shift >= 1`);
 - D1 / H4 / H1 / M15;
 - default 600 bars per timeframe;
 - writes to MT4 Common Files `noda_draw/live_input`.
 
 ## NR2 — XM symbol generalization
 
-IMPLEMENTED, MULTI-SYMBOL RUNTIME CHECK PENDING.
+IMPLEMENTED / MULTI-SYMBOL RUNTIME VERIFICATION IN PROGRESS.
 
 - exact MT4 `Symbol()` value is canonical identity;
-- no USDJPY/GOLD/US100/JP225 allowlist in the new Normal Run path;
-- filesystem-safe symbol fragments are used only for file names;
-- exact XM symbol remains unchanged inside state/snapshot data.
+- no USDJPY/GOLD/US100/JP225 allowlist in production Normal Run path;
+- filesystem-safe fragment is used only for file paths;
+- exact XM symbol remains unchanged inside state / audit / snapshot.
 
-## NR3 — chronological History Rebuild
+USDJPY# passed. GOLD# is next.
 
-IMPLEMENTED IN PYTHON, PERFORMANCE/REFERENCE-RUN CHECK PENDING.
+## NR3 — History Rebuild
 
-Added `tools/live_draw/normal_run.py`:
+IMPLEMENTED / OPTIMIZED / USDJPY# HOST VERIFIED.
 
-- every Normal Run starts from an empty lifecycle state;
-- historical closed-bar prefixes are evaluated chronologically;
-- existing detector/geometry/selector logic is reused;
-- intervening TL generations can therefore advance lifecycle state;
-- final `previous` is derived from reconstructed history rather than prior persisted Normal Run state;
-- no prior state file is loaded as authority.
+Normal Run rebuild starts from empty lifecycle state on every run and reconstructs generations from closed-bar history.
 
-Important: v1 intentionally favors correctness/auditability over speed and currently performs prefix replay. Optimization is deferred until measured.
+After the initial full-prefix replay measured approximately 380.62 sec on USDJPY#, the implementation was optimized to evaluate expensive channel-candidate generation / selection only at confirmed structural Turn events.
+
+USDJPY# optimized host measurement:
+
+```text
+49.755 seconds
+```
+
+This is approximately 86.9% shorter / 7.65x faster than the original captured run. No cross-symbol hard timing threshold has been fixed.
 
 ## NR4 — Safe Snapshot
 
-IMPLEMENTED IN PYTHON, WINDOWS/MT4 FILE-LOCK CHECK PENDING.
+IMPLEMENTED / USDJPY# HOST VERIFIED.
 
-Added validated temporary snapshot publication:
+Publication order:
 
-1. rebuild state;
-2. write temporary snapshot;
-3. validate header, symbol, timeframe, role, object-id uniqueness and numeric prices;
-4. publish with `os.replace` only after PASS;
-5. on failure, the previous published snapshot is left untouched.
+```text
+rebuild
+ -> validate state
+ -> write temporary snapshot
+ -> validate snapshot
+ -> atomic replace only after PASS
+```
 
-The rebuilt JSON state is evidence/output only and is not reused as next-run `previous` authority.
+Invalid publication probe proved that a valid published snapshot remains byte-identical when the candidate snapshot fails validation.
 
 ## NR5 — production renderer boundary
 
-IMPLEMENTED AS ONE-SHOT SCRIPT, MT4 COMPILE/RUNTIME CHECK PENDING.
+IMPLEMENTED / USDJPY# HOST VERIFIED.
 
-Added `mt4/NCA_NormalRun_Renderer.mq4`:
+`mt4/NCA_NormalRun_Renderer.mq4`:
 
 - production ownership prefix = `NCA_DRAW__`;
-- exact current `Symbol()` + current D1/H4/H1/M15 chart timeframe filter;
-- two-pass check before owned-object deletion;
-- only `NCA_DRAW__` objects are deleted/replaced;
-- user/manual MT4 objects are untouched;
-- no timer / continuous polling / trade function.
+- exact current symbol + current D1/H4/H1/M15 timeframe filter;
+- two-pass read/validation before deleting owned objects;
+- only `NCA_DRAW__` objects are replaceable;
+- non-`NCA_DRAW__` objects remain untouched;
+- no timer / polling / trade functions.
 
-## NR6 — one-shot local launcher / symbol auto-detection
+USDJPY# failure injection confirmed that when the snapshot is unavailable the renderer logs:
 
-PARTIALLY IMPLEMENTED.
+```text
+no validated renderable rows; keeping existing drawing. code=-1
+```
 
-Added:
+and keeps the existing 16 H1 `NCA_DRAW__` objects.
+
+## NR6 — Normal Run launcher
+
+IMPLEMENTED.
+
+Current reusable components:
 
 - `tools/run_normal.py`
-  - rebuilds all four timeframes;
-  - can accept exact `--symbol`;
-  - if omitted, auto-detects the symbol from the most recent MT4 Normal Run export-status file;
-  - publishes state/audit/snapshot only through the Normal Run path.
 - `setup/run_normal.ps1`
-  - runs the Python Normal Run against MT4 Common Files.
 - `setup/install_normal_run_v1.ps1`
-  - installs Exporter/Renderer into an explicitly supplied MT4 DataFolder `MQL4/Scripts` directory.
+- `mt4/NCA_NormalRun_Exporter.mq4`
+- `mt4/NCA_NormalRun_Renderer.mq4`
 
-Still not implemented as a literal single-click end-to-end MT4 action. Current practical sequence remains:
+Practical production sequence remains user-initiated:
 
-1. run `NCA_NormalRun_Exporter` on the desired chart;
-2. run `setup/run_normal.ps1`;
-3. run `NCA_NormalRun_Renderer` on each desired D1/H4/H1/M15 chart.
+```text
+MT4 Exporter once
+ -> Python Normal Run once
+ -> Renderer once on each desired D1/H4/H1/M15 chart
+```
 
-## Tests added
-
-`tests/selftest_normal_run.py` added for:
-
-- symbol filename safety;
-- chronological rebuild entry point;
-- rebuilt-state validation;
-- generation adjacency where previous exists;
-- safe validated snapshot publication.
-
-Automated execution has not yet been performed in this connector environment.
+No continuous monitoring is introduced.
 
 ## NR7 — regression / multi-symbol runtime verification
 
 IN PROGRESS.
 
-### NR7-1 USDJPY#
+### NR7-1 USDJPY# — FINAL PASS / CLOSED
 
-AUTOMATED HARNESS READY / MT4 RUNTIME EVIDENCE PENDING.
+Host evidence established:
+
+```text
+D1/H4/H1/M15 export: 600 each
+snapshot: 64/64 PASS
+D1 render: 16
+H4 render: 16
+H1 render: 16
+M15 render: 16
+current + true previous: PASS
+NCA_DRAW__ ownership: PASS
+non-NCA_DRAW__ retention: PASS
+invalid snapshot publication retention: PASS
+actual MT4 missing-snapshot drawing retention: PASS
+snapshot restore SHA256: PASS
+optimized elapsed: 49.755 sec
+```
+
+Detailed evidence: `audit/NR7_1_USDJPY_REGRESSION_AUDIT_20260914.md`.
+
+### NR7 common harness — READY
+
+Added reusable symbol-parameterized harnesses:
+
+```text
+tools/nr7_symbol_regression.py
+tools/nr7_safe_retention.py
+setup/run_nr7_symbol.ps1
+```
+
+The generic regression:
+
+- compares published Normal Run current geometry to the existing selector at the last confirmed structural event;
+- checks reconstructed previous-generation adjacency;
+- validates exact XM symbol identity;
+- validates snapshot roles / timeframes / generation roles / unique IDs;
+- reports actual snapshot row counts per timeframe rather than assuming a fixed count for every symbol.
+
+### NR7-2 GOLD# — HARNESS READY / HOST PENDING
 
 Added:
 
-- `tools/nr7_1_usdjpy_regression.py`
-  - uses the same Normal Run closed-bar files for both comparison paths;
-  - compares legacy full-history final selection geometry against Normal Run rebuilt `current` for D1/H4/H1/M15 and LARGE_DOW/MID_DOW;
-  - checks direction, anchors, CH offset and zone width;
-  - checks that rebuilt `previous` is generation-adjacent and is the second-last reconstructed transition when present;
-  - validates Normal Run PASS audit and published snapshot.
-- `setup/run_nr7_1_usdjpy.ps1`
-  - verifies all 4 exported inputs exist;
-  - runs Normal Run;
-  - records elapsed time;
-  - runs the regression harness;
-  - returns non-zero on mismatch.
-- `audit/NR7_1_USDJPY_REGRESSION_AUDIT_20260914.md`
-  - fixes automated PASS criteria and remaining host checks.
+```text
+setup/RUN_NR7_2_GOLD.cmd
+audit/NR7_2_GOLD_REGRESSION_AUDIT_20260915.md
+```
 
-Final NR7-1 PASS is not claimed until actual USDJPY# data is exported and MT4 compile/render/manual-object checks are observed on the user's PC.
+Next host sequence:
 
-Remaining NR7 order after USDJPY# PASS:
+```text
+GOLD# MT4 Exporter once
+ -> RUN_NR7_2_GOLD.cmd
+ -> Renderer on GOLD# D1/H4/H1/M15
+ -> object-count / prefix verification
+```
 
-2. GOLD#;
-3. US100Cash#;
-4. JP225Cash#;
-5. at least one additional XM MT4 symbol to prove no initial-symbol hard-code remains.
+### NR7-3 US100Cash# — RUNNER PREPARED
 
-Also verify across NR7:
+Added:
 
-- current + true previous behavior after a long gap;
-- CH follows each TL generation;
-- manual line protection;
-- failure keeps last valid drawing;
-- acceptable Normal Run elapsed time with 600 bars x 4 TF.
+```text
+setup/RUN_NR7_3_US100Cash.cmd
+```
+
+Execution is deferred until GOLD# passes.
+
+### NR7-4 JP225Cash# — RUNNER PREPARED
+
+Added:
+
+```text
+setup/RUN_NR7_4_JP225Cash.cmd
+```
+
+Execution is deferred until prior symbols pass.
+
+### NR7-5 arbitrary XM symbol
+
+No dedicated code is needed. `setup/run_nr7_symbol.ps1 -Symbol <exact MT4 Symbol()>` is the generic proof path for at least one additional XM symbol.
 
 ## NR8 — HL / direction arrow
 
 NOT STARTED.
 
-Deliberately deferred until TL/CH Normal Run regression passes. Boundary scope remains unchanged; this is an implementation gap only.
+Deliberately deferred until TL/CH multi-symbol Normal Run regression is complete. Boundary scope remains unchanged; this is an implementation gap only.
 
 ## Safety boundaries preserved
 
-No implementation in this branch introduces:
+No Normal Run implementation introduces:
 
 - TC dependency;
 - ChatGPT runtime dependency;
 - NODA Engine write-back;
-- order send/close/modify;
-- SL/TP/lot/ticket authority.
+- order send / close / modify;
+- SL / TP / lot / ticket authority.
 
-Existing NCA detector/selection semantics were reused rather than rewritten.
+Existing detector / geometry / selection semantics remain reused rather than rewritten for symbol-generalization tests.
