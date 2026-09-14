@@ -1,6 +1,7 @@
 # NODA Chart Annotator
 
 Top-level contract: **NCA Boundary v1**  
+Operational contract: **NCA Drawing Operation v1**  
 Technical baseline: **NCA Live Draw Baseline v1 (subordinate to Boundary v1)**
 
 ## Boundary v1
@@ -10,8 +11,9 @@ The active system boundary is fixed as follows:
 - draw destination: **MT4① only**;
 - canonical symbol identity: **XM MT4 symbol names**;
 - drawing scope: **TL / HL / CH / direction arrow**;
-- judgment owner: **ChatGPT**;
-- MT4① receives and renders drawing instructions;
+- runtime drawing judgment: **NCA local logic (currently Python)**;
+- ChatGPT is **not** part of the runtime drawing judgment path;
+- MT4① renders the resulting drawing state;
 - **TC is not used, is not a dependency, and no future TC integration is planned**;
 - TC consumption is out of scope;
 - market-hours logic is not used as a judgment/execution condition;
@@ -20,9 +22,23 @@ The active system boundary is fixed as follows:
 
 `docs/BOUNDARY_V1.md` has precedence over older NCA documents where they conflict.
 
+## Drawing Operation v1
+
+The active operating contract is fixed in `docs/DRAWING_OPERATION_V1.md`:
+
+- XM MT4① symbols are supported in principle without a per-symbol allowlist/hard-code boundary;
+- basic timeframes are **D1 / H4 / H1 / M15**;
+- each timeframe independently triggers monitoring/re-evaluation when one new closed bar is confirmed;
+- a trigger does **not** itself mean redraw;
+- TL display keeps **current + immediately previous** generations;
+- CH follows its parent TL lifecycle;
+- production managed-object prefix is **`NCA_DRAW__`**;
+- objects outside the managed prefix are treated as user/manual objects and must not be touched;
+- runtime drawing judgment stays in NCA local logic (currently Python), with MT4① as renderer.
+
 ## Existing Live Draw technical material
 
-The existing Live Draw detector/lifecycle/renderer material remains available as technical assets, but conflicting clauses are subordinate to Boundary v1 and require later review before being treated as active implementation requirements.
+The existing Live Draw detector/lifecycle/renderer material remains available as technical assets, but conflicting clauses are subordinate to Boundary v1 and Drawing Operation v1 and require later review before being treated as active implementation requirements.
 
 Operational environments currently documented are:
 
@@ -32,6 +48,7 @@ Operational environments currently documented are:
 See:
 
 - `docs/BOUNDARY_V1.md`
+- `docs/DRAWING_OPERATION_V1.md`
 - `audit/BOUNDARY_V1_AUDIT_20260914.md`
 - `docs/LIVE_DRAW_BASELINE_V1.md`
 - `docs/LIVE_DRAW_LIFECYCLE_V1.md`
