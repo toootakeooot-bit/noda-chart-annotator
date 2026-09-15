@@ -243,16 +243,18 @@ def main() -> int:
     gt7 = cases['GT_0007']
 
     report = {
-        'schema': 'nvt6-ownership-feature-probe/0.1',
+        'schema': 'nvt6-ownership-feature-probe/0.2',
         'status': 'RESEARCH_ONLY',
         'cases': cases,
         'comparison_guards': {
             'gt0006_is_positive_h1_line_case': True,
             'gt0007_is_timeframe_global_no_line_control': True,
-            'gt0005_excluded_from_candidate_level_learning': True,
+            'gt0005_processed_before_gt0006_as_display_suppression_control': True,
+            'gt0005_excluded_from_ownership_negative_learning': True,
             'gt0005_reason': (
-                'GT_0005 shares the same market snapshot as GT_0006 but rejects a specific structure, '
-                'not the whole H1 timeframe; its rejected target is not yet identified.'
+                'GT_0005 is a valid small-Dow turn line that is intentionally not displayed because '
+                'its steep angle makes it short-lived and showing every such line would create '
+                'display clutter. It is not an ownership rejection.'
             ),
             'single_positive_single_negative_control_cannot_fix_production_rule': True,
         },
@@ -278,10 +280,12 @@ def main() -> int:
             'peer-relative slope rank may matter only after ownership is established',
             'anchor2 wick strength should be treated as a penalty/tag, not a hard deletion',
             'cluster-right-edge still requires a separate evidence-driven cluster definition',
+            'GT_0005 steep-angle age/lifetime and display-clutter policy belong to later visibility/lifecycle scoring',
         ],
         'interpretation_guard': (
-            'This probe extracts features only. It does not define an ownership rule, '
-            'does not select a teacher line, and must not modify production NCA or MT4.'
+            'This probe extracts ownership features only. It does not define an ownership rule, '
+            'does not select a teacher line, and must not modify production NCA or MT4. GT_0005 '
+            'display suppression is intentionally kept separate from ownership validity.'
         ),
         'production_writeback': False,
         'normal_run_modified': False,
