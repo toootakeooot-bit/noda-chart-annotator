@@ -15,23 +15,29 @@ function Safe-FileSymbol([string]$Value) {
 }
 
 $safe = Safe-FileSymbol $BrokerSymbol
+$gtDir = Join-Path $RepoRoot 'nvt\ground_truth'
 
-Write-Host 'NVT3 STEP 0: synthetic diff selftest'
+Write-Host 'NVT3 STEP 0A: Ground Truth JSON validation'
+& $Python (Join-Path $RepoRoot 'tools\nvt\validate_ground_truth.py') '--ground-truth-dir' $gtDir
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "NVT3 FAIL: Ground Truth validation failed exit=$LASTEXITCODE"
+  exit $LASTEXITCODE
+}
+Write-Host ''
+
+Write-Host 'NVT3 STEP 0B: synthetic diff selftest'
 & $Python (Join-Path $RepoRoot 'tests\selftest_nvt3.py')
 if ($LASTEXITCODE -ne 0) {
   Write-Host "NVT3 SELFTEST FAILED exit=$LASTEXITCODE"
   exit $LASTEXITCODE
 }
 
-# A run must score only reports generated in that run. Stale research reports
-# from a previous partial/failed run are removed here; production files are not touched.
+# Score only reports generated in this run. Clear prior NVT research diffs only.
 Get-ChildItem -Path $diffDir -Filter 'diff_*.json' -ErrorAction SilentlyContinue | Remove-Item -Force
 
-$gtDir = Join-Path $RepoRoot 'nvt\ground_truth'
 $caseIndex = Join-Path $nvtOutput 'NVT3_CASE_INDEX.tsv'
 
-# IMPORTANT: PowerShell 5.1 ConvertFrom-Json is not used for Ground Truth.
-# Python parses UTF-8 teacher evidence and exports an ASCII-only case index.
+# Python parses UTF-8 Ground Truth and exports an ASCII-only case index.
 & $Python (Join-Path $RepoRoot 'tools\nvt\build_case_index.py') `
   '--ground-truth-dir' $gtDir `
   '--symbol' 'USDJPY' `
@@ -111,6 +117,7 @@ Write-Host "Metrics: $metrics"
 Write-Host ''
 Write-Host 'NOTE: FAIL means Teacher/NCA mismatch evidence, not a runner failure.'
 Write-Host 'PENDING_GROUND_TRUTH means exact teacher anchors are not locked yet.'
+Write-Host 'Ground Truth is syntax-validated before comparison.'
 Write-Host 'Ground Truth JSON parsing is owned by Python; PowerShell 5.1 does not parse teacher-evidence JSON.'
 Write-Host 'Only NVT research diff_*.json from a prior run are cleared; production files are untouched.'
 Write-Host 'No production NCA code/state/snapshot/MT4 object was modified.'
