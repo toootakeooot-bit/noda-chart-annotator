@@ -29,6 +29,22 @@ def norm_direction(value: str | None) -> str | None:
     return value
 
 
+def symbol_equivalent(teacher_symbol: str | None, broker_symbol: str | None) -> bool:
+    """Research-only equivalence for reference notation vs XM broker symbol.
+
+    Production NCA keeps the exact XM MT4 Symbol() string canonical. NVT source
+    evidence may label USDJPY while the XM dump is USDJPY#. Only that single
+    trailing-# difference is accepted here; broader alias guessing is prohibited.
+    """
+    if not teacher_symbol or not broker_symbol:
+        return False
+    a = teacher_symbol.strip()
+    b = broker_symbol.strip()
+    if a == b:
+        return True
+    return (a + '#') == b or (b + '#') == a
+
+
 def candidate_selected(candidate: dict, dump: dict) -> bool:
     cid = candidate.get('candidate_id')
     return bool(
@@ -99,8 +115,6 @@ def compare_teacher_object(obj: dict, dump: dict, tolerance_bars: int) -> dict:
             continue
         d1 = anchor_match_distance(str(a1_time), c.get('anchor1') or {}, candidates)
         d2 = anchor_match_distance(str(a2_time), c.get('anchor2') or {}, candidates)
-        # Exact timestamps are preferred. +/- tolerance is allowed only when
-        # teacher timestamps can be mapped to the candidate dump's pivot universe.
         if d1 is None or d2 is None:
             continue
         if d1 <= tolerance_bars and d2 <= tolerance_bars:
@@ -130,8 +144,6 @@ def compare_teacher_object(obj: dict, dump: dict, tolerance_bars: int) -> dict:
     if not result['selector_match']:
         result['failure_classes'].append('SELECTION')
 
-    # CH comparison remains separate. It is assessed only when the Ground Truth
-    # explicitly provides a CH/opposite anchor field in a future/extended schema.
     teacher_ch_time = obj.get('ch_anchor_time') or obj.get('opposite_anchor_time')
     if is_known(teacher_ch_time):
         result['channel_match'] = 'PENDING_CH_TIME_RESOLUTION'
@@ -143,7 +155,7 @@ def compare_teacher_object(obj: dict, dump: dict, tolerance_bars: int) -> dict:
 
 def compare_case(gt: dict, dump: dict, tolerance_bars: int) -> dict:
     case_id = gt.get('case_id')
-    symbol_match = gt.get('symbol') == dump.get('symbol')
+    symbol_match = symbol_equivalent(gt.get('symbol'), dump.get('symbol'))
     timeframe_match = gt.get('timeframe') == dump.get('timeframe')
     teacher_objects = gt.get('teacher_objects') or []
 
@@ -151,10 +163,12 @@ def compare_case(gt: dict, dump: dict, tolerance_bars: int) -> dict:
         'schema': 'nvt-teacher-nca-diff/1.0',
         'case_id': case_id,
         'ground_truth_status': gt.get('annotation_status'),
-        'symbol': gt.get('symbol'),
+        'teacher_symbol': gt.get('symbol'),
+        'candidate_dump_symbol': dump.get('symbol'),
         'timeframe': gt.get('timeframe'),
         'candidate_dump_cutoff': dump.get('effective_last_closed_bar'),
         'symbol_match': symbol_match,
+        'symbol_match_policy': 'EXACT_OR_SINGLE_TRAILING_HASH_ONLY',
         'timeframe_match': timeframe_match,
         'structure_scale_match': timeframe_match,
         'anchor_tolerance_bars': tolerance_bars,
@@ -225,7 +239,6 @@ def main() -> int:
         'failure_classes': report['failure_classes'],
         'output': str(out),
     }, ensure_ascii=False, indent=2))
-    # PENDING is not a tooling failure. Exit nonzero only for invalid invocation/data.
     return 0
 
 
