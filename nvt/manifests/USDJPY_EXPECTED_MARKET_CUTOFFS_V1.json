@@ -1,0 +1,44 @@
+{
+  "schema": "nvt-market-cutoff-manifest/1.0",
+  "status": "DAY_LEVEL_CONFIRMED_EXACT_BROKER_TIME_PENDING",
+  "symbol": "USDJPY",
+  "derivation": "Each source is a weekend analysis video; the latest normal FX market session is the immediately preceding Friday. Exact XM/broker timestamp of the final closed H1/H4 bar remains to be verified from exported OHLC.",
+  "sources": [
+    {
+      "source_id": "NVT_VIDEO_20260808",
+      "source_date": "2026-08-08",
+      "source_weekday": "Saturday",
+      "expected_last_market_date": "2026-08-07",
+      "confidence": "HIGH_DAY_ONLY"
+    },
+    {
+      "source_id": "NVT_VIDEO_20260822",
+      "source_date": "2026-08-22",
+      "source_weekday": "Saturday",
+      "expected_last_market_date": "2026-08-21",
+      "confidence": "HIGH_DAY_ONLY"
+    },
+    {
+      "source_id": "NVT_VIDEO_20260830",
+      "source_date": "2026-08-30",
+      "source_weekday": "Sunday",
+      "expected_last_market_date": "2026-08-28",
+      "confidence": "HIGH_DAY_ONLY"
+    },
+    {
+      "source_id": "NVT_VIDEO_20260905",
+      "source_date": "2026-09-05",
+      "source_weekday": "Saturday",
+      "expected_last_market_date": "2026-09-04",
+      "confidence": "HIGH_DAY_ONLY"
+    },
+    {
+      "source_id": "NVT_VIDEO_20260912",
+      "source_date": "2026-09-12",
+      "source_weekday": "Saturday",
+      "expected_last_market_date": "2026-09-11",
+      "confidence": "HIGH_DAY_ONLY"
+    }
+  ],
+  "usage_rule": "NVT5 may use these dates to select the intended historical session, but must derive the exact final closed bar timestamp from the actual broker OHLC data rather than inventing a clock time."
+}
