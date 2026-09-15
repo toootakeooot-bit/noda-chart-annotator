@@ -1,0 +1,68 @@
+{
+  "corpus_id": "USDJPY_VIDEO_CORPUS_20260808_20260912",
+  "status": "DRAFT_SOURCE_CORPUS",
+  "primary_symbol": "USDJPY",
+  "collection_policy": {
+    "primary_source": "VIDEO",
+    "still_images": "DERIVED_EVIDENCE_FRAMES",
+    "initial_window": "2026-08-06..2026-09-15",
+    "production_nca_change_allowed": false
+  },
+  "sources": [
+    {
+      "source_id": "NVT_VIDEO_20260808",
+      "title": "分析共有 26-8-8.mkv",
+      "container": "mkv",
+      "duration_seconds": 2711.92,
+      "video": "VP9 2228x988 25fps",
+      "audio": "Opus 48kHz stereo",
+      "subtitle": "Japanese WebVTT embedded",
+      "symbol_scope": "USDJPY primary",
+      "status": "INGESTED"
+    },
+    {
+      "source_id": "NVT_VIDEO_20260822",
+      "title": "分析共有 26-8-22.mkv",
+      "container": "mkv",
+      "duration_seconds": 1609.52,
+      "video": "VP9 2248x1004",
+      "audio": "Opus 48kHz stereo",
+      "subtitle": "Japanese WebVTT embedded",
+      "symbol_scope": "USDJPY primary",
+      "status": "INGESTED"
+    },
+    {
+      "source_id": "NVT_VIDEO_20260830",
+      "title": "分析共有_26-8-30.mkv",
+      "container": "mkv",
+      "duration_seconds": 1309.279,
+      "video": "VP9 2214x1004",
+      "audio": "Opus 48kHz stereo",
+      "subtitle": "Japanese WebVTT embedded",
+      "symbol_scope": "USDJPY primary",
+      "status": "INGESTED"
+    },
+    {
+      "source_id": "NVT_VIDEO_20260905",
+      "title": "分析共有_26-9-5.mkv",
+      "container": "mkv",
+      "duration_seconds": 1559.399,
+      "video": "VP9 2204x1004",
+      "audio": "Opus 48kHz stereo",
+      "subtitle": "Japanese WebVTT embedded",
+      "symbol_scope": "USDJPY primary",
+      "status": "INGESTED"
+    },
+    {
+      "source_id": "NVT_VIDEO_20260912",
+      "title": "分析共有_26-9-12.mp4",
+      "container": "mp4",
+      "duration_seconds": 2074.935,
+      "video": "H264 1920x1080",
+      "audio": "AAC 44.1kHz stereo",
+      "subtitle": "Japanese timed-text embedded",
+      "symbol_scope": "USDJPY primary",
+      "status": "INGESTED"
+    }
+  ]
+}
