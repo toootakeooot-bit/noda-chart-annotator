@@ -101,31 +101,40 @@ def main() -> int:
             'evidence_path': str(evidence_path),
         })
 
-    positive = next(x for x in case_summaries if x['case_id'] == 'GT_0006')
-    negatives = [x for x in case_summaries if x['case_id'] in {'GT_0005', 'GT_0007'}]
+    by_case = {x['case_id']: x for x in case_summaries}
+    gt5 = by_case['GT_0005']
+    gt6 = by_case['GT_0006']
+    gt7 = by_case['GT_0007']
 
-    positive_recall = positive['candidate_evidence']['p38_micro_count'] > 0
-    negative_controls_need_gate = all(
-        x['observation'] == 'NEGATIVE_CONTROL_HAS_CANDIDATES_GATE_REQUIRED'
-        for x in negatives
+    positive_recall = gt6['candidate_evidence']['p38_micro_count'] > 0
+    gt7_global_no_line = (
+        gt7['teacher_expectation']['no_line_scope'] == 'TIMEFRAME_GLOBAL'
+    )
+    gt7_candidates_present = gt7['candidate_evidence']['directional_candidate_count'] > 0
+    gt5_structure_specific = (
+        gt5['teacher_expectation']['no_line_scope'] == 'STRUCTURE_SPECIFIC'
     )
 
     summary = {
-        'schema': 'nvt6-structure-ownership-preflight/0.1',
+        'schema': 'nvt6-structure-ownership-preflight/0.2',
         'status': 'PASS',
         'mode': 'RESEARCH_ONLY',
         'cases': case_summaries,
         'preflight_findings': {
             'gt0006_p38_micro_recall_present': positive_recall,
-            'no_line_controls_contain_recognized_candidates': negative_controls_need_gate,
+            'gt0007_timeframe_global_no_line_evidence': gt7_global_no_line,
+            'gt0007_candidates_still_present': gt7_candidates_present,
+            'gt0005_structure_specific_no_line_evidence': gt5_structure_specific,
+            'gt0005_rejected_structure_target_identification_required': gt5_structure_specific,
             'ownership_gate_required_before_selector': bool(
-                positive_recall and negative_controls_need_gate
+                positive_recall and (gt7_global_no_line or gt5_structure_specific)
             ),
         },
         'interpretation': (
-            'PASS means the research evidence matrix was generated. It does not mean '
-            'an ownership rule has been validated. GT_0005 and GT_0007 remain mandatory '
-            'NO-LINE controls and must not be overridden by selector score.'
+            'GT_0007 may be used as a timeframe-global NO-LINE control. GT_0005 is '
+            'structure-specific and must not label every other H1 candidate at the same '
+            'cutoff as negative. Its rejected structure needs a separate target identity '
+            'before candidate-level ownership scoring.'
         ),
         'production_writeback': False,
         'normal_run_modified': False,
@@ -138,11 +147,7 @@ def main() -> int:
     print(json.dumps({
         'status': 'PASS',
         'summary': str(summary_path),
-        'gt0006_p38_micro_recall_present': positive_recall,
-        'no_line_controls_contain_recognized_candidates': negative_controls_need_gate,
-        'ownership_gate_required_before_selector': summary['preflight_findings'][
-            'ownership_gate_required_before_selector'
-        ],
+        **summary['preflight_findings'],
     }, ensure_ascii=False, indent=2))
     return 0
 
