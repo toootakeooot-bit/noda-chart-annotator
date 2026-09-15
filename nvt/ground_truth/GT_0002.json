@@ -1,0 +1,78 @@
+{
+  "schema": "nvt-ground-truth/1.0",
+  "case_id": "GT_0002",
+  "source_id": "NVT_VIDEO_20260808",
+  "source_type": "VIDEO",
+  "symbol": "USDJPY",
+  "timeframe": "D1",
+  "decision_time": null,
+  "decision_bar": "2026-08-08 source-date proxy; exact broker bar pending NVT5",
+  "market_data_cutoff": "2026-08-08 source-date proxy; exact cutoff pending NVT5",
+  "source_confidence": "HIGH",
+  "annotation_status": "DRAFT",
+  "source_locator": {
+    "file_name": "分析共有 26-8-8.mkv",
+    "external_reference": "NVT USDJPY video corpus",
+    "video_timestamp_start": "00:10:54",
+    "video_timestamp_end": "00:11:16"
+  },
+  "teacher_objects": [
+    {
+      "object_id": "TEACHER_D1_CH_INITIAL",
+      "object_type": "CH",
+      "direction": "UP",
+      "teacher_role": "REFERENCE",
+      "action": "KEEP",
+      "anchor1_time": "UNKNOWN",
+      "anchor1_price": "UNKNOWN",
+      "anchor2_time": "UNKNOWN",
+      "anchor2_price": "UNKNOWN",
+      "opposite_anchor_time": "UNKNOWN",
+      "opposite_anchor_price": "UNKNOWN",
+      "line_extent": "RAY",
+      "style_class": "THICK_BLUE_CHANNEL",
+      "anchor_bar_status": "CLOSED",
+      "confidence": "HIGH",
+      "notes": [
+        "Teacher states the initial channel may remain because it still has a role and can become a target reference.",
+        "Retention is explicitly conditional on usefulness; excessive channels create clutter."
+      ]
+    },
+    {
+      "object_id": "TEACHER_D1_CH_UPDATED",
+      "object_type": "CH",
+      "direction": "UP",
+      "teacher_role": "CURRENT",
+      "action": "MOVE",
+      "anchor1_time": "UNKNOWN",
+      "anchor1_price": "UNKNOWN",
+      "anchor2_time": "UNKNOWN",
+      "anchor2_price": "UNKNOWN",
+      "opposite_anchor_time": "UNKNOWN",
+      "opposite_anchor_price": "UNKNOWN",
+      "line_extent": "RAY",
+      "style_class": "THICK_BLUE_CHANNEL",
+      "anchor_bar_status": "CLOSED",
+      "confidence": "HIGH",
+      "notes": [
+        "Updated high permits the active channel boundary to be realigned."
+      ]
+    }
+  ],
+  "video_events": [
+    {
+      "event_id": "GT_0002_E1",
+      "video_timestamp": "00:10:54-00:11:16",
+      "market_data_cutoff": "pending exact time-frozen replay",
+      "action": "MOVE",
+      "object_id_before": "TEACHER_D1_CH_INITIAL",
+      "object_id_after": "TEACHER_D1_CH_UPDATED",
+      "observed_reason_text": "The new high can be used to update the channel, while the first channel can remain if it still serves a role such as a target reference; keeping too many channels causes clutter.",
+      "annotator_note": "Core lifecycle evidence against unconditional newest-only replacement.",
+      "confidence": "HIGH"
+    }
+  ],
+  "notes": [
+    "Key future question: model active CH and retained reference CH as distinct lifecycle states rather than simple previous/current chronology."
+  ]
+}
