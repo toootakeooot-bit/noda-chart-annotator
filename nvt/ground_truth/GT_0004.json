@@ -1,0 +1,57 @@
+{
+  "schema": "nvt-ground-truth/1.0",
+  "case_id": "GT_0004",
+  "source_id": "NVT_VIDEO_20260905",
+  "source_type": "VIDEO",
+  "symbol": "USDJPY",
+  "timeframe": "D1",
+  "decision_time": null,
+  "decision_bar": "2026-09-05 source-date proxy; exact broker bar pending NVT5",
+  "market_data_cutoff": "2026-09-05 source-date proxy; exact cutoff pending NVT5",
+  "source_confidence": "HIGH",
+  "annotation_status": "DRAFT",
+  "source_locator": {
+    "file_name": "分析共有_26-9-5.mkv",
+    "external_reference": "NVT USDJPY video corpus",
+    "video_timestamp_start": "00:03:19",
+    "video_timestamp_end": "00:04:45"
+  },
+  "teacher_objects": [
+    {
+      "object_id": "TEACHER_D1_ORIGINAL_RISING_REFERENCE",
+      "object_type": "TL",
+      "direction": "UP",
+      "teacher_role": "MAJOR",
+      "action": "KEEP",
+      "anchor1_time": "UNKNOWN",
+      "anchor1_price": "UNKNOWN",
+      "anchor2_time": "UNKNOWN",
+      "anchor2_price": "UNKNOWN",
+      "line_extent": "RAY",
+      "style_class": "THICK_BLUE_RISING_STRUCTURE",
+      "anchor_bar_status": "CLOSED",
+      "confidence": "HIGH",
+      "notes": [
+        "Teacher says the line retained from the original low had been kept continuously.",
+        "A newer PC-side re-anchoring was acknowledged as a mistaken/less appropriate update for the monitoring purpose because the persistent original line already showed the break.",
+        "The teacher then says the channel should fundamentally remain aligned with its original position."
+      ]
+    }
+  ],
+  "video_events": [
+    {
+      "event_id": "GT_0004_E1",
+      "video_timestamp": "00:03:19-00:04:45",
+      "market_data_cutoff": "pending exact time-frozen replay",
+      "action": "REPLACE",
+      "object_id_before": "PC_REANCHORED_LINE_UNKNOWN",
+      "object_id_after": "TEACHER_D1_ORIGINAL_RISING_REFERENCE",
+      "observed_reason_text": "The long-retained line from the original low should have remained the monitoring reference; re-anchoring it on the PC obscured that it had already been broken.",
+      "annotator_note": "Strong evidence that persistent monitoring reference and newest valid geometric candidate are different concepts.",
+      "confidence": "HIGH"
+    }
+  ],
+  "notes": [
+    "Critical future NVT7 lifecycle case: persistence may be based on monitoring continuity, not chronological previous/current alone."
+  ]
+}
