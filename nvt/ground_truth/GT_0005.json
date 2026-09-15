@@ -31,8 +31,8 @@
     }
   ],
   "notes": [
-    "expected_no_line": "H1 turn-line for the shown large-scale shape",
-    "alternate_valid_task": "lower-timeframe/internal-wave line if that is the intended structure",
-    "schema_gap": "NVT Ground Truth v1 should later add explicit NO_LINE/ABSENT expectation after audit."
+    "expected_no_line=H1 turn-line for the shown large-scale shape",
+    "alternate_valid_task=lower-timeframe/internal-wave line if that is the intended structure",
+    "schema_gap=NVT Ground Truth v1 should later add explicit NO_LINE/ABSENT expectation after audit"
   ]
 }
