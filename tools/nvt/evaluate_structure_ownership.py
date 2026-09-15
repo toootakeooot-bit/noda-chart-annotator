@@ -9,6 +9,10 @@ def load_json(path: str | Path) -> dict:
     return json.loads(Path(path).read_text(encoding='utf-8'))
 
 
+def notes_set(gt: dict) -> set[str]:
+    return {str(x).strip() for x in gt.get('notes', [])}
+
+
 def expected_no_line(gt: dict) -> bool:
     notes = [str(x) for x in gt.get('notes', [])]
     return len(gt.get('teacher_objects', [])) == 0 and any(
@@ -29,6 +33,17 @@ def infer_no_line_scope(gt: dict) -> tuple[str, str | None]:
     return 'UNKNOWN', None
 
 
+def valid_display_suppressed_line(gt: dict) -> bool:
+    notes = notes_set(gt)
+    return (
+        'candidate_valid=true' in notes
+        and 'displayed_in_reference=false' in notes
+        and any(x.startswith('display_policy=SUPPRESS') for x in notes)
+        and 'ownership_rejection=false' in notes
+        and 'invalid_line=false' in notes
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description='Evaluate NVT structure-ownership evidence for one case.')
     ap.add_argument('--ground-truth', required=True)
@@ -46,6 +61,7 @@ def main() -> int:
 
     no_line = expected_no_line(gt)
     no_line_scope, no_line_scope_note = infer_no_line_scope(gt)
+    display_suppressed = valid_display_suppressed_line(gt)
     teacher_objects = gt.get('teacher_objects', [])
     teacher_line_expected = bool(teacher_objects)
     teacher_direction = None
@@ -77,7 +93,9 @@ def main() -> int:
     p38_p38 = [r for r in rows if r.get('provenance') == 'P38_P38']
     micro_micro = [r for r in rows if r.get('provenance') == 'MICRO_MICRO']
 
-    if no_line and no_line_scope == 'TIMEFRAME_GLOBAL':
+    if display_suppressed:
+        observation = 'VALID_LINE_DISPLAY_SUPPRESSED_NOT_OWNERSHIP_NEGATIVE'
+    elif no_line and no_line_scope == 'TIMEFRAME_GLOBAL':
         observation = (
             'TIMEFRAME_GLOBAL_NEGATIVE_CONTROL_HAS_CANDIDATES'
             if rows else 'TIMEFRAME_GLOBAL_NO_LINE_BY_ABSENCE_ONLY'
@@ -119,7 +137,7 @@ def main() -> int:
         }
 
     out = {
-        'schema': 'nvt-structure-ownership-evidence/0.2',
+        'schema': 'nvt-structure-ownership-evidence/0.3',
         'status': 'RESEARCH_ONLY',
         'case_id': case_id,
         'source_id': gt.get('source_id'),
@@ -129,6 +147,8 @@ def main() -> int:
             'no_line_scope': no_line_scope,
             'no_line_scope_source_note': no_line_scope_note,
             'no_line_scope_status': 'PROVISIONAL_UNTIL_SCHEMA_AMENDMENT_FIXED',
+            'display_suppressed_valid_line': display_suppressed,
+            'ownership_rejection': False if display_suppressed else None,
             'teacher_line_expected': teacher_line_expected,
             'teacher_direction': teacher_direction,
             'teacher_object_count': len(teacher_objects),
@@ -145,8 +165,9 @@ def main() -> int:
         'observation': observation,
         'interpretation_guard': (
             'This report does not select a line and does not define a production ownership rule. '
+            'A valid-but-display-suppressed turn line must not be learned as an ownership negative. '
             'A STRUCTURE_SPECIFIC NO-LINE case cannot label every other candidate on the same '
-            'timeframe/cutoff as negative. The rejected structure must be identified separately.'
+            'timeframe/cutoff as negative.'
         ),
         'hypothesis_under_test': {
             'P38_P38': 'native same-timeframe candidate hypothesis',
@@ -168,6 +189,7 @@ def main() -> int:
         'case_id': case_id,
         'observation': observation,
         'no_line_scope': no_line_scope,
+        'display_suppressed_valid_line': display_suppressed,
         'provenance_counts': counts,
         'latest_origin_bridge_count': len(latest_origin_bridge),
         'output': str(out_path),
