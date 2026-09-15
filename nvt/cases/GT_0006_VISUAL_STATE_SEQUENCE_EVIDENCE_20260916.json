@@ -1,0 +1,57 @@
+{
+  "schema": "nvt6-gt0006-visual-state-sequence-evidence/0.1",
+  "status": "RESEARCH_ONLY",
+  "case_id": "GT_0006",
+  "source": {
+    "file_name": "分析共有_26-9-12.mp4",
+    "teacher_interval": "00:30:50-00:31:49",
+    "timeframe": "H1",
+    "mt4_object_name": "Trendline 55257"
+  },
+  "common_candidate_anchor1_assumption": {
+    "time": "2026-09-02T04:00:00",
+    "price": 160.387,
+    "scope": "Gate-C P38_MICRO research candidate family only"
+  },
+  "observations": [
+    {
+      "id": "V1_GENTLE_FAMILY",
+      "video_time_approx": "00:31:12.38",
+      "chart_status_time": "2026-09-03T11:00:00",
+      "tooltip_line_value": 159.56,
+      "match_tolerance": 0.03,
+      "interpretation_hint": "Separates the late gentle family from the other Gate-C candidates, but does not distinguish the three late finalists."
+    },
+    {
+      "id": "V2_TRANSIENT_OR_DIFFERENT_GEOMETRY",
+      "video_time_approx": "00:31:13.88",
+      "chart_status_time": "2026-09-04T02:00:00",
+      "tooltip_line_value": 158.215,
+      "match_tolerance": 0.05,
+      "interpretation_hint": "No fixed common-anchor1 Gate-C candidate is expected to fit tightly; treat as possible transient drag/re-anchor or altered geometry and do not hard-label from this sample alone."
+    },
+    {
+      "id": "V3_STEEPER_STATE",
+      "video_time_approx": "00:31:23.50",
+      "chart_status_time": "2026-09-03T05:00:00",
+      "tooltip_line_value": 158.65,
+      "match_tolerance": 0.05,
+      "interpretation_hint": "Expected to be closest to the 2026-09-04 12:00 anchor2 candidate under the common-anchor1 comparison."
+    },
+    {
+      "id": "V4_LATER_HIGH_REANCHOR_STATE",
+      "video_time_approx": "00:31:45.00",
+      "chart_status_time": "2026-09-04T16:00:00",
+      "tooltip_line_value": 156.718,
+      "match_tolerance": 0.05,
+      "interpretation_hint": "Expected to be closest to the 2026-09-04 15:00 anchor2 candidate and is useful evidence for a later-high re-anchor state."
+    }
+  ],
+  "research_guard": {
+    "same_object_name_does_not_imply_same_geometry": true,
+    "do_not_lock_gt0006_to_one_static_anchor_pair_from_v1": true,
+    "nvt6_scope": "candidate validity / ownership / selector preference",
+    "nvt7_scope": "same-object geometry update / re-anchor / lifecycle sequence",
+    "production_writeback": false
+  }
+}
