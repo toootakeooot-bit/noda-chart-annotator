@@ -1,0 +1,38 @@
+{
+  "schema": "nvt-ground-truth/1.0",
+  "case_id": "GT_0005",
+  "source_id": "NVT_VIDEO_20260912",
+  "source_type": "VIDEO",
+  "symbol": "USDJPY",
+  "timeframe": "H1",
+  "decision_time": null,
+  "decision_bar": "2026-09-12 source-date proxy; exact broker bar pending NVT5",
+  "market_data_cutoff": "2026-09-12 source-date proxy; exact cutoff pending NVT5",
+  "source_confidence": "HIGH",
+  "annotation_status": "DRAFT",
+  "source_locator": {
+    "file_name": "分析共有_26-9-12.mp4",
+    "external_reference": "NVT USDJPY video corpus",
+    "video_timestamp_start": "00:29:48",
+    "video_timestamp_end": "00:30:29"
+  },
+  "teacher_objects": [],
+  "video_events": [
+    {
+      "event_id": "GT_0005_E1",
+      "video_timestamp": "00:29:48-00:30:29",
+      "market_data_cutoff": "pending exact time-frozen replay",
+      "action": "UNKNOWN",
+      "object_id_before": null,
+      "object_id_after": null,
+      "observed_reason_text": "The teacher explicitly declines to draw the apparent turn line because the visible shape belongs to a different structural scale; if the goal is to follow the internal H1 movement, the corresponding lower-timeframe internal wave should be used instead.",
+      "annotator_note": "This case encodes an expected NO-LINE result even though v1 action enum has no NO_LINE token. Preserve as empty teacher_objects until schema amendment is audited.",
+      "confidence": "HIGH"
+    }
+  ],
+  "notes": [
+    "expected_no_line": "H1 turn-line for the shown large-scale shape",
+    "alternate_valid_task": "lower-timeframe/internal-wave line if that is the intended structure",
+    "schema_gap": "NVT Ground Truth v1 should later add explicit NO_LINE/ABSENT expectation after audit."
+  ]
+}
