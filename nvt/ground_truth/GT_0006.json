@@ -1,0 +1,58 @@
+{
+  "schema": "nvt-ground-truth/1.0",
+  "case_id": "GT_0006",
+  "source_id": "NVT_VIDEO_20260912",
+  "source_type": "VIDEO",
+  "symbol": "USDJPY",
+  "timeframe": "H1",
+  "decision_time": null,
+  "decision_bar": "2026-09-12 source-date proxy; exact broker bar pending NVT5",
+  "market_data_cutoff": "2026-09-12 source-date proxy; exact cutoff pending NVT5",
+  "source_confidence": "HIGH_FOR_SELECTION_PATTERN_MEDIUM_FOR_EXACT_ANCHORS",
+  "annotation_status": "DRAFT",
+  "source_locator": {
+    "file_name": "分析共有_26-9-12.mp4",
+    "external_reference": "NVT USDJPY video corpus",
+    "video_timestamp_start": "00:30:50",
+    "video_timestamp_end": "00:31:49"
+  },
+  "teacher_objects": [
+    {
+      "object_id": "TEACHER_H1_DESCENDING_MID_TL",
+      "object_type": "TL",
+      "direction": "DOWN",
+      "teacher_role": "CURRENT",
+      "action": "ADD",
+      "anchor1_time": "UNKNOWN",
+      "anchor1_price": "UNKNOWN",
+      "anchor2_time": "UNKNOWN",
+      "anchor2_price": "UNKNOWN",
+      "line_extent": "RAY",
+      "style_class": "YELLOW_DESCENDING_MID_LINE",
+      "anchor_bar_status": "CLOSED",
+      "confidence": "HIGH_FOR_ROLE_AND_PREFERENCE_MEDIUM_FOR_EXACT_ANCHOR_PAIR",
+      "notes": [
+        "Teacher identifies the true technical high/starting point, then describes several cluster-right-edge candidates.",
+        "A redraw using a newly lowered/raised structural high is also accepted as valid.",
+        "Among valid alternatives, teacher explicitly prefers the gentler angle because it makes intermediate pullbacks/returns easier to capture.",
+        "An unusually long wick is then considered for temporary exclusion as probable noise."
+      ]
+    }
+  ],
+  "video_events": [
+    {
+      "event_id": "GT_0006_E1",
+      "video_timestamp": "00:30:50-00:31:49",
+      "market_data_cutoff": "pending exact time-frozen replay",
+      "action": "ADD",
+      "object_id_before": null,
+      "object_id_after": "TEACHER_H1_DESCENDING_MID_TL",
+      "observed_reason_text": "Several structurally valid cluster-edge candidates exist. The teacher prefers a gentler line because it better exposes intermediate pullbacks and break-and-return opportunities; a very long wick may be treated as noise.",
+      "annotator_note": "High-priority NVT6 selector case. Candidate pool must preserve multiple valid alternatives so preference can be scored rather than hard-coded as a single geometric solution.",
+      "confidence": "HIGH"
+    }
+  ],
+  "notes": [
+    "Potential candidate features: cluster_edge_rank, slope_magnitude, intermediate_pullback_coverage, wick_outlier_penalty, structural_high_validity."
+  ]
+}
