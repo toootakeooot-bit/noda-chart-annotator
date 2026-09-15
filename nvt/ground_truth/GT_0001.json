@@ -1,0 +1,57 @@
+{
+  "schema": "nvt-ground-truth/1.0",
+  "case_id": "GT_0001",
+  "source_id": "NVT_VIDEO_20260808",
+  "source_type": "VIDEO",
+  "symbol": "USDJPY",
+  "timeframe": "D1",
+  "decision_time": null,
+  "decision_bar": "2026-08-08 source-date proxy; exact broker bar pending NVT5",
+  "market_data_cutoff": "2026-08-08 source-date proxy; exact cutoff pending NVT5",
+  "source_confidence": "HIGH_FOR_RULE_MEDIUM_FOR_EXACT_ANCHORS",
+  "annotation_status": "DRAFT",
+  "source_locator": {
+    "file_name": "分析共有 26-8-8.mkv",
+    "external_reference": "NVT USDJPY video corpus",
+    "video_timestamp_start": "00:10:16",
+    "video_timestamp_end": "00:10:34"
+  },
+  "teacher_objects": [
+    {
+      "object_id": "TEACHER_D1_SECONDARY_UP_TL",
+      "object_type": "TL",
+      "direction": "UP",
+      "teacher_role": "CURRENT",
+      "action": "ADD",
+      "anchor1_time": "UNKNOWN",
+      "anchor1_price": "UNKNOWN",
+      "anchor2_time": "UNKNOWN",
+      "anchor2_price": "UNKNOWN",
+      "line_extent": "RAY",
+      "style_class": "TEACHER_BLUE_CHANNEL_BASE_OR_TL_CONTEXT",
+      "anchor_bar_status": "CLOSED",
+      "confidence": "HIGH_FOR_SELECTION_PATTERN_MEDIUM_FOR_OBJECT_CLASS",
+      "notes": [
+        "Teacher explicitly describes a secondary uptrend line.",
+        "Anchor selection is described as lowest low -> rightmost edge of the relevant cluster.",
+        "Exact bar timestamps/prices are intentionally deferred to NVT2/NVT5."
+      ]
+    }
+  ],
+  "video_events": [
+    {
+      "event_id": "GT_0001_E1",
+      "video_timestamp": "00:10:16-00:10:34",
+      "market_data_cutoff": "pending exact time-frozen replay",
+      "action": "ADD",
+      "object_id_before": null,
+      "object_id_after": "TEACHER_D1_SECONDARY_UP_TL",
+      "observed_reason_text": "Select the lowest low and the rightmost edge of the cluster for the secondary uptrend line.",
+      "annotator_note": "High-value selector evidence. Tests candidate generation/selection, not rendering style.",
+      "confidence": "HIGH"
+    }
+  ],
+  "notes": [
+    "Do not lock until exact OHLC cutoff and candidate anchors are reproduced."
+  ]
+}
