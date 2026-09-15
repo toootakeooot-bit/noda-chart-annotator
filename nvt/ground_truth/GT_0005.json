@@ -8,7 +8,7 @@
   "decision_time": null,
   "decision_bar": "2026-09-12 source-date proxy; exact broker bar pending NVT5",
   "market_data_cutoff": "2026-09-12 source-date proxy; exact cutoff pending NVT5",
-  "source_confidence": "HIGH",
+  "source_confidence": "HIGH_FOR_SEMANTICS_MEDIUM_FOR_EXACT_ANCHORS",
   "annotation_status": "DRAFT",
   "source_locator": {
     "file_name": "分析共有_26-9-12.mp4",
@@ -25,14 +25,24 @@
       "action": "UNKNOWN",
       "object_id_before": null,
       "object_id_after": null,
-      "observed_reason_text": "The teacher explicitly declines to draw the apparent turn line because the visible shape belongs to a different structural scale; if the goal is to follow the internal H1 movement, the corresponding lower-timeframe internal wave should be used instead.",
-      "annotator_note": "This case encodes an expected NO-LINE result even though v1 action enum has no NO_LINE token. Preserve as empty teacher_objects until schema amendment is audited.",
-      "confidence": "HIGH"
+      "observed_reason_text": "The teacher treats this as a valid small-Dow trend line / turn line that can be drawn from valid highs, including during a full small-Dow phase. Because the angle is steep, the line tends to become unnecessary quickly as time passes. To avoid excessive displayed lines, the teacher does not draw this otherwise valid line in the shown depiction.",
+      "annotator_note": "This is NOT an ownership rejection and NOT an invalid-line NO-LINE case. It is a valid-but-display-suppressed short-lived turn-line example. Exact anchor identity remains DRAFT. The source schema has no explicit SUPPRESS/HIDE action, so action stays UNKNOWN and teacher_objects remains empty because the line is discussed but not displayed.",
+      "confidence": "HIGH_FOR_SEMANTICS_MEDIUM_FOR_EXACT_ANCHORS"
     }
   ],
   "notes": [
-    "expected_no_line=H1 turn-line for the shown large-scale shape",
-    "alternate_valid_task=lower-timeframe/internal-wave line if that is the intended structure",
-    "schema_gap=NVT Ground Truth v1 should later add explicit NO_LINE/ABSENT expectation after audit"
+    "teacher_term=TURN_LINE",
+    "structure_class=SMALL_DOW_TL",
+    "candidate_valid=true",
+    "can_draw_from_valid_highs=true",
+    "can_draw_during_full_small_dow_phase=true",
+    "geometry_character=STEEP_ANGLE",
+    "lifecycle_character=SHORT_LIVED_BECOMES_UNNECESSARY_WITH_TIME",
+    "display_policy=SUPPRESS_TO_AVOID_LINE_CLUTTER",
+    "displayed_in_reference=false",
+    "ownership_rejection=false",
+    "invalid_line=false",
+    "process_order=EVALUATE_DISPLAY_SUPPRESSION_BEFORE_GT_0006_SELECTOR",
+    "exact_anchor_target=pending"
   ]
 }
