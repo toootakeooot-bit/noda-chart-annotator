@@ -6,8 +6,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $common = Join-Path $env:APPDATA 'MetaQuotes\Terminal\Common\Files\noda_draw'
-$inputDir = Join-Path $common 'live_input'
+$inputDir = Join-Path $common 'nvt_input'
 $outputRoot = Join-Path $common 'nvt_output'
+New-Item -ItemType Directory -Force -Path $inputDir | Out-Null
 New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
 
 function Safe-FileSymbol([string]$Value) {
@@ -18,17 +19,21 @@ $safe = Safe-FileSymbol $BrokerSymbol
 $tfs = @('D1','H4','H1','M15')
 
 $required = $tfs | ForEach-Object {
-  Join-Path $inputDir ("NORMAL_{0}_{1}.csv" -f $safe, $_)
+  Join-Path $inputDir ("NVT_{0}_{1}.csv" -f $safe, $_)
 }
 $missing = @($required | Where-Object { !(Test-Path $_) })
 if ($missing.Count -gt 0) {
-  Write-Host 'NVT2 WAITING FOR USDJPY MT4 EXPORT'
-  Write-Host "Run NCA_NormalRun_Exporter once on $BrokerSymbol first."
+  Write-Host 'NVT2 WAITING FOR NVT DEEP-HISTORY EXPORT'
+  Write-Host "Open $BrokerSymbol in MT4 and run NCA_NVT_HistoryExporter once."
+  Write-Host 'This is separate from the production NCA_NormalRun_Exporter.'
   Write-Host 'Missing:'
   $missing | ForEach-Object { Write-Host "  $_" }
   exit 2
 }
 
+# Date-level upper bounds for the weekly teacher videos. The candidate-dump JSON
+# records the actual final broker bar <= each bound. Exact decision cutoffs will
+# later be tightened by NVT5 time-frozen replay.
 $cases = @(
   [pscustomobject]@{ Id='NVT_VIDEO_20260808'; Cutoff='2026-08-07T23:59:59' },
   [pscustomobject]@{ Id='NVT_VIDEO_20260822'; Cutoff='2026-08-21T23:59:59' },
@@ -41,6 +46,7 @@ $summary = @()
 Write-Host 'NVT2 USDJPY CORPUS CANDIDATE DUMP START'
 Write-Host "Broker data symbol: $BrokerSymbol"
 Write-Host 'Teacher reference symbol: USDJPY'
+Write-Host "NVT input: $inputDir"
 Write-Host ''
 
 foreach ($case in $cases) {
@@ -49,7 +55,7 @@ foreach ($case in $cases) {
   Write-Host ("CASE {0} cutoff<={1}" -f $case.Id, $case.Cutoff)
 
   foreach ($tf in $tfs) {
-    $src = Join-Path $inputDir ("NORMAL_{0}_{1}.csv" -f $safe, $tf)
+    $src = Join-Path $inputDir ("NVT_{0}_{1}.csv" -f $safe, $tf)
     $out = Join-Path $caseDir ("candidates_{0}_{1}.json" -f $safe, $tf)
 
     & $Python (Join-Path $RepoRoot 'tools\nvt\dump_candidates.py') `
@@ -61,6 +67,7 @@ foreach ($case in $cases) {
 
     if ($LASTEXITCODE -ne 0) {
       Write-Host ("NVT2 FAIL: {0} {1} exit={2}" -f $case.Id, $tf, $LASTEXITCODE)
+      Write-Host 'Check NCA_NVT_HistoryExporter range/status; production Normal Run data is not used for NVT corpus replay.'
       exit $LASTEXITCODE
     }
 
@@ -71,6 +78,7 @@ foreach ($case in $cases) {
       timeframe = $tf
       broker_symbol = $BrokerSymbol
       effective_last_closed_bar = $payload.effective_last_closed_bar
+      first_bar_time = $payload.first_bar_time
       closed_bar_count = $payload.closed_bar_count
       confirmed_turn_count = $payload.detector.confirmed_turn_count
       candidate_count = $payload.candidate_count
@@ -88,5 +96,6 @@ $summary | ConvertTo-Json -Depth 5 | Set-Content -Path $summaryPath -Encoding UT
 Write-Host 'NVT2 USDJPY CORPUS CANDIDATE DUMP PASS'
 Write-Host "Summary: $summaryPath"
 Write-Host ''
-Write-Host 'Important: 23:59:59 is only a date-level upper bound. Each JSON records the actual last broker bar <= cutoff in effective_last_closed_bar.'
-Write-Host 'No Normal Run snapshot/state or MT4 drawing objects were modified.'
+Write-Host 'Important: teacher-video date cutoffs are provisional date-level upper bounds.'
+Write-Host 'NVT5 will tighten each event to the exact verified market cutoff.'
+Write-Host 'Production live_input, Normal Run snapshot/state, and MT4 NCA_DRAW__ objects were not modified.'
