@@ -31,8 +31,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ''
 Write-Host 'NVT5 STEP 0: Ground Truth JSON validation'
 & $Python (Join-Path $RepoRoot 'tools\nvt\validate_ground_truth.py') `
-  '--ground-truth-dir' $gtDir `
-  '--symbol' 'USDJPY'
+  '--ground-truth-dir' $gtDir
 if ($LASTEXITCODE -ne 0) {
   Write-Host "NVT5 FAIL: Ground Truth validation failed exit=$LASTEXITCODE"
   exit $LASTEXITCODE
