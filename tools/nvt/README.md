@@ -10,10 +10,42 @@ Stage ownership:
 extract_event.py       NVT4 video event extraction        PLACEHOLDER
 replay_to_time.py      NVT5 time-frozen replay            PLACEHOLDER
 dump_candidates.py     NVT2 candidate dump                IMPLEMENTED v1
-compare_teacher.py     NVT3 teacher-vs-NCA diff           PLACEHOLDER
-scoring.py             NVT3+ validation metrics           PLACEHOLDER
+compare_teacher.py     NVT3 teacher-vs-NCA diff           IMPLEMENTED v1
+scoring.py             NVT3+ validation metrics           IMPLEMENTED v1
 ```
 
-`dump_candidates.py` is read-only research tooling. It reuses the current production detector/candidate builder/selector and emits JSON for analysis; it does not modify state, snapshot, MT4 objects, or trade behavior.
+## Implemented behavior
 
-These tools must not modify production NCA semantics before NVT9 promotion.
+`dump_candidates.py`
+- read-only candidate-pool dump at an optional frozen cutoff;
+- reuses production detector / candidate builder / selector without changing them;
+- exposes anchors, contacts, slope, break evidence, wick/body morphology, and current baseline selections.
+
+`compare_teacher.py`
+- compares one Ground Truth case with one NVT2 candidate dump;
+- diagnoses symbol/timeframe mismatch, NO-LINE mismatch, candidate absence, anchor match, and baseline selection mismatch;
+- does not convert missing teacher anchors into a false failure; unresolved exact anchors remain `PENDING_GROUND_TRUTH`;
+- accepts only the explicit research notation difference `USDJPY` <-> `USDJPY#`; broader symbol alias guessing is prohibited.
+
+`scoring.py`
+- aggregates decomposed metrics only;
+- reports structure-scale, candidate recall, anchor, selection-given-candidate, NO-LINE, and channel metrics when assessable;
+- intentionally does not emit one aggregate promotion score.
+
+## Data isolation
+
+NVT historical market data is exported by the research-only MT4 script:
+
+```text
+mt4/NCA_NVT_HistoryExporter.mq4
+```
+
+into:
+
+```text
+MetaQuotes/Terminal/Common/Files/noda_draw/nvt_input
+```
+
+This is intentionally separate from production Normal Run `live_input` because the initial 40-day USDJPY video corpus needs deeper H1/M15 history than the production 600-bar Normal Run export guarantees.
+
+NVT tools must not modify production state, snapshot, `NCA_DRAW__`, manual MT4 objects, or trade behavior before NVT9 promotion.
