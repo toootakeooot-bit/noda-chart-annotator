@@ -24,21 +24,48 @@ def resolve_candidate_dump(args) -> Path:
     return Path(matches[0]['candidate_dump'])
 
 
+def anchor_geometry(anchor: dict | None) -> tuple:
+    a = anchor or {}
+    return (a.get('kind'), a.get('time'), a.get('price'))
+
+
+def anchor_metadata(anchor: dict | None) -> dict:
+    a = dict(anchor or {})
+    for k in ('kind', 'time', 'price'):
+        a.pop(k, None)
+    return a
+
+
 def geometry_key(row: dict) -> str:
+    a1 = row.get('anchor1', {}) or {}
+    a2 = row.get('anchor2', {}) or {}
     ch = row.get('ch_anchor', {}) or {}
     return '|'.join([
-        str(row.get('candidate_id')),
-        'CH',
-        str(ch.get('time')),
-        str(ch.get('price')),
-        str(row.get('ch_offset')),
-        str(row.get('zone_width')),
+        str(row.get('direction')),
+        'TL1', str(a1.get('time')), str(a1.get('price')),
+        'TL2', str(a2.get('time')), str(a2.get('price')),
+        'CH', str(ch.get('time')), str(ch.get('price')),
+        'OFF', str(row.get('ch_offset')),
+        'ZONE', str(row.get('zone_width')),
+        'SLOPE', str(row.get('slope_per_second')),
     ])
+
+
+def distinct_values(rows: list[dict], field: str) -> list:
+    vals = []
+    seen = set()
+    for r in rows:
+        v = r.get(field)
+        key = json.dumps(v, sort_keys=True, ensure_ascii=False)
+        if key not in seen:
+            seen.add(key)
+            vals.append(v)
+    return vals
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description='Build a research-only canonical geometry view without collapsing context metrics.'
+        description='Build research-only canonical geometry view while separating geometry from context metadata.'
     )
     ap.add_argument('--candidate-dump')
     ap.add_argument('--replay-summary')
@@ -55,32 +82,44 @@ def main() -> int:
     candidates = payload.get('candidates', [])
 
     groups = defaultdict(list)
+    candidate_id_to_geometry_keys = defaultdict(set)
     for row in candidates:
-        groups[geometry_key(row)].append(row)
+        key = geometry_key(row)
+        groups[key].append(row)
+        candidate_id_to_geometry_keys[str(row.get('candidate_id'))].add(key)
 
     canonical = []
-    unsafe_groups = []
+    unsafe_geometry_groups = []
+    context_variant_groups = []
+    metadata_variant_groups = []
+
     for key, rows in sorted(groups.items()):
         base = rows[0]
-        stable_fields = [
-            'candidate_id', 'direction', 'tl_contacts', 'ch_contacts', 'unbroken_close',
-            'ch_offset', 'zone_width', 'slope_per_second',
-        ]
-        unstable = []
-        for field in stable_fields:
-            vals = {json.dumps(r.get(field), sort_keys=True) for r in rows}
-            if len(vals) > 1:
-                unstable.append(field)
 
-        anchor1_vals = {json.dumps(r.get('anchor1', {}), sort_keys=True) for r in rows}
-        anchor2_vals = {json.dumps(r.get('anchor2', {}), sort_keys=True) for r in rows}
-        ch_vals = {json.dumps(r.get('ch_anchor', {}), sort_keys=True) for r in rows}
-        if len(anchor1_vals) > 1:
-            unstable.append('anchor1')
-        if len(anchor2_vals) > 1:
-            unstable.append('anchor2')
-        if len(ch_vals) > 1:
-            unstable.append('ch_anchor')
+        # Geometry-critical fields. Context metrics such as turn_span/contact counts
+        # intentionally do NOT make a geometry unsafe.
+        geometry_unstable = []
+        for field in ('direction', 'ch_offset', 'zone_width', 'slope_per_second'):
+            if len(distinct_values(rows, field)) > 1:
+                geometry_unstable.append(field)
+
+        for name in ('anchor1', 'anchor2', 'ch_anchor'):
+            vals = {json.dumps(anchor_geometry(r.get(name)), ensure_ascii=False) for r in rows}
+            if len(vals) > 1:
+                geometry_unstable.append(name + '_geometry')
+
+        context_fields = ('turn_span', 'tl_contacts', 'ch_contacts', 'unbroken_close')
+        context_values = {f: distinct_values(rows, f) for f in context_fields}
+        context_variant_fields = [f for f, vals in context_values.items() if len(vals) > 1]
+
+        metadata_variant_fields = []
+        for name in ('anchor1', 'anchor2', 'ch_anchor'):
+            vals = {
+                json.dumps(anchor_metadata(r.get(name)), sort_keys=True, ensure_ascii=False)
+                for r in rows
+            }
+            if len(vals) > 1:
+                metadata_variant_fields.append(name)
 
         turn_spans = sorted({r.get('turn_span') for r in rows if r.get('turn_span') is not None})
         selected_large = any(bool(r.get('selected_as_large')) for r in rows)
@@ -94,30 +133,36 @@ def main() -> int:
             'anchor2': base.get('anchor2'),
             'ch_anchor': base.get('ch_anchor'),
             'slope_per_second': base.get('slope_per_second'),
-            'tl_contacts': base.get('tl_contacts'),
-            'ch_contacts': base.get('ch_contacts'),
-            'unbroken_close': base.get('unbroken_close'),
             'ch_offset': base.get('ch_offset'),
             'zone_width': base.get('zone_width'),
             'source_row_count': len(rows),
-            'context_variant_count': len(turn_spans),
+            'selected_as_large': selected_large,
+            'selected_as_mid': selected_mid,
+            'geometry_status': 'SAFE_GEOMETRY' if not geometry_unstable else 'UNSAFE_GEOMETRY',
+            'geometry_unstable_fields': sorted(set(geometry_unstable)),
+            'context_variant_fields': sorted(context_variant_fields),
+            'context_values': context_values,
             'turn_span_values': turn_spans,
             'turn_span_min': min(turn_spans) if turn_spans else None,
             'turn_span_max': max(turn_spans) if turn_spans else None,
-            'selected_as_large': selected_large,
-            'selected_as_mid': selected_mid,
-            'canonical_status': (
-                'SAFE_GEOMETRY_WITH_CONTEXT_VARIANTS'
-                if not unstable else 'UNSAFE_GEOMETRY_VARIATION'
-            ),
-            'unstable_fields': sorted(set(unstable)),
+            'anchor_metadata_variant_fields': sorted(metadata_variant_fields),
         }
         canonical.append(item)
-        if unstable:
-            unsafe_groups.append(item)
+        if geometry_unstable:
+            unsafe_geometry_groups.append(item)
+        if context_variant_fields:
+            context_variant_groups.append(item)
+        if metadata_variant_fields:
+            metadata_variant_groups.append(item)
+
+    ambiguous_candidate_ids = {
+        cid: sorted(keys)
+        for cid, keys in candidate_id_to_geometry_keys.items()
+        if len(keys) > 1
+    }
 
     report = {
-        'schema': 'nvt-canonical-candidate-view/0.1',
+        'schema': 'nvt-canonical-candidate-view/0.2',
         'status': 'RESEARCH_ONLY',
         'source_candidate_dump': str(candidate_path),
         'source_id': args.source_id,
@@ -125,22 +170,38 @@ def main() -> int:
         'source_row_count': len(candidates),
         'canonical_geometry_count': len(canonical),
         'collapsed_row_excess_count': len(candidates) - len(canonical),
-        'unsafe_geometry_group_count': len(unsafe_groups),
-        'selected_geometry_collision_count': sum(
-            1 for x in unsafe_groups if x['selected_as_large'] or x['selected_as_mid']
+        'unsafe_geometry_group_count': len(unsafe_geometry_groups),
+        'context_variant_group_count': len(context_variant_groups),
+        'anchor_metadata_variant_group_count': len(metadata_variant_groups),
+        'candidate_id_with_multiple_geometry_count': len(ambiguous_candidate_ids),
+        'selected_unsafe_geometry_count': sum(
+            1 for x in unsafe_geometry_groups if x['selected_as_large'] or x['selected_as_mid']
+        ),
+        'selected_context_variant_geometry_count': sum(
+            1 for x in context_variant_groups if x['selected_as_large'] or x['selected_as_mid']
         ),
         'identity_policy': {
             'geometry_identity': (
-                'candidate_id + CH anchor time/price + ch_offset + zone_width'
+                'direction + TL anchor1 time/price + TL anchor2 time/price + '
+                'CH anchor time/price + ch_offset + zone_width + slope'
             ),
-            'context_metrics_not_collapsed': ['turn_span'],
+            'candidate_id_role': (
+                'candidate_id is a TL-family identifier, not a guaranteed unique full geometry identifier'
+            ),
+            'context_metrics_not_geometry': [
+                'turn_span', 'tl_contacts', 'ch_contacts', 'unbroken_close'
+            ],
+            'anchor_confirmation_metadata_not_geometry': [
+                'bar_index', 'confirmed_by_index', 'confirmed_by_time', 'retracement', 'candle'
+            ],
             'scoring_guard': (
-                'Do not score duplicate source rows independently. Use one geometry record and '
-                'treat turn_span as a context range until upstream duplication semantics are fixed.'
+                'Score one canonical geometry once. Context variants must be represented as ranges/sets, '
+                'not duplicated rows. Do not reject a geometry merely because confirmation metadata differs.'
             ),
         },
         'canonical_candidates': canonical,
-        'unsafe_groups': unsafe_groups,
+        'unsafe_geometry_groups': unsafe_geometry_groups,
+        'candidate_id_multiple_geometry': ambiguous_candidate_ids,
         'production_writeback': False,
         'normal_run_modified': False,
         'mt4_object_writeback': False,
@@ -152,11 +213,15 @@ def main() -> int:
     out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps({
         'status': 'PASS',
+        'schema': report['schema'],
         'source_row_count': len(candidates),
         'canonical_geometry_count': len(canonical),
         'collapsed_row_excess_count': len(candidates) - len(canonical),
-        'unsafe_geometry_group_count': len(unsafe_groups),
-        'selected_geometry_collision_count': report['selected_geometry_collision_count'],
+        'unsafe_geometry_group_count': len(unsafe_geometry_groups),
+        'context_variant_group_count': len(context_variant_groups),
+        'anchor_metadata_variant_group_count': len(metadata_variant_groups),
+        'candidate_id_with_multiple_geometry_count': len(ambiguous_candidate_ids),
+        'selected_unsafe_geometry_count': report['selected_unsafe_geometry_count'],
         'output': str(out),
     }, ensure_ascii=False, indent=2))
     return 0
