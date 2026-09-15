@@ -1,0 +1,38 @@
+{
+  "schema": "nvt-ground-truth/1.0",
+  "case_id": "GT_0007",
+  "source_id": "NVT_VIDEO_20260808",
+  "source_type": "VIDEO",
+  "symbol": "USDJPY",
+  "timeframe": "H1",
+  "decision_time": null,
+  "decision_bar": "2026-08-08 source-date proxy; exact broker bar pending NVT5",
+  "market_data_cutoff": "2026-08-08 source-date proxy; exact cutoff pending NVT5",
+  "source_confidence": "HIGH",
+  "annotation_status": "DRAFT",
+  "source_locator": {
+    "file_name": "分析共有 26-8-8.mkv",
+    "external_reference": "NVT USDJPY video corpus",
+    "video_timestamp_start": "00:39:15",
+    "video_timestamp_end": "00:39:44"
+  },
+  "teacher_objects": [],
+  "video_events": [
+    {
+      "event_id": "GT_0007_E1",
+      "video_timestamp": "00:39:15-00:39:44",
+      "market_data_cutoff": "pending exact time-frozen replay",
+      "action": "UNKNOWN",
+      "object_id_before": null,
+      "object_id_after": null,
+      "observed_reason_text": "The teacher explicitly says the H1 chart does not need a line. If a line is desired inside the shown structure, use the M15/internal wave instead; that line belongs to M15, not H1.",
+      "annotator_note": "Direct, unambiguous evidence that zero H1 TL output can be the correct teacher result and that timeframe ownership is explicit.",
+      "confidence": "HIGH"
+    }
+  ],
+  "notes": [
+    "expected_no_line": "H1",
+    "lower_timeframe_alternative": "M15 internal-wave line",
+    "schema_gap": "v1 action enum lacks explicit NO_LINE; keep as zero teacher_objects until audited schema amendment."
+  ]
+}
