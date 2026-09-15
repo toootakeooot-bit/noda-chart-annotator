@@ -21,6 +21,14 @@ $cutoffManifest = Join-Path $RepoRoot 'nvt\manifests\USDJPY_EXPECTED_MARKET_CUTO
 $planTsv = Join-Path $outputRoot 'NVT5_REPLAY_PLAN.tsv'
 $resolvedJson = Join-Path $outputRoot 'NVT5_RESOLVED_CUTOFFS.json'
 
+Write-Host 'NVT5 STEP -1: exact-cutoff + replay selftest'
+& $Python (Join-Path $RepoRoot 'tests\selftest_nvt5.py')
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "NVT5 SELFTEST FAILED exit=$LASTEXITCODE"
+  exit $LASTEXITCODE
+}
+
+Write-Host ''
 Write-Host 'NVT5 STEP 0: Ground Truth JSON validation'
 & $Python (Join-Path $RepoRoot 'tools\nvt\validate_ground_truth.py') `
   '--ground-truth-dir' $gtDir `
@@ -84,7 +92,7 @@ foreach ($pair in $plan) {
     exit $LASTEXITCODE
   }
 
-  # Rebuild the exact candidate pool at the same verified cutoff.  This remains
+  # Rebuild the exact candidate pool at the same verified cutoff. This remains
   # read-only research and is used by the anchor-review workbench/NVT3 rerun.
   & $Python (Join-Path $RepoRoot 'tools\nvt\dump_candidates.py') `
     '--input-csv' $src `
