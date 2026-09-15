@@ -8,7 +8,7 @@ Stage ownership:
 
 ```text
 extract_event.py       NVT4 video event extraction        PLACEHOLDER
-replay_to_time.py      NVT5 time-frozen replay            PLACEHOLDER
+replay_to_time.py      NVT5 time-frozen replay            IMPLEMENTED v1
 dump_candidates.py     NVT2 candidate dump                IMPLEMENTED v1
 compare_teacher.py     NVT3 teacher-vs-NCA diff           IMPLEMENTED v1
 scoring.py             NVT3+ validation metrics           IMPLEMENTED v1
@@ -31,6 +31,12 @@ scoring.py             NVT3+ validation metrics           IMPLEMENTED v1
 - aggregates decomposed metrics only;
 - reports structure-scale, candidate recall, anchor, selection-given-candidate, NO-LINE, and channel metrics when assessable;
 - intentionally does not emit one aggregate promotion score.
+
+`replay_to_time.py`
+- creates a frozen OHLC CSV containing only bars at or before a verified case cutoff;
+- records source/frozen SHA256, excluded-future-bar count, and `look_ahead_guard=PASS`;
+- runs current baseline detector/candidate/selector on the frozen history for audit only;
+- never writes production state, snapshot, MT4 objects, or trade state.
 
 ## Data isolation
 
