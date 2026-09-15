@@ -5,6 +5,8 @@ Fixed date: 2026-09-15
 
 This roadmap fixes the development order for NVT v1. The order may only be changed by an explicit revision/audit decision.
 
+Production introduction is additionally governed by `NVT_INTEGRATION_POLICY_V1.md`.
+
 ## NVT0 — Boundary / Ground Truth definition
 
 Goal: establish the research boundary before implementation.
@@ -15,6 +17,7 @@ Deliverables:
 - `GROUND_TRUTH_SCHEMA_V1.md`
 - `VALIDATION_RULES_V1.md`
 - `NVT_ROADMAP_V1.md`
+- `NVT_INTEGRATION_POLICY_V1.md`
 - materials checklist
 - repository scaffold
 
@@ -25,18 +28,20 @@ Boundary fixed
 Ground Truth fields fixed
 Time-freeze rule fixed
 NVT0-NVT8 production protection fixed
+Integration / rollback policy fixed
 ```
 
-## NVT1 — Static-image case registration
+## NVT1 — Static-image / video-derived case registration
 
-Goal: register still-image reference cases without changing production NCA.
+Goal: register reference cases without changing production NCA. Video is the primary evidence source; still frames may be derived from video for visual confirmation.
 
 Deliverables:
 
 - DRAFT Ground Truth JSON cases;
 - source manifests;
 - annotation notes/confidence;
-- initial teacher-object inventory.
+- initial teacher-object inventory;
+- video timestamp windows for each case.
 
 Primary questions:
 
@@ -44,7 +49,7 @@ Primary questions:
 - Which anchors can be identified confidently?
 - Which role/style distinctions recur?
 
-Gate: enough reviewed still cases to exercise candidate comparison.
+Gate: enough reviewed cases to exercise candidate comparison.
 
 ## NVT2 — Candidate Dump
 
@@ -56,7 +61,7 @@ Deliverables:
 - machine-readable candidate dump;
 - anchor/contact/geometry metadata.
 
-Gate: for every static case, determine whether the teacher line exists in the candidate pool.
+Gate: for every assessed case, determine whether the teacher line exists in the candidate pool.
 
 ## NVT3 — Teacher-NCA Diff
 
@@ -64,10 +69,11 @@ Goal: classify why NCA differs from teacher evidence.
 
 Deliverables:
 
-- comparison engine;
+- `tools/nvt/compare_teacher.py`;
+- `tools/nvt/scoring.py`;
 - per-case diff report;
 - failure taxonomy totals;
-- first Candidate Recall / Selection / Anchor / Channel metrics.
+- first Candidate Recall / Selection / Anchor / Channel / NO-LINE metrics.
 
 Gate: differences are attributed to layers rather than treated as visual mismatch only.
 
@@ -79,7 +85,7 @@ Deliverables:
 
 - event manifest;
 - frame/timestamp references;
-- ADD/KEEP/MOVE/REPLACE/DELETE event records;
+- ADD/KEEP/MOVE/REPLACE/DELETE/NO-LINE event records where evidence supports them;
 - teacher-stated rationale kept separate from analyst inference.
 
 Gate: repeatable extraction of structural drawing events from source videos.
@@ -149,12 +155,16 @@ Goal: promote only validated rules into production NCA.
 
 Only at NVT9 may production `tools/live_draw/`, production selection/lifecycle semantics, or production rendering behavior be changed because of NVT findings.
 
+Promotion is responsibility-layer based, not a whole-system rewrite. The current production Normal Run remains the baseline and initial rollback reference according to `NVT_INTEGRATION_POLICY_V1.md`.
+
 Promotion procedure:
 
 ```text
 validated NVT rule
+ -> identify exact responsibility layer
  -> production design review
  -> NCA implementation branch
+ -> compare NVT_V1 against BASELINE_V1
  -> regression against existing NR baselines
  -> MT4 verification
  -> production FIXED documentation update
@@ -165,8 +175,8 @@ Experimental names such as `Teacher Selector` should normally be converted to ne
 ## Fixed order
 
 ```text
-NVT0  Boundary / Ground Truth
-NVT1  Static image cases
+NVT0  Boundary / Ground Truth / Integration Policy
+NVT1  Video-derived reference cases
 NVT2  Candidate Dump
 NVT3  Teacher-NCA Diff
 NVT4  Video Event extraction
