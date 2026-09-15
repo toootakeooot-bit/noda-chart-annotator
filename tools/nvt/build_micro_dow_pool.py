@@ -59,7 +59,7 @@ def main() -> int:
         raise ValueError('insufficient closed bars at cutoff')
 
     # Production-equivalent 38% pivots must be computed from the complete frozen
-    # history.  The research lookback is applied only to the Micro-Dow lens and
+    # history. The research lookback is applied only to the Micro-Dow lens and
     # output pool; truncating first would change the production detector state.
     turns = detect_turns(frozen_all)
 
@@ -149,9 +149,9 @@ def main() -> int:
         row = point_meta(b, p.kind)
         row.update({
             'kind': p.kind,
-            'production_index': p.index,
+            'production_index': p.bar_index,
             'production_confirmed': True,
-            'confirmed_at': p.confirmed_time.isoformat(),
+            'confirmed_at': p.confirmed_by_time.isoformat(),
             'retracement': p.retracement,
         })
         if p.kind == 'HIGH':
