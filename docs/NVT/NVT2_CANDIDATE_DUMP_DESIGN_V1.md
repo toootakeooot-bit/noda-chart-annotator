@@ -20,8 +20,8 @@ NVT2 is read-only research tooling. It must not alter production `tools/live_dra
 Required:
 
 ```text
---input-csv   NCA OHLC CSV in existing closed-bar format
---symbol      canonical symbol, e.g. USDJPY# or USDJPY depending source
+--input-csv   NCA/NVT closed-bar OHLC CSV
+--symbol      canonical broker symbol, e.g. USDJPY#
 --timeframe   D1 | H4 | H1 | M15
 --output      output JSON path
 ```
@@ -33,6 +33,25 @@ Optional:
 ```
 
 If no cutoff is supplied, the whole CSV is used. Hard Ground Truth regression still requires a frozen cutoff under NVT5.
+
+## 2A. Ground-Truth-required execution matrix
+
+The NVT2 corpus runner must process the **source/timeframe pairs actually required by registered Ground Truth cases**.
+
+It must not require every source video to have every `D1/H4/H1/M15` history file merely because those are the production Normal Run timeframes.
+
+Reason:
+
+```text
+Ground Truth case -> source_id + timeframe
+                   -> only that source/timeframe candidate pool is a required NVT2 gate
+```
+
+An optional timeframe history gap must not block an unrelated Ground Truth comparison.
+
+Example: if the current registered cases require D1/H4/H1 only, insufficient M15 depth for an older source date is recorded as an optional research limitation, not as an NVT2 failure for the D1/H4/H1 cases.
+
+When a future Ground Truth case explicitly requires that missing timeframe, the missing history becomes a real gate and must be acquired before that case can pass NVT2.
 
 ## 3. Production components reused without modification
 
@@ -107,6 +126,8 @@ classifier_audit
 candidates[]
 ```
 
+The corpus runner also records which Ground Truth case IDs depend on each source/timeframe dump.
+
 ## 6. Explicit non-goals
 
 NVT2 v1 does **not** yet implement:
@@ -134,7 +155,19 @@ Market Facts valid?
 
 Do not tune selector weights to compensate for a missing candidate.
 
-## 8. Production protection
+## 8. Historical input isolation
+
+NVT research history is stored separately from Normal Run input:
+
+```text
+noda_draw/nvt_input
+```
+
+The NVT deep-history exporter may request more bars than the terminal currently has loaded. The actual exported count/range is authoritative; the requested count is not proof of coverage.
+
+A Ground Truth-required source/timeframe pair must contain sufficient closed bars at or before its cutoff. Optional, currently unused timeframe gaps are non-blocking.
+
+## 9. Production protection
 
 NVT2 writes only research JSON under an explicitly chosen output path.
 
