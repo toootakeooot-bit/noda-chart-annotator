@@ -11,7 +11,22 @@ def load_json(path: str | Path) -> dict:
 
 def expected_no_line(gt: dict) -> bool:
     notes = [str(x) for x in gt.get('notes', [])]
-    return len(gt.get('teacher_objects', [])) == 0 and any('expected_no_line' in x for x in notes)
+    return len(gt.get('teacher_objects', [])) == 0 and any(
+        x.startswith('expected_no_line=') for x in notes
+    )
+
+
+def infer_no_line_scope(gt: dict) -> tuple[str, str | None]:
+    tf = str(gt.get('timeframe') or '')
+    for raw in gt.get('notes', []):
+        note = str(raw)
+        if not note.startswith('expected_no_line='):
+            continue
+        value = note.split('=', 1)[1].strip()
+        if value == tf:
+            return 'TIMEFRAME_GLOBAL', note
+        return 'STRUCTURE_SPECIFIC', note
+    return 'UNKNOWN', None
 
 
 def main() -> int:
@@ -30,6 +45,7 @@ def main() -> int:
         raise ValueError(f"timeframe mismatch: GT={tf} pool={pool.get('timeframe')}")
 
     no_line = expected_no_line(gt)
+    no_line_scope, no_line_scope_note = infer_no_line_scope(gt)
     teacher_objects = gt.get('teacher_objects', [])
     teacher_line_expected = bool(teacher_objects)
     teacher_direction = None
@@ -61,11 +77,15 @@ def main() -> int:
     p38_p38 = [r for r in rows if r.get('provenance') == 'P38_P38']
     micro_micro = [r for r in rows if r.get('provenance') == 'MICRO_MICRO']
 
-    if no_line:
-        if rows:
-            observation = 'NEGATIVE_CONTROL_HAS_CANDIDATES_GATE_REQUIRED'
-        else:
-            observation = 'NO_LINE_BY_ABSENCE_ONLY'
+    if no_line and no_line_scope == 'TIMEFRAME_GLOBAL':
+        observation = (
+            'TIMEFRAME_GLOBAL_NEGATIVE_CONTROL_HAS_CANDIDATES'
+            if rows else 'TIMEFRAME_GLOBAL_NO_LINE_BY_ABSENCE_ONLY'
+        )
+    elif no_line and no_line_scope == 'STRUCTURE_SPECIFIC':
+        observation = 'STRUCTURE_SPECIFIC_NO_LINE_TARGET_NOT_IDENTIFIED'
+    elif no_line:
+        observation = 'NO_LINE_SCOPE_UNRESOLVED'
     elif teacher_line_expected:
         if latest_origin_bridge:
             observation = 'POSITIVE_RECALL_FROM_LATEST_P38_ORIGIN'
@@ -99,13 +119,16 @@ def main() -> int:
         }
 
     out = {
-        'schema': 'nvt-structure-ownership-evidence/0.1',
+        'schema': 'nvt-structure-ownership-evidence/0.2',
         'status': 'RESEARCH_ONLY',
         'case_id': case_id,
         'source_id': gt.get('source_id'),
         'timeframe': tf,
         'teacher_expectation': {
             'expected_no_line': no_line,
+            'no_line_scope': no_line_scope,
+            'no_line_scope_source_note': no_line_scope_note,
+            'no_line_scope_status': 'PROVISIONAL_UNTIL_SCHEMA_AMENDMENT_FIXED',
             'teacher_line_expected': teacher_line_expected,
             'teacher_direction': teacher_direction,
             'teacher_object_count': len(teacher_objects),
@@ -122,7 +145,8 @@ def main() -> int:
         'observation': observation,
         'interpretation_guard': (
             'This report does not select a line and does not define a production ownership rule. '
-            'NO-LINE cases are negative controls: candidate recognition must not force timeframe ownership.'
+            'A STRUCTURE_SPECIFIC NO-LINE case cannot label every other candidate on the same '
+            'timeframe/cutoff as negative. The rejected structure must be identified separately.'
         ),
         'hypothesis_under_test': {
             'P38_P38': 'native same-timeframe candidate hypothesis',
@@ -143,6 +167,7 @@ def main() -> int:
         'status': 'PASS',
         'case_id': case_id,
         'observation': observation,
+        'no_line_scope': no_line_scope,
         'provenance_counts': counts,
         'latest_origin_bridge_count': len(latest_origin_bridge),
         'output': str(out_path),
