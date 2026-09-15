@@ -1,0 +1,21 @@
+{
+  "schema": "nvt-ground-truth/1.0",
+  "case_id": "GT_XXXX",
+  "source_id": "SOURCE_XXXX",
+  "source_type": "IMAGE",
+  "symbol": "UNKNOWN",
+  "timeframe": "UNKNOWN",
+  "decision_time": null,
+  "market_data_cutoff": null,
+  "source_confidence": "UNKNOWN",
+  "annotation_status": "DRAFT",
+  "source_locator": {
+    "file_name": null,
+    "external_reference": null,
+    "video_timestamp_start": null,
+    "video_timestamp_end": null
+  },
+  "teacher_objects": [],
+  "video_events": [],
+  "notes": []
+}
