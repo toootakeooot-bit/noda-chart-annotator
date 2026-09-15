@@ -1,0 +1,53 @@
+{
+  "schema": "nvt-rejected-structure-evidence/0.1",
+  "status": "DRAFT_RESEARCH_EVIDENCE",
+  "case_id": "GT_0005",
+  "source_id": "NVT_VIDEO_20260912",
+  "symbol": "USDJPY",
+  "display_timeframe": "H1",
+  "source_locator": {
+    "file_name": "分析共有_26-9-12.mp4",
+    "video_timestamp_start": "00:29:48",
+    "video_timestamp_end": "00:30:50",
+    "primary_gt_window_end": "00:30:29"
+  },
+  "source_derived_findings": [
+    {
+      "video_time": "00:29:48-00:29:59",
+      "finding": "Teacher considers the visible sequence of lower highs/lows but explicitly says he does not draw the turn line here; such a turn line mainly indicates whether a secondary correction may have started.",
+      "confidence": "HIGH"
+    },
+    {
+      "video_time": "00:30:02-00:30:18",
+      "finding": "Teacher says he also does not usually draw that apparent line because the N-wave interpretation on H1 has changed and the visible wave has become more H4-like. If the objective is to follow the internal H1 movement, he says a lower-timeframe/internal wave such as M15 should be used instead.",
+      "confidence": "HIGH"
+    },
+    {
+      "video_time": "00:30:29-00:30:50",
+      "finding": "Teacher explains that treating the visible shape as a four-hour large-Dow structure is also structurally questionable because the H4 return high cannot yet be recognized; he explicitly references the 38.2% level being higher. He then transitions to identifying the true technical high for the next structure.",
+      "confidence": "HIGH"
+    }
+  ],
+  "visual_findings": {
+    "chart": "USDJPY H1",
+    "rejected_structure_class": "APPARENT_HIGHER_SCALE_OR_TURN_LINE_ON_H1",
+    "exact_anchor_pair": "UNKNOWN",
+    "reason_exact_anchor_unknown": "The source explains why the apparent structure is rejected, but the rejected line is not preserved as a uniquely identifiable locked two-anchor teacher object in the Ground Truth.",
+    "relation_to_gt0006": "GT_0006 begins immediately afterward from approximately 00:30:50 and identifies a different true technical high / valid descending H1 TL candidate set. Therefore GT_0005 must not be used as a blanket negative label for every H1 descending candidate at the same cutoff."
+  },
+  "ownership_interpretation": {
+    "no_line_scope": "STRUCTURE_SPECIFIC",
+    "display_timeframe": "H1",
+    "rejected_structure_scale_hint": "H4_LIKE_LARGE_DOW_INTERPRETATION_ON_H1",
+    "lower_timeframe_alternative": "M15_OR_INTERNAL_H1_WAVE",
+    "teacher_decision": "DO_NOT_DRAW_THIS_APPARENT_STRUCTURE_AS_H1_TL",
+    "global_h1_no_line": false,
+    "confidence": "HIGH_FOR_SCOPE_MEDIUM_FOR_EXACT_GEOMETRY"
+  },
+  "candidate_matching_status": "PENDING_EXACT_REJECTED_STRUCTURE_TARGET",
+  "candidate_matching_guard": "Do not treat all candidates present at the 2026-09-11 H1 cutoff as GT_0005 negatives. Candidate-level negative scoring requires the rejected structure to be isolated by source-frame/OHLC reconciliation.",
+  "production_writeback": false,
+  "normal_run_modified": false,
+  "mt4_object_writeback": false,
+  "trade_authority": false
+}
