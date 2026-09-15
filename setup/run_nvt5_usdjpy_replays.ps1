@@ -61,7 +61,7 @@ if ($plan.Count -eq 0) {
 }
 
 Write-Host ''
-Write-Host 'NVT5 STEP 2: deterministic time-frozen replays'
+Write-Host 'NVT5 STEP 2: deterministic time-frozen replays + exact candidate pools'
 Write-Host "Required replay pairs: $($plan.Count)"
 Write-Host "Replay root: $replayRoot"
 Write-Host ''
@@ -92,8 +92,6 @@ foreach ($pair in $plan) {
     exit $LASTEXITCODE
   }
 
-  # Rebuild the exact candidate pool at the same verified cutoff. This remains
-  # read-only research and is used by the anchor-review workbench/NVT3 rerun.
   & $Python (Join-Path $RepoRoot 'tools\nvt\dump_candidates.py') `
     '--input-csv' $src `
     '--symbol' $BrokerSymbol `
@@ -105,6 +103,30 @@ foreach ($pair in $plan) {
     exit $LASTEXITCODE
   }
 
+  Write-Host '  Anchor-review workbenches:'
+  $workbenchPaths = @()
+  $caseIds = @($cases -split ',')
+  foreach ($caseIdRaw in $caseIds) {
+    $caseId = $caseIdRaw.Trim()
+    if ([string]::IsNullOrWhiteSpace($caseId)) { continue }
+    $gtPath = Join-Path $gtDir ("{0}.json" -f $caseId)
+    $workbench = Join-Path $pairDir ("workbench_{0}.json" -f $caseId)
+    if (!(Test-Path $gtPath)) {
+      Write-Host ("NVT5 FAIL: Ground Truth file missing for {0}: {1}" -f $caseId, $gtPath)
+      exit 2
+    }
+    & $Python (Join-Path $RepoRoot 'tools\nvt\build_anchor_workbench.py') `
+      '--ground-truth' $gtPath `
+      '--candidate-dump' $candidateOut `
+      '--output' $workbench `
+      '--per-view' '6'
+    if ($LASTEXITCODE -ne 0) {
+      Write-Host ("NVT5 FAIL WORKBENCH: {0} exit={1}" -f $caseId, $LASTEXITCODE)
+      exit $LASTEXITCODE
+    }
+    $workbenchPaths += $workbench
+  }
+
   $summary += [pscustomobject]@{
     source_id = $sourceId
     timeframe = $tf
@@ -113,6 +135,7 @@ foreach ($pair in $plan) {
     frozen_bar_count = [int]$pair.frozen_bar_count
     excluded_future_bar_count = [int]$pair.excluded_future_bar_count
     candidate_dump = $candidateOut
+    anchor_workbenches = ($workbenchPaths -join ';')
   }
   Write-Host ''
 }
@@ -127,5 +150,6 @@ Write-Host "Resolved cutoffs: $resolvedJson"
 Write-Host "Replay summary: $summaryPath"
 Write-Host ''
 Write-Host 'PASS means every required pair used an exact cutoff derived from actual XM closed-bar history.'
+Write-Host 'Anchor workbenches are review aids only; they do not choose or write Teacher anchors.'
 Write-Host 'No production Normal Run state/snapshot, MT4 NCA_DRAW__ object, or trade state was modified.'
 Write-Host 'Teacher anchors remain UNKNOWN until source-frame/OHLC reconciliation; NVT5 does not guess them.'
