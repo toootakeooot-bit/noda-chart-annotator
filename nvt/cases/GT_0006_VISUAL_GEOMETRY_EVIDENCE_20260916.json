@@ -1,0 +1,91 @@
+{
+  "schema": "nvt6-gt0006-visual-geometry-evidence/0.1",
+  "status": "RESEARCH_ONLY",
+  "case_id": "GT_0006",
+  "source": {
+    "file_name": "分析共有_26-9-12.mp4",
+    "teacher_interval": "00:30:50-00:31:49",
+    "geometry_sample_video_time_approx": "00:31:12",
+    "timeframe": "H1"
+  },
+  "teacher_sequence_observed": [
+    "Identify the true technical high / start point.",
+    "Identify several structurally valid cluster-right-edge alternatives.",
+    "A later raised high may be used to redraw the line.",
+    "Teacher prefers a gentler angle for reading intermediate pullbacks / break-and-return structure.",
+    "An unusually long wick may be treated as noise contextually."
+  ],
+  "mt4_visual_sample": {
+    "object_tooltip": "Trendline 55257",
+    "chart_status_bar_time": "2026-09-03T11:00:00",
+    "tooltip_line_value": 159.56,
+    "status_bar_ohlc": {
+      "open": 157.042,
+      "high": 157.137,
+      "low": 156.525,
+      "close": 156.692,
+      "volume": 7914
+    },
+    "confidence": "HIGH_FOR_DISPLAYED_TIME_AND_TOOLTIP_VALUE"
+  },
+  "candidate_comparison_basis": {
+    "common_anchor1_time": "2026-09-02T04:00:00",
+    "common_anchor1_price": 160.387,
+    "sample_time": "2026-09-03T11:00:00",
+    "elapsed_hours_from_anchor1": 31.0,
+    "comparison_formula": "predicted_line_value = anchor1_price - absolute_slope_per_hour * elapsed_hours",
+    "visual_match_tolerance": 0.03
+  },
+  "visual_finalists": [
+    {
+      "anchor2_time": "2026-09-11T11:00:00",
+      "anchor2_price": 154.367,
+      "absolute_slope_per_hour": 0.02699551569506731,
+      "predicted_value_at_sample": 159.5501390134529,
+      "absolute_error_vs_tooltip": 0.009860986547096218
+    },
+    {
+      "anchor2_time": "2026-09-11T02:00:00",
+      "anchor2_price": 154.609,
+      "absolute_slope_per_hour": 0.02699999999999996,
+      "predicted_value_at_sample": 159.55,
+      "absolute_error_vs_tooltip": 0.009999999999990905
+    },
+    {
+      "anchor2_time": "2026-09-11T15:00:00",
+      "anchor2_price": 154.48,
+      "absolute_slope_per_hour": 0.02602202643171811,
+      "predicted_value_at_sample": 159.58031718061673,
+      "absolute_error_vs_tooltip": 0.020317180616729047,
+      "cross_feature_research_lead": true
+    }
+  ],
+  "nearest_nonfinalist": {
+    "anchor2_time": "2026-09-10T04:00:00",
+    "anchor2_price": 153.737,
+    "predicted_value_at_sample": 159.31330208333333,
+    "absolute_error_vs_tooltip": 0.24669791666667606
+  },
+  "findings": {
+    "video_geometry_materially_reduces_candidate_set": true,
+    "input_gate_c_candidate_count": 13,
+    "visual_finalist_count": 3,
+    "unique_cross_feature_research_lead_remains_in_finalists": true,
+    "exact_teacher_anchor_pair_locked": false,
+    "reason_not_locked": "One visual line-value sample separates the gentle three-candidate family from the rest, but does not reliably distinguish 2026-09-11 02:00 vs 11:00 vs 15:00. Exact object parameters or an additional independent geometry sample would be required for hard anchor lock."
+  },
+  "selector_semantics_correction": {
+    "single_stage_cluster_plus_gentle_is_oversimplified": true,
+    "recommended_research_sequence": [
+      "STRUCTURE / OWNERSHIP",
+      "CLUSTER-RIGHT-EDGE VALID ALTERNATIVES",
+      "OPTIONAL LATER-HIGH REANCHOR",
+      "GENTLE-ANGLE PREFERENCE",
+      "WICK-NOISE CONTEXT TAG"
+    ]
+  },
+  "production_writeback": false,
+  "normal_run_modified": false,
+  "mt4_object_writeback": false,
+  "trade_authority": false
+}
