@@ -8,6 +8,7 @@ from pathlib import Path
 
 
 TARGET_CASES = {'GT_0005', 'GT_0006', 'GT_0007'}
+CASE_ORDER = ('GT_0005', 'GT_0006', 'GT_0007')
 
 
 def load_json(path: Path) -> dict:
@@ -59,7 +60,10 @@ def main() -> int:
     pool_by_pair = {}
     case_summaries = []
 
-    for cid in sorted(TARGET_CASES):
+    # Order is intentional: GT_0005 first establishes that a valid small-Dow
+    # turn line may be intentionally hidden for lifecycle/clutter reasons; it
+    # must not become an ownership negative before GT_0006 selector research.
+    for cid in CASE_ORDER:
         pair = pair_for_case[cid]
         source_id = str(pair['source_id'])
         tf = str(pair['timeframe'])
@@ -111,30 +115,39 @@ def main() -> int:
         gt7['teacher_expectation']['no_line_scope'] == 'TIMEFRAME_GLOBAL'
     )
     gt7_candidates_present = gt7['candidate_evidence']['directional_candidate_count'] > 0
-    gt5_structure_specific = (
-        gt5['teacher_expectation']['no_line_scope'] == 'STRUCTURE_SPECIFIC'
+    gt5_display_suppressed = bool(
+        gt5['teacher_expectation'].get('display_suppressed_valid_line')
+    )
+    gt5_not_ownership_negative = (
+        gt5_display_suppressed
+        and gt5['teacher_expectation'].get('ownership_rejection') is False
     )
 
     summary = {
-        'schema': 'nvt6-structure-ownership-preflight/0.2',
+        'schema': 'nvt6-structure-ownership-preflight/0.3',
         'status': 'PASS',
         'mode': 'RESEARCH_ONLY',
+        'case_order': list(CASE_ORDER),
         'cases': case_summaries,
         'preflight_findings': {
+            'gt0005_valid_display_suppression_evidence': gt5_display_suppressed,
+            'gt0005_not_ownership_negative': gt5_not_ownership_negative,
+            'gt0005_processed_before_gt0006_selector': True,
+            'gt0005_exact_anchor_identity_still_pending': True,
             'gt0006_p38_micro_recall_present': positive_recall,
             'gt0007_timeframe_global_no_line_evidence': gt7_global_no_line,
             'gt0007_candidates_still_present': gt7_candidates_present,
-            'gt0005_structure_specific_no_line_evidence': gt5_structure_specific,
-            'gt0005_rejected_structure_target_identification_required': gt5_structure_specific,
             'ownership_gate_required_before_selector': bool(
-                positive_recall and (gt7_global_no_line or gt5_structure_specific)
+                positive_recall and gt7_global_no_line
             ),
         },
         'interpretation': (
-            'GT_0007 may be used as a timeframe-global NO-LINE control. GT_0005 is '
-            'structure-specific and must not label every other H1 candidate at the same '
-            'cutoff as negative. Its rejected structure needs a separate target identity '
-            'before candidate-level ownership scoring.'
+            'GT_0005 is processed first as a valid small-Dow turn-line example that is intentionally '
+            'not displayed because its steep angle makes it short-lived and because showing every '
+            'such line would create clutter. It is not an ownership rejection and must not be used '
+            'as a negative ownership label for GT_0006. GT_0007 remains the timeframe-global H1 '
+            'NO-LINE negative control. Exact GT_0005 anchors remain useful for later lifecycle / '
+            'visibility-policy scoring but do not block GT_0006 ownership/selector research.'
         ),
         'production_writeback': False,
         'normal_run_modified': False,
