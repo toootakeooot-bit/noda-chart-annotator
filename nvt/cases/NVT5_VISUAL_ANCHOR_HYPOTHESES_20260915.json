@@ -1,0 +1,95 @@
+{
+  "schema": "nvt5-visual-anchor-hypotheses/1.0",
+  "status": "DRAFT_REVIEW_AID_ONLY",
+  "symbol": "USDJPY",
+  "purpose": "Video-frame-derived date windows for probing whether Teacher-like candidates exist in the exact time-frozen Candidate Pool. These windows are not Ground Truth locks.",
+  "rules": {
+    "do_not_modify_ground_truth": true,
+    "do_not_modify_selector": true,
+    "do_not_modify_production": true,
+    "window_match_is_not_teacher_match": true,
+    "exact_anchor_lock_requires_manual_frame_and_ohlc_confirmation": true
+  },
+  "cases": [
+    {
+      "case_id": "GT_0001",
+      "source_id": "NVT_VIDEO_20260808",
+      "timeframe": "D1",
+      "mode": "TL_WINDOW_PROBE",
+      "direction": "RISING",
+      "video_timestamp": "00:10:16-00:10:34",
+      "anchor1_window": ["2025-04-01T00:00:00", "2025-04-20T23:59:59"],
+      "anchor2_window": ["2025-08-20T00:00:00", "2025-09-20T23:59:59"],
+      "visual_hypothesis": "Secondary rising TL/channel base visually starts from the major April 2025 low and uses the right edge of the later low cluster around late-August/September 2025.",
+      "confidence": "MEDIUM_HIGH_FOR_WINDOWS_ONLY"
+    },
+    {
+      "case_id": "GT_0002",
+      "source_id": "NVT_VIDEO_20260808",
+      "timeframe": "D1",
+      "mode": "CH_LIFECYCLE_PROBE",
+      "direction": "RISING",
+      "video_timestamp": "00:10:54-00:11:16",
+      "parent_anchor1_window": ["2025-04-01T00:00:00", "2025-04-20T23:59:59"],
+      "parent_anchor2_window": ["2025-08-20T00:00:00", "2025-09-20T23:59:59"],
+      "visual_hypothesis": "Initial and updated CH share the same broad rising structure, but the updated/current CH changes the opposite boundary while the initial CH may remain as REFERENCE. Exact opposite-anchor bars remain unresolved.",
+      "confidence": "HIGH_FOR_LIFECYCLE_MEDIUM_FOR_GEOMETRY"
+    },
+    {
+      "case_id": "GT_0003",
+      "source_id": "NVT_VIDEO_20260830",
+      "timeframe": "H4",
+      "mode": "TL_WINDOW_PROBE",
+      "direction": "RISING",
+      "video_timestamp": "00:04:16-00:05:01",
+      "anchor1_window": ["2026-01-25T00:00:00", "2026-02-20T23:59:59"],
+      "anchor2_window": ["2026-04-20T00:00:00", "2026-05-10T23:59:59"],
+      "visual_hypothesis": "The H4 wick-to-wick rising support under review is visually tied to the 2026 structure, approximately the February low to the late-April/early-May low, not to a 2025-origin structure.",
+      "confidence": "MEDIUM_FOR_WINDOWS_ONLY"
+    },
+    {
+      "case_id": "GT_0004",
+      "source_id": "NVT_VIDEO_20260905",
+      "timeframe": "D1",
+      "mode": "TL_WINDOW_PROBE",
+      "direction": "RISING",
+      "video_timestamp": "00:03:19-00:04:45",
+      "anchor1_window": ["2025-04-01T00:00:00", "2025-04-20T23:59:59"],
+      "anchor2_window": ["2025-08-20T00:00:00", "2025-09-25T23:59:59"],
+      "visual_hypothesis": "The long-retained original D1 rising reference visually follows the same 2025 rising channel family, with the original major April low and a later low around late-August/September 2025. Newer PC re-anchoring is explicitly not the desired monitoring reference.",
+      "confidence": "HIGH_FOR_STRUCTURE_MEDIUM_HIGH_FOR_WINDOWS"
+    },
+    {
+      "case_id": "GT_0005",
+      "source_id": "NVT_VIDEO_20260912",
+      "timeframe": "H1",
+      "mode": "NO_LINE",
+      "direction": null,
+      "video_timestamp": "00:29:48-00:30:29",
+      "visual_hypothesis": "Teacher explicitly expects no H1 turn-line for the shown large-scale shape.",
+      "confidence": "HIGH"
+    },
+    {
+      "case_id": "GT_0006",
+      "source_id": "NVT_VIDEO_20260912",
+      "timeframe": "H1",
+      "mode": "TL_WINDOW_PROBE",
+      "direction": "FALLING",
+      "video_timestamp": "00:30:50-00:31:49",
+      "anchor1_window": ["2026-09-01T00:00:00", "2026-09-03T23:59:59"],
+      "anchor2_window": ["2026-09-04T00:00:00", "2026-09-11T23:59:59"],
+      "visual_hypothesis": "Teacher uses the early-September technical high as the starting structure and compares several later cluster-edge highs through roughly September 10/11. A gentler valid line is preferred; one long wick may be excluded as noise.",
+      "confidence": "HIGH_FOR_WINDOWS_MEDIUM_FOR_EXACT_BARS"
+    },
+    {
+      "case_id": "GT_0007",
+      "source_id": "NVT_VIDEO_20260808",
+      "timeframe": "H1",
+      "mode": "NO_LINE",
+      "direction": null,
+      "video_timestamp": "00:39:15-00:39:44",
+      "visual_hypothesis": "Teacher explicitly expects no H1 line; internal structure belongs to the lower timeframe if needed.",
+      "confidence": "HIGH"
+    }
+  ]
+}
