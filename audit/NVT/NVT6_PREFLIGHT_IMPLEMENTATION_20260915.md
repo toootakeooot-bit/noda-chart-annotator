@@ -14,7 +14,12 @@ GT_0006 Micro-Dow prototype restored teacher-like H1 descending TL alternatives 
 - 48 falling Micro-Dow pairs overall;
 - no production writeback.
 
-At the same time, GT_0005 and GT_0007 remain explicit H1 NO-LINE cases, so Micro-Dow recall cannot be allowed to imply H1 ownership automatically.
+NO-LINE evidence requires scope discipline:
+
+- GT_0007 is the current strongest **timeframe-global H1 NO-LINE** control;
+- GT_0005 is **structure-specific NO-LINE** evidence. It rejects the apparent structure being discussed, but GT_0006 shortly afterward contains a different valid H1 descending TL on the same source/cutoff.
+
+Therefore GT_0005 must not be used as a blanket negative label for all H1 candidates at that cutoff. Its rejected structure must be identified separately.
 
 A separate blocker also remains from GT_0003: repeated rows may share one `candidate_id` while CH anchor / structural metrics differ.
 
@@ -59,7 +64,9 @@ EXACT_DUPLICATE_ROWS
 - `setup/run_nvt6_preflight_all.ps1`
 - `setup/RUN_NVT6_PREFLIGHT_ALL.cmd`
 
-## Important implementation correction
+## Important implementation corrections
+
+### Full-history production Pivot provenance
 
 The generic Micro-Dow pool builder initially applied the research lookback before running the production 38% detector. That could have changed production-equivalent pivot state. It was corrected before host execution:
 
@@ -70,6 +77,19 @@ full frozen history
 ```
 
 Thus production-confirmed pivot provenance is measured from the full frozen history.
+
+### NO-LINE scope
+
+The Ground Truth schema amendment draft was refined to distinguish:
+
+```text
+TIMEFRAME_GLOBAL
+STRUCTURE_SPECIFIC
+OBJECT_SPECIFIC
+UNKNOWN
+```
+
+The current preflight evaluator treats GT_0007 as a global negative-control candidate and GT_0005 as structure-specific evidence requiring a rejected-structure target before candidate-level scoring.
 
 ## Expected host outputs
 
@@ -93,8 +113,8 @@ A PASS from these runners means **reports were generated successfully**, not tha
 The intended questions are:
 
 1. Does GT_0006 retain `P38_MICRO` recall in the generic pool?
-2. Do GT_0005 / GT_0007 also contain recognizable candidates despite teacher NO-LINE evidence?
-3. If yes, an explicit ownership gate is mandatory before selector scoring.
+2. Does GT_0007 contain recognizable candidates despite timeframe-global teacher NO-LINE evidence?
+3. Can the rejected structure in GT_0005 be identified separately from GT_0006's valid H1 structure?
 4. What form of candidate identity collision exists in GT_0003?
 5. Only after those answers may NVT6 Structure Selector beta scoring be designed.
 
@@ -115,4 +135,4 @@ NODA Engine writeback: none
 
 ## Next gate
 
-Run `setup/RUN_NVT6_PREFLIGHT_ALL.cmd` on the host with existing NVT5 outputs. Review the two resulting summary reports before implementing selector weights or production-like ownership rules.
+Run `setup/RUN_NVT6_PREFLIGHT_ALL.cmd` on the host with existing NVT5 outputs. Review the resulting ownership summary and candidate-identity audit before implementing selector weights or production-like ownership rules.
