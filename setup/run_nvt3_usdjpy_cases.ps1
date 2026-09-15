@@ -30,6 +30,10 @@ if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }
 
+# A run must score only reports generated in that run. Stale research reports
+# from a previous partial/failed run are removed here; production files are not touched.
+Get-ChildItem -Path $diffDir -Filter 'diff_*.json' -ErrorAction SilentlyContinue | Remove-Item -Force
+
 $gtDir = Join-Path $RepoRoot 'nvt\ground_truth'
 $gtFiles = @(Get-ChildItem -Path $gtDir -Filter 'GT_*.json' | Where-Object { $_.Name -ne 'GT_TEMPLATE.json' } | Sort-Object Name)
 if ($gtFiles.Count -eq 0) {
@@ -119,4 +123,5 @@ Write-Host ''
 Write-Host 'NOTE: FAIL means Teacher/NCA mismatch evidence, not a runner failure.'
 Write-Host 'PENDING_GROUND_TRUTH means exact teacher anchors are not locked yet.'
 Write-Host 'Ground Truth/report JSON is read explicitly as UTF-8 for Windows PowerShell 5.1 compatibility.'
+Write-Host 'Only NVT research diff_*.json from a prior run are cleared; production files are untouched.'
 Write-Host 'No production NCA code/state/snapshot/MT4 object was modified.'
