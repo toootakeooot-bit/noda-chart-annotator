@@ -52,17 +52,30 @@ def main() -> int:
     args = ap.parse_args()
 
     src = Path(args.input_csv)
-    bars_all = load_ohlc_csv(src)
+    source_bars = load_ohlc_csv(src)
     cutoff = parse_cutoff(args.cutoff)
-    bars = [b for b in bars_all if b.time <= cutoff]
-    if len(bars) < 10:
+    frozen_all = [b for b in source_bars if b.time <= cutoff]
+    if len(frozen_all) < 10:
         raise ValueError('insufficient closed bars at cutoff')
-    bars = bars[-max(args.lookback_bars, 10):]
-    radius = max(1, args.local_radius)
 
-    turns = detect_turns(bars)
-    confirmed_high_times = {p.time.isoformat() for p in turns.pivots if p.kind == 'HIGH'}
-    confirmed_low_times = {p.time.isoformat() for p in turns.pivots if p.kind == 'LOW'}
+    # Production-equivalent 38% pivots must be computed from the complete frozen
+    # history.  The research lookback is applied only to the Micro-Dow lens and
+    # output pool; truncating first would change the production detector state.
+    turns = detect_turns(frozen_all)
+
+    bars = frozen_all[-max(args.lookback_bars, 10):]
+    radius = max(1, args.local_radius)
+    first_lookback_time = bars[0].time
+    lookback_times = {b.time.isoformat() for b in bars}
+
+    confirmed_high_times = {
+        p.time.isoformat() for p in turns.pivots
+        if p.kind == 'HIGH' and p.time >= first_lookback_time
+    }
+    confirmed_low_times = {
+        p.time.isoformat() for p in turns.pivots
+        if p.kind == 'LOW' and p.time >= first_lookback_time
+    }
 
     def is_local_high(i: int) -> bool:
         if i < radius or i + radius >= len(bars):
@@ -92,7 +105,7 @@ def main() -> int:
         row = point_meta(bars[i], 'HIGH')
         row.update({
             'kind': 'HIGH',
-            'index': i,
+            'index_in_lookback': i,
             'production_confirmed': bars[i].time.isoformat() in confirmed_high_times,
             'micro_rule': 'LOW1 -> rebound HIGH -> LOWER LOW',
             'previous_low_time': bars[p].time.isoformat(),
@@ -115,7 +128,7 @@ def main() -> int:
         row = point_meta(bars[i], 'LOW')
         row.update({
             'kind': 'LOW',
-            'index': i,
+            'index_in_lookback': i,
             'production_confirmed': bars[i].time.isoformat() in confirmed_low_times,
             'micro_rule': 'HIGH1 -> pullback LOW -> HIGHER HIGH',
             'previous_high_time': bars[p].time.isoformat(),
@@ -130,13 +143,13 @@ def main() -> int:
     time_to_bar = {b.time.isoformat(): b for b in bars}
     for p in turns.pivots:
         key = p.time.isoformat()
-        if key not in time_to_bar:
+        if key not in lookback_times or key not in time_to_bar:
             continue
         b = time_to_bar[key]
         row = point_meta(b, p.kind)
         row.update({
             'kind': p.kind,
-            'index': p.index,
+            'production_index': p.index,
             'production_confirmed': True,
             'confirmed_at': p.confirmed_time.isoformat(),
             'retracement': p.retracement,
@@ -226,14 +239,16 @@ def main() -> int:
         counts_by_provenance[row['provenance']] = counts_by_provenance.get(row['provenance'], 0) + 1
 
     payload = {
-        'schema': 'nvt-micro-dow-pool/0.1',
+        'schema': 'nvt-micro-dow-pool/0.2',
         'status': 'RESEARCH_ONLY',
         'timeframe': args.timeframe,
         'cutoff': cutoff.isoformat(),
         'source_csv': str(src),
+        'full_frozen_bar_count': len(frozen_all),
         'lookback_bars': len(bars),
         'rules': {
             'production_38_detector_unchanged': True,
+            'production_38_uses_full_frozen_history': True,
             'local_radius': radius,
             'micro_high_confirmation': 'LOW1 -> rebound HIGH -> LOWER LOW',
             'micro_low_confirmation': 'HIGH1 -> pullback LOW -> HIGHER HIGH',
@@ -241,17 +256,17 @@ def main() -> int:
             'production_writeback': False,
         },
         'production_context': {
-            'confirmed_turn_count': len(turns.pivots),
+            'confirmed_turn_count_full_history': len(turns.pivots),
             'active_leg': turns.active_leg,
             'active_threshold': turns.active_threshold,
-            'latest_confirmed_high_time': latest_confirmed_high,
-            'latest_confirmed_low_time': latest_confirmed_low,
+            'latest_confirmed_high_time_in_lookback': latest_confirmed_high,
+            'latest_confirmed_low_time_in_lookback': latest_confirmed_low,
         },
         'counts': {
             'micro_high_count': len(micro_highs),
             'micro_low_count': len(micro_lows),
-            'confirmed_high_count': len(confirmed_highs),
-            'confirmed_low_count': len(confirmed_lows),
+            'confirmed_high_count_in_lookback': len(confirmed_highs),
+            'confirmed_low_count_in_lookback': len(confirmed_lows),
             'falling_pair_count': len(falling),
             'rising_pair_count': len(rising),
             'pair_counts_by_provenance': counts_by_provenance,
