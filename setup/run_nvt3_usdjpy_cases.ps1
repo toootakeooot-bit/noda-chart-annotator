@@ -14,6 +14,13 @@ function Safe-FileSymbol([string]$Value) {
   return ($Value -replace '[<>:"/\\|?*]', '_')
 }
 
+function Read-JsonUtf8([string]$Path) {
+  # Windows PowerShell 5.1 may misread BOM-less UTF-8 JSON containing Japanese
+  # when Get-Content uses the system ANSI code page. Read explicitly as UTF-8.
+  $text = [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
+  return ($text | ConvertFrom-Json)
+}
+
 $safe = Safe-FileSymbol $BrokerSymbol
 
 Write-Host 'NVT3 STEP 0: synthetic diff selftest'
@@ -31,6 +38,7 @@ if ($gtFiles.Count -eq 0) {
 }
 
 $generated = @()
+$waiting = @()
 Write-Host ''
 Write-Host 'NVT3 TEACHER-NCA DIFF START'
 Write-Host "Broker symbol: $BrokerSymbol"
@@ -38,15 +46,24 @@ Write-Host "Cases: $($gtFiles.Count)"
 Write-Host ''
 
 foreach ($gtFile in $gtFiles) {
-  $gt = Get-Content -Raw -Path $gtFile.FullName | ConvertFrom-Json
-  $caseId = $gt.case_id
-  $sourceId = $gt.source_id
-  $tf = $gt.timeframe
+  try {
+    $gt = Read-JsonUtf8 $gtFile.FullName
+  }
+  catch {
+    Write-Host ("NVT3 FAIL: invalid/unreadable UTF-8 Ground Truth JSON {0}" -f $gtFile.FullName)
+    Write-Host $_.Exception.Message
+    exit 3
+  }
+
+  $caseId = [string]$gt.case_id
+  $sourceId = [string]$gt.source_id
+  $tf = [string]$gt.timeframe
   $candidate = Join-Path (Join-Path $nvtOutput $sourceId) ("candidates_{0}_{1}.json" -f $safe, $tf)
   $report = Join-Path $diffDir ("diff_{0}.json" -f $caseId)
 
   if (!(Test-Path $candidate)) {
     Write-Host ("{0}: WAITING candidate dump {1}" -f $caseId, $candidate)
+    $waiting += $caseId
     continue
   }
 
@@ -61,7 +78,15 @@ foreach ($gtFile in $gtFiles) {
     exit $LASTEXITCODE
   }
 
-  $r = Get-Content -Raw -Path $report | ConvertFrom-Json
+  try {
+    $r = Read-JsonUtf8 $report
+  }
+  catch {
+    Write-Host ("NVT3 FAIL: generated report is unreadable JSON: {0}" -f $report)
+    Write-Host $_.Exception.Message
+    exit 3
+  }
+
   Write-Host ("{0}: {1} failures=[{2}]" -f $caseId, $r.assessment_status, (($r.failure_classes -join ', ')))
   $generated += $report
 }
@@ -85,8 +110,13 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ''
 Write-Host 'NVT3 DIFF GENERATION COMPLETE'
 Write-Host "Generated reports: $($generated.Count)"
+Write-Host "Waiting cases: $($waiting.Count)"
+if ($waiting.Count -gt 0) {
+  Write-Host ("Waiting: {0}" -f ($waiting -join ', '))
+}
 Write-Host "Metrics: $metrics"
 Write-Host ''
 Write-Host 'NOTE: FAIL means Teacher/NCA mismatch evidence, not a runner failure.'
 Write-Host 'PENDING_GROUND_TRUTH means exact teacher anchors are not locked yet.'
+Write-Host 'Ground Truth/report JSON is read explicitly as UTF-8 for Windows PowerShell 5.1 compatibility.'
 Write-Host 'No production NCA code/state/snapshot/MT4 object was modified.'
