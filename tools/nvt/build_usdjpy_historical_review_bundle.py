@@ -15,6 +15,8 @@ from live_draw.market_input import load_ohlc_csv
 from live_draw.turn_detector import detect_turns
 
 WINDOWS = {'D1': 90, 'H4': 180, 'H1': 240, 'M15': 320}
+CORE_TIMEFRAMES = ('D1', 'H4', 'H1')
+OPTIONAL_TIMEFRAMES = ('M15',)
 DEV_EXCLUDE_START = datetime(2026, 8, 1)
 DEV_EXCLUDE_END = datetime(2026, 9, 15, 23, 59, 59)
 
@@ -113,6 +115,36 @@ def evenly_pick(items, count):
     return [items[i] for i in idxs]
 
 
+def bars_at_or_before(bars, cutoff):
+    return [b for b in bars if b.time <= cutoff]
+
+
+def timeframe_payload(symbol: str, tf: str, all_tf_bars, cutoff):
+    window = WINDOWS[tf]
+    frozen = bars_at_or_before(all_tf_bars, cutoff)
+    available = len(frozen)
+
+    if available < 3:
+        return {
+            'availability': 'UNAVAILABLE_AT_CUTOFF',
+            'required_window_bars': window,
+            'available_bar_count': available,
+            'chart_window': [bar_row(b) for b in frozen],
+            'analysis': None,
+            'reason': 'Current exported history does not reach this historical cutoff for this timeframe.',
+        }
+
+    status = 'FULL_WINDOW' if available >= window else 'PARTIAL_WINDOW'
+    return {
+        'availability': status,
+        'required_window_bars': window,
+        'available_bar_count': available,
+        'chart_window': [bar_row(b) for b in frozen[-window:]],
+        'analysis': frozen_summary(symbol, tf, frozen),
+        'reason': None if status == 'FULL_WINDOW' else 'Analysis is available, but the requested visual window is shorter than the preferred review window.',
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description='Build USDJPY future-hidden historical review bundle for ChatGPT + user adjudication.')
     ap.add_argument('--input-dir', required=True)
@@ -125,10 +157,16 @@ def main() -> int:
     paths = {tf: resolve_csv(input_dir, tf) for tf in WINDOWS}
     all_bars = {tf: load_ohlc_csv(path) for tf, path in paths.items()}
 
+    # Historical case selection is driven by D1/H4/H1 only.  M15 is intentionally
+    # optional here because many MT4 terminals retain substantially less M15 history.
+    # Requiring a full M15 window can make every pre-development cutoff ineligible,
+    # even though the higher-timeframe history needed for the structural review is
+    # present.  Missing M15 is reported explicitly per case and is never fabricated.
     eligible = []
     for cutoff in weekly_candidates(all_bars['H1']):
         ok = True
-        for tf, need in WINDOWS.items():
+        for tf in CORE_TIMEFRAMES:
+            need = WINDOWS[tf]
             if sum(1 for b in all_bars[tf] if b.time <= cutoff) < need:
                 ok = False
                 break
@@ -137,17 +175,29 @@ def main() -> int:
 
     selected = evenly_pick(eligible, max(1, args.case_count))
     if not selected:
-        raise ValueError('No eligible USDJPY historical cutoffs found outside the development-video window.')
+        coverage = {
+            tf: {
+                'count': len(bars),
+                'first': bars[0].time.isoformat() if bars else None,
+                'last': bars[-1].time.isoformat() if bars else None,
+            }
+            for tf, bars in all_bars.items()
+        }
+        raise ValueError(
+            'No eligible USDJPY historical cutoffs found outside the development-video window '
+            f'for core timeframes {CORE_TIMEFRAMES}. Coverage={coverage}'
+        )
 
     cases = []
     for i, cutoff in enumerate(selected, 1):
-        tf_payload = {}
-        for tf, window in WINDOWS.items():
-            frozen = [b for b in all_bars[tf] if b.time <= cutoff]
-            tf_payload[tf] = {
-                'chart_window': [bar_row(b) for b in frozen[-window:]],
-                'analysis': frozen_summary(args.symbol, tf, frozen),
-            }
+        tf_payload = {
+            tf: timeframe_payload(args.symbol, tf, all_bars[tf], cutoff)
+            for tf in WINDOWS
+        }
+        missing_optional = [
+            tf for tf in OPTIONAL_TIMEFRAMES
+            if tf_payload[tf]['availability'] == 'UNAVAILABLE_AT_CUTOFF'
+        ]
 
         cases.append({
             'case_id': f'USDJPY_HIST_{i:02d}',
@@ -155,6 +205,8 @@ def main() -> int:
             'future_bars_included': False,
             'known_teacher_answer': None,
             'review_mode': 'CHATGPT_FIRST_USER_ADJUDICATION_ONLY_WHEN_NEEDED',
+            'core_timeframes_complete': all(tf_payload[tf]['availability'] == 'FULL_WINDOW' for tf in CORE_TIMEFRAMES),
+            'optional_timeframes_missing': missing_optional,
             'timeframes': tf_payload,
             'user_review_fields': {
                 'structure_scale': None,
@@ -168,8 +220,17 @@ def main() -> int:
             },
         })
 
+    input_coverage = {
+        tf: {
+            'count': len(bars),
+            'first': bars[0].time.isoformat() if bars else None,
+            'last': bars[-1].time.isoformat() if bars else None,
+        }
+        for tf, bars in all_bars.items()
+    }
+
     payload = {
-        'schema': 'nvt8h-usdjpy-historical-review-bundle/0.1',
+        'schema': 'nvt8h-usdjpy-historical-review-bundle/0.2',
         'status': 'RESEARCH_ONLY_HUMAN_ADJUDICATED_VALIDATION',
         'symbol_scope': 'USDJPY_ONLY',
         'purpose': 'Let ChatGPT perform the mechanical historical review first and surface only cases/fields that need user judgment.',
@@ -183,10 +244,14 @@ def main() -> int:
             'requested_case_count': args.case_count,
             'generated_case_count': len(cases),
             'window_bars': WINDOWS,
+            'core_timeframes_required_for_case_selection': list(CORE_TIMEFRAMES),
+            'optional_timeframes': list(OPTIONAL_TIMEFRAMES),
+            'optional_timeframe_policy': 'Never fabricate missing history. Include M15 when exported history reaches the cutoff; otherwise mark it unavailable and continue D1/H4/H1 review.',
         },
+        'input_coverage': input_coverage,
         'source_files': {tf: str(p) for tf, p in paths.items()},
         'review_protocol': [
-            'ChatGPT renders/inspects each future-hidden D1/H4/H1/M15 case.',
+            'ChatGPT renders/inspects each future-hidden D1/H4/H1 case; M15 is used only when available at that cutoff.',
             'ChatGPT applies current NVT6/NVT7 research semantics and flags only ambiguous or high-impact judgments.',
             'User judges only flagged items; unknown teacher answer remains explicit.',
             'Do not tune rules mid-case. Record PASS/FAIL/AMBIGUOUS first, then review aggregate failures later.',
@@ -208,6 +273,14 @@ def main() -> int:
         'first_cutoff': cases[0]['cutoff'],
         'last_cutoff': cases[-1]['cutoff'],
         'future_hidden': True,
+        'm15_available_case_count': sum(
+            1 for case in cases
+            if case['timeframes']['M15']['availability'] != 'UNAVAILABLE_AT_CUTOFF'
+        ),
+        'm15_missing_case_count': sum(
+            1 for case in cases
+            if case['timeframes']['M15']['availability'] == 'UNAVAILABLE_AT_CUTOFF'
+        ),
     }, ensure_ascii=False, indent=2))
     return 0
 
