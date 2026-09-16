@@ -1,0 +1,8 @@
+# Python runtime/cache artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local editor / OS noise
+.DS_Store
+Thumbs.db
