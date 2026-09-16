@@ -1,0 +1,21 @@
+{
+  "schema": "nvt7-pipeline/0.1",
+  "expected_branch": "feature/nvt-validation-v1",
+  "stages": [
+    {
+      "id": "NVT7-1-2",
+      "name": "Lifecycle preflight and event/state graph",
+      "script": "setup/run_nvt7_prepare.ps1",
+      "required": true
+    }
+  ],
+  "bundle_outputs": [
+    "nvt7_lifecycle/NVT7_LIFECYCLE_PREFLIGHT.json",
+    "nvt7_lifecycle/NVT7_EVENT_STATE_GRAPH.json"
+  ],
+  "notes": [
+    "The one-click runner pulls this branch with --ff-only only when the repository is clean.",
+    "Future NVT7 stages are appended to this manifest so the user keeps using the same RUN_NVT7_ONE_CLICK.cmd entry point.",
+    "NVT0-NVT8 remain research only; this pipeline does not modify production Normal Run or NCA_DRAW__."
+  ]
+}
