@@ -13,7 +13,15 @@ $expectedBranch = [string]$manifest.expected_branch
 $currentBranch = (& git rev-parse --abbrev-ref HEAD).Trim()
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 if ($currentBranch -ne $expectedBranch) {
-    throw "Wrong branch. Expected '$expectedBranch', actual '$currentBranch'."
+    Write-Host ''
+    Write-Host 'NVT7 ONE-CLICK STOPPED: wrong repository branch.' -ForegroundColor Yellow
+    Write-Host "Expected: $expectedBranch"
+    Write-Host "Actual  : $currentBranch"
+    Write-Host ''
+    Write-Host 'This stop is intentional so NVT0-NVT8 research never changes the Production Normal Run branch.'
+    Write-Host 'Recommended operator setup: keep this folder for Production and use a dedicated NVT worktree folder.'
+    Write-Host 'After the NVT worktree is created, always run RUN_NVT7_ONE_CLICK.cmd from that NVT folder.'
+    exit 21
 }
 
 $dirty = @(& git status --porcelain)
