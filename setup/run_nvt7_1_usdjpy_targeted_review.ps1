@@ -14,6 +14,7 @@ $importanceOutFile = Join-Path $importanceOutputDir 'NVT7_1_B02_03_IMPORTANCE_HA
 $analogueOutputDir = Join-Path $common 'nvt_output\nvt7_1_b02_03_analogues'
 $analogueOutFile = Join-Path $analogueOutputDir 'NVT7_1_USDJPY_B02_03_ANALOGUE_BATCH03.json'
 $windowAnalogueOutFile = Join-Path $analogueOutputDir 'NVT7_1_USDJPY_B02_03_ANALOGUE_BATCH03B.json'
+$sequenceAnalogueOutFile = Join-Path $analogueOutputDir 'NVT7_1_USDJPY_B02_03_ANALOGUE_BATCH03C.json'
 
 if (-not (Test-Path $inputDir)) {
     throw "Missing NVT input directory: $inputDir"
@@ -93,4 +94,22 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ''
 Write-Host 'NVT7.1 B02_03 BACKWARD-WINDOW SEARCH PASS'
 Write-Host "Window analogue bundle: $windowAnalogueOutFile"
-Write-Host 'Upload BATCH03B JSON to ChatGPT. The 5-snapshot window is a retrieval heuristic only, not an NVT market-rule threshold.'
+Write-Host 'The 5-snapshot window is a retrieval heuristic only, not an NVT market-rule threshold.'
+
+python (Join-Path $repo 'tools\nvt\build_nvt7_1_usdjpy_b02_03_sequence_search.py') `
+    --input-dir $inputDir `
+    --batch01 $priorBundle `
+    --batch02 $outFile `
+    --output $sequenceAnalogueOutFile `
+    --symbol 'USDJPY#' `
+    --max-cases 6
+
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
+Write-Host ''
+Write-Host 'NVT7.1 B02_03 SEQUENCE-PROXY SEARCH PASS'
+Write-Host "Sequence analogue bundle: $sequenceAnalogueOutFile"
+Write-Host 'Upload BATCH03C JSON to ChatGPT. This broad search drops active-leg/Large-Mid/reanchor requirements and retrieves structural low-high-breakout-higher-low sequences only.'
+Write-Host 'Candidate search PASS is not semantic validation and does not change Production.'
