@@ -11,6 +11,9 @@ $importanceAdjudication = Join-Path $repo 'nvt\adjudication\NVT71_B02_03_USER_OP
 $importanceOutputDir = Join-Path $common 'nvt_output\nvt7_1_importance'
 $importanceOutFile = Join-Path $importanceOutputDir 'NVT7_1_B02_03_IMPORTANCE_HANDOFF.json'
 
+$analogueOutputDir = Join-Path $common 'nvt_output\nvt7_1_b02_03_analogues'
+$analogueOutFile = Join-Path $analogueOutputDir 'NVT7_1_USDJPY_B02_03_ANALOGUE_BATCH03.json'
+
 if (-not (Test-Path $inputDir)) {
     throw "Missing NVT input directory: $inputDir"
 }
@@ -23,6 +26,7 @@ if (-not (Test-Path $importanceAdjudication)) {
 
 New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
 New-Item -ItemType Directory -Force -Path $importanceOutputDir | Out-Null
+New-Item -ItemType Directory -Force -Path $analogueOutputDir | Out-Null
 
 python (Join-Path $repo 'tools\nvt\build_nvt7_1_usdjpy_targeted_review.py') `
     --input-dir $inputDir `
@@ -55,5 +59,24 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ''
 Write-Host 'NVT7.1 B02_03 LINE IMPORTANCE CONTRACT PASS'
 Write-Host "Importance handoff: $importanceOutFile"
-Write-Host 'Upload the importance handoff JSON to ChatGPT for the next review step.'
 Write-Host 'PASS means the research contract is internally consistent; it does NOT mean teacher validation or Production readiness.'
+
+# Search additional future-hidden USDJPY H1 mechanical analogue candidates. This is
+# deliberately a proxy search only: it does not claim to objectively detect the
+# user-defined structural-high breakout or second-low reaction.
+python (Join-Path $repo 'tools\nvt\build_nvt7_1_usdjpy_b02_03_analogue_search.py') `
+    --input-dir $inputDir `
+    --batch01 $priorBundle `
+    --batch02 $outFile `
+    --output $analogueOutFile `
+    --symbol 'USDJPY#' `
+    --max-cases 6
+
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
+Write-Host ''
+Write-Host 'NVT7.1 B02_03 ANALOGUE SEARCH PASS'
+Write-Host "Analogue bundle: $analogueOutFile"
+Write-Host 'Upload the analogue bundle JSON to ChatGPT. Candidate search PASS is not semantic validation.'
