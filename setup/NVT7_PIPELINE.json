@@ -1,5 +1,5 @@
 {
-  "schema": "nvt7-pipeline/0.1",
+  "schema": "nvt7-pipeline/0.2",
   "expected_branch": "feature/nvt-validation-v1",
   "stages": [
     {
@@ -7,14 +7,30 @@
       "name": "Lifecycle preflight and event/state graph",
       "script": "setup/run_nvt7_prepare.ps1",
       "required": true
+    },
+    {
+      "id": "NVT7-3",
+      "name": "Sequential lifecycle regression",
+      "script": "setup/run_nvt7_sequential_regression.ps1",
+      "required": true
+    },
+    {
+      "id": "NVT7-4",
+      "name": "Lifecycle beta candidate build",
+      "script": "setup/run_nvt7_beta_candidate.ps1",
+      "required": true
     }
   ],
   "bundle_outputs": [
     "nvt7_lifecycle/NVT7_LIFECYCLE_PREFLIGHT.json",
-    "nvt7_lifecycle/NVT7_EVENT_STATE_GRAPH.json"
+    "nvt7_lifecycle/NVT7_EVENT_STATE_GRAPH.json",
+    "nvt7_lifecycle/NVT7_SEQUENTIAL_REGRESSION.json",
+    "nvt7_lifecycle/NVT7_LIFECYCLE_BETA_CANDIDATE.json"
   ],
   "notes": [
     "The one-click runner pulls this branch with --ff-only only when the repository is clean.",
+    "NVT7-3 verifies evidence-derived lifecycle contracts for GT_0002/0004/0005/0006.",
+    "NVT7-4 builds a research beta candidate only after sequential regression passes; unresolved blockers remain explicit and beta is not frozen automatically.",
     "Future NVT7 stages are appended to this manifest so the user keeps using the same RUN_NVT7_ONE_CLICK.cmd entry point.",
     "NVT0-NVT8 remain research only; this pipeline does not modify production Normal Run or NCA_DRAW__."
   ]
