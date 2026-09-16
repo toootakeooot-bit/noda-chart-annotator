@@ -1,0 +1,47 @@
+{
+  "schema": "nvt8-source-partition/1.0",
+  "status": "BLOCKED_NO_CLEAN_SOURCE_LEVEL_HOLDOUT",
+  "policy": "NVT8 uses source-level held-out video validation. Any source video inspected, registered, or used as development evidence during NVT0-NVT7 is excluded from clean held-out status.",
+  "development_or_touched_sources": [
+    {
+      "source_id": "NVT_VIDEO_20260808",
+      "reason": "Used by GT_0001 / GT_0002 / GT_0007 and lifecycle/selector development evidence."
+    },
+    {
+      "source_id": "NVT_VIDEO_20260822",
+      "reason": "Registered during NVT1 as OBS_0007 hierarchy/procedure evidence; source is therefore not clean source-level holdout even though it was not a lifecycle tuning case."
+    },
+    {
+      "source_id": "NVT_VIDEO_20260830",
+      "reason": "Used by GT_0003 and additional development observations."
+    },
+    {
+      "source_id": "NVT_VIDEO_20260905",
+      "reason": "Used by GT_0004 lifecycle reference-retention development case."
+    },
+    {
+      "source_id": "NVT_VIDEO_20260912",
+      "reason": "Used by GT_0005 / GT_0006 selector-lifecycle development cases."
+    }
+  ],
+  "clean_held_out_sources": [],
+  "known_unvalidated_material": [
+    {
+      "material": "2026-08-15 PDF",
+      "type": "PDF",
+      "eligible_for_nvt8_independent_video_gate": false,
+      "reason": "NVT8 fixed roadmap requires independent video validation."
+    }
+  ],
+  "required_next_source": {
+    "type": "VIDEO",
+    "requirements": [
+      "Not previously inspected or registered in NVT0-NVT7.",
+      "Contains USDJPY structural drawing behavior relevant to frozen NVT scope.",
+      "Can be time-frozen to closed broker OHLC without look-ahead.",
+      "Must be registered as held-out before teacher-event review begins."
+    ]
+  },
+  "nvt8_can_start_full_independent_validation": false,
+  "production_writeback": false
+}
