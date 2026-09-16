@@ -1,0 +1,61 @@
+{
+  "schema": "nvt7.1-usdjpy-b02-03-user-adjudication/0.1",
+  "status": "USER_OPERATIONAL_EVIDENCE",
+  "symbol": "USDJPY",
+  "timeframe": "H1",
+  "case_id": "USDJPY_NVT71_B02_03",
+  "cutoff": "2026-06-22T23:00:00",
+  "teacher_validated": false,
+  "production_ready": false,
+  "adjudication": {
+    "pre_break_direction_state": "RANGE_NOT_H1_RISING",
+    "mechanical_large_mid_rising_is_not_sufficient_for_user_direction_state": true,
+    "range_boundaries": {
+      "lower": "SMALL_DOW_HORIZONTAL_LEVEL_YELLOW_LOWER",
+      "upper": "MID_DOW_HORIZONTAL_LEVEL_YELLOW_UPPER",
+      "rule": "Until the relevant small/mid-Dow horizontal levels are broken to the upside, treat H1 as range / not yet returned to rising direction."
+    },
+    "rising_resume_trigger": {
+      "name": "RED_CIRCLE_STRUCTURAL_HIGH_BREAK",
+      "meaning": "H1 rising direction is considered resumed only after price exceeds the user-marked red-circle structural high.",
+      "numeric_price_locked": false
+    },
+    "tl_before_resume": {
+      "drawable": true,
+      "phase": "PROVISIONAL_DRAWABLE",
+      "important": false,
+      "decision_owner": false,
+      "rule": "The cyan TL may be drawn before the red-circle breakout, but it is provisional and not yet an important line."
+    },
+    "tl_after_resume": {
+      "promotion_trigger": "RED_CIRCLE_STRUCTURAL_HIGH_BREAK",
+      "phase": "IMPORTANT_CANDIDATE",
+      "important": true,
+      "rule": "After the red-circle structural high is exceeded, the previously drawable cyan TL becomes structurally important."
+    },
+    "large_dow_tl_confirmation": {
+      "requires_post_break_low_search": true,
+      "requires_second_valid_low": true,
+      "second_low_context": "REACTION_AT_MID_DOW_HORIZONTAL_LEVEL_YELLOW_UPPER",
+      "phase_after_confirmation": "CURRENT_CONFIRMED_LARGE_DOW_TL",
+      "rule": "Only after rising has resumed and a second valid low reacts at the mid-Dow upper horizontal level is the large-Dow TL confirmed as a full current line."
+    },
+    "forbidden_shortcuts": [
+      "Do not infer H1 rising direction merely because mechanical Large/Mid candidate directions are RISING.",
+      "Do not promote a drawable TL to an important/current line before the structural-high breakout.",
+      "Do not treat a local FALLING active leg as an automatic H1 downtrend while this range-resolution sequence is unresolved.",
+      "Do not require deletion of contextual/reference lines solely because a new candidate exists."
+    ]
+  },
+  "research_interpretation": {
+    "new_dimension": "LINE_IMPORTANCE_CONFIRMATION_PHASE",
+    "separate_from_visibility": true,
+    "separate_from_decision_ownership": true,
+    "separate_from_drawability": true,
+    "supersedes_prior_b02_03_simplification": "For this case, the user does not label pre-break H1 as already rising; the pre-break state is range/not-yet-rising despite mechanical Large/Mid=RISING."
+  },
+  "production_writeback": false,
+  "normal_run_modified": false,
+  "mt4_object_writeback": false,
+  "trade_authority": false
+}
