@@ -1,0 +1,84 @@
+{
+  "schema": "nvt8h-usdjpy-user-adjudication/0.1",
+  "status": "USER_OPERATIONAL_EVIDENCE",
+  "symbol": "USDJPY#",
+  "batch": "NVT8H_USDJPY_BATCH01",
+  "date": "2026-09-16",
+  "source_bundle": "NVT8H_USDJPY_REVIEW_BUNDLE.json",
+  "official_teacher_ground_truth": false,
+  "strict_nvt8_holdout": false,
+  "purpose": "Record user adjudication for flagged historical USDJPY cases after ChatGPT-first review. Do not retroactively relabel the frozen NVT7 beta as validated by this file.",
+  "cases": {
+    "USDJPY_HIST_03": {
+      "cutoff": "2026-06-19T23:00:00",
+      "user_judgment": {
+        "h1_green_tl_ch": "VALID_AND_RETAIN",
+        "temporary_tl_break": true,
+        "lower_low_established": false,
+        "downtrend_classification": false,
+        "draw_h1_descending_tl": false,
+        "small_dow_br_line": "MAY_DRAW_OPTIONAL_PINK",
+        "notes": "Green lines are TL/CH. There was a momentary downside break, but lows never shifted lower, so do not classify as descending and do not draw a descending TL. A small-Dow BR line may optionally be drawn in pink."
+      },
+      "research_implication": [
+        "TL break alone is insufficient to flip H1 direction.",
+        "Direction change needs market-structure confirmation such as a meaningful lower-low update.",
+        "A small-Dow auxiliary BR line can coexist without promoting the parent H1 structure to downtrend."
+      ]
+    },
+    "USDJPY_HIST_07": {
+      "cutoff": "2026-07-24T23:00:00",
+      "user_judgment": {
+        "green_old_tl": "RETAIN_INITIALLY_AFTER_BREAK",
+        "cyan_redraw": "MAY_REANCHOR",
+        "third_line_arrival_policy": "GREEN_CAN_BE_RETIRED",
+        "gentle_vs_steep_policy": "STEEPER_CYAN_MAY_BE_RETIRED_INSTEAD_IF_GENTLER_LINE_BETTER_PRESERVES_STRUCTURE",
+        "yellow_redraw": "PREFERRED_BROADER_STRUCTURE_REPLACEMENT",
+        "green_after_yellow": "RETIRE",
+        "notes": "After the HIST03 green line is broken, a cyan redraw may be used. When another valid line arrives, green can be removed, but because green is gentler the steeper cyan may instead be removed. A yellow redraw that captures the structure more broadly is preferred and green can then be retired; in hindsight it became a boundary line."
+      },
+      "research_implication": [
+        "Old reference lines are not retained forever.",
+        "Retirement depends on structural subsumption/coverage, not merely recency.",
+        "Gentler broad-structure lines can outlive steeper interim redraws.",
+        "A later redraw that captures a larger structure can legitimately replace and retire the older line."
+      ]
+    },
+    "USDJPY_HIST_08": {
+      "cutoff": "2026-07-31T23:00:00",
+      "user_judgment": {
+        "old_lines_at_cutoff": "RETAIN_FOR_NOW",
+        "h1_tl_broken": true,
+        "h4_tl_broken": true,
+        "decision_owner": "D1_TL",
+        "draw_new_h1_descending_tl_now": "NOT_REQUIRED_FOR_PRIMARY_DECISION",
+        "notes": "At this point keep the prior lines, but because both H1 and H4 TLs have been broken, this is already a phase where judgment should be based on the D1 TL."
+      },
+      "research_implication": [
+        "A broken lower-timeframe TL does not imply immediate deletion.",
+        "Decision ownership can escalate from H1/H4 to D1 after lower-timeframe structure breaks.",
+        "Lifecycle visibility and decision ownership must be modeled separately."
+      ]
+    }
+  },
+  "unadjudicated_cases": [
+    "USDJPY_HIST_01",
+    "USDJPY_HIST_02",
+    "USDJPY_HIST_04",
+    "USDJPY_HIST_05",
+    "USDJPY_HIST_06"
+  ],
+  "aggregate_findings": {
+    "new_user_evidence_for_retire_delete": true,
+    "teacher_evidence_for_retire_delete": false,
+    "line_break_is_not_direction_flip": true,
+    "reference_retention_is_conditional_not_permanent": true,
+    "broader_structure_can_supersede_older_reference": true,
+    "timeframe_decision_ownership_escalation_observed": true,
+    "do_not_modify_frozen_beta_mid_batch": true,
+    "next_step": "Build a research-only post-batch lifecycle/ownership candidate and rerun regression separately; keep original NVT7 scoped beta frozen for auditability."
+  },
+  "production_writeback": false,
+  "normal_run_modified": false,
+  "mt4_object_writeback": false
+}
