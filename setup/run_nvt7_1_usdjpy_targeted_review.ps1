@@ -13,6 +13,7 @@ $importanceOutFile = Join-Path $importanceOutputDir 'NVT7_1_B02_03_IMPORTANCE_HA
 
 $analogueOutputDir = Join-Path $common 'nvt_output\nvt7_1_b02_03_analogues'
 $analogueOutFile = Join-Path $analogueOutputDir 'NVT7_1_USDJPY_B02_03_ANALOGUE_BATCH03.json'
+$windowAnalogueOutFile = Join-Path $analogueOutputDir 'NVT7_1_USDJPY_B02_03_ANALOGUE_BATCH03B.json'
 
 if (-not (Test-Path $inputDir)) {
     throw "Missing NVT input directory: $inputDir"
@@ -44,9 +45,6 @@ Write-Host 'NVT7.1 USDJPY TARGETED REVIEW BATCH02 PASS'
 Write-Host "Batch02: $outFile"
 Write-Host 'Bundle generation PASS does not validate the hypotheses.'
 
-# B02_03 now has explicit user operational adjudication. Build its research-only
-# line-importance/confirmation contract immediately after Batch02 generation so the
-# user does not need a second manual command.
 python (Join-Path $repo 'tools\nvt\build_nvt7_1_b02_03_importance_handoff.py') `
     --targeted-bundle $outFile `
     --adjudication $importanceAdjudication `
@@ -61,9 +59,6 @@ Write-Host 'NVT7.1 B02_03 LINE IMPORTANCE CONTRACT PASS'
 Write-Host "Importance handoff: $importanceOutFile"
 Write-Host 'PASS means the research contract is internally consistent; it does NOT mean teacher validation or Production readiness.'
 
-# Search additional future-hidden USDJPY H1 mechanical analogue candidates. This is
-# deliberately a proxy search only: it does not claim to objectively detect the
-# user-defined structural-high breakout or second-low reaction.
 python (Join-Path $repo 'tools\nvt\build_nvt7_1_usdjpy_b02_03_analogue_search.py') `
     --input-dir $inputDir `
     --batch01 $priorBundle `
@@ -77,6 +72,25 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ''
-Write-Host 'NVT7.1 B02_03 ANALOGUE SEARCH PASS'
-Write-Host "Analogue bundle: $analogueOutFile"
-Write-Host 'Upload the analogue bundle JSON to ChatGPT. Candidate search PASS is not semantic validation.'
+Write-Host 'NVT7.1 B02_03 STRICT ANALOGUE SEARCH PASS'
+Write-Host "Strict analogue bundle: $analogueOutFile"
+Write-Host 'Strict search PASS may contain zero cases; zero cases means the proxy was too selective, not that the user-semantic rule failed.'
+
+python (Join-Path $repo 'tools\nvt\build_nvt7_1_usdjpy_b02_03_window_search.py') `
+    --input-dir $inputDir `
+    --batch01 $priorBundle `
+    --batch02 $outFile `
+    --strict-batch03 $analogueOutFile `
+    --output $windowAnalogueOutFile `
+    --symbol 'USDJPY#' `
+    --lookback-snapshots 5 `
+    --max-cases 6
+
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
+Write-Host ''
+Write-Host 'NVT7.1 B02_03 BACKWARD-WINDOW SEARCH PASS'
+Write-Host "Window analogue bundle: $windowAnalogueOutFile"
+Write-Host 'Upload BATCH03B JSON to ChatGPT. The 5-snapshot window is a retrieval heuristic only, not an NVT market-rule threshold.'
