@@ -1,0 +1,73 @@
+{
+  "schema": "nvt7.1-usdjpy-user-adjudication-batch02/0.1",
+  "status": "USER_OPERATIONAL_EVIDENCE",
+  "symbol": "USDJPY",
+  "timeframe_focus": "H1",
+  "batch": "NVT7.1_BATCH02_TARGETED_HISTORICAL_REVIEW",
+  "date": "2026-09-17",
+  "source_bundle": "NVT7_1_USDJPY_TARGETED_REVIEW_BATCH02.json",
+  "teacher_validated": false,
+  "production_ready": false,
+  "strict_nvt8_holdout": false,
+  "purpose": "Record the user's final adjudication for the ambiguous Batch02 reference-retirement cases after ChatGPT-first review. Preserve prior NVT7 scoped beta and prior B02_03 line-importance adjudication unchanged.",
+  "cases": {
+    "USDJPY_NVT71_B02_03": {
+      "cutoff": "2026-06-22T23:00:00",
+      "user_judgment": {
+        "old_reference": "RETIRE_ALLOWED",
+        "old_line_delete_allowed": true,
+        "new_line_role": "MAY_REPLACE_OLD_REFERENCE",
+        "notes": "The old line may be deleted at this point. This does not replace the earlier B02_03 importance-phase adjudication; drawability/importance/decision ownership remain separate dimensions."
+      },
+      "research_implication": [
+        "RETIRED_REFERENCE is operationally allowed in at least one Batch02 re-anchor case.",
+        "Retirement can occur before a universal numeric threshold is defined.",
+        "This is case-specific user operational evidence, not a teacher-validated automatic deletion rule."
+      ]
+    },
+    "USDJPY_NVT71_B02_04": {
+      "cutoff": "2026-07-02T23:00:00",
+      "user_judgment": {
+        "old_rising_reference": "RETAIN",
+        "old_line_delete_allowed": false,
+        "local_falling_leg_does_not_force_old_reference_retirement": true,
+        "notes": "Choose C: keep the old rising line as well."
+      },
+      "research_implication": [
+        "A local falling leg does not by itself retire the older rising reference.",
+        "A newer or gentler candidate does not automatically subsume the older line.",
+        "Reference retirement must remain contextual rather than newest-only or slope-only."
+      ]
+    },
+    "USDJPY_NVT71_B02_05": {
+      "cutoff": "2026-07-03T23:00:00",
+      "user_judgment": {
+        "old_rising_reference": "RETAIN",
+        "old_line_delete_allowed": false,
+        "local_falling_leg_does_not_force_old_reference_retirement": true,
+        "notes": "Choose C: keep the old rising line as well."
+      },
+      "research_implication": [
+        "The prior rising line may remain useful even after a redraw candidate exists.",
+        "Gentleness alone is not a sufficient retirement trigger.",
+        "Reference retention and current redraw may coexist."
+      ]
+    }
+  },
+  "aggregate_findings": {
+    "retired_reference_state_supported_by_user_evidence": true,
+    "automatic_retire_trigger_fixed": false,
+    "newest_line_only_retirement_forbidden": true,
+    "gentler_line_alone_retirement_forbidden": true,
+    "local_direction_flip_alone_retirement_forbidden": true,
+    "reference_retention_and_redraw_can_coexist": true,
+    "retirement_is_contextual": true,
+    "default_when_ambiguous": "RETAIN_REFERENCE_UNTIL_STRUCTURAL_ROLE_IS_CLEARLY_SUBSUMED",
+    "numeric_threshold_fixed": false,
+    "preserve_prior_b02_03_importance_adjudication": true
+  },
+  "production_writeback": false,
+  "normal_run_modified": false,
+  "mt4_object_writeback": false,
+  "trade_authority": false
+}
