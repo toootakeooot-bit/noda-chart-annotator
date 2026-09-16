@@ -22,6 +22,18 @@ def main() -> int:
         raise ValueError('NVT7 preflight checks did not pass')
 
     state_specs = {
+        'VALID_CANDIDATE': {
+            'candidate_valid': True,
+            'visible': None,
+            'stable_market_state': True,
+            'role': 'BOUNDARY_INPUT',
+        },
+        'NEWER_REANCHOR_OR_PC_EDIT': {
+            'candidate_valid': None,
+            'visible': None,
+            'stable_market_state': None,
+            'role': 'BOUNDARY_INPUT',
+        },
         'CURRENT_ACTIVE': {
             'candidate_valid': True,
             'visible': True,
