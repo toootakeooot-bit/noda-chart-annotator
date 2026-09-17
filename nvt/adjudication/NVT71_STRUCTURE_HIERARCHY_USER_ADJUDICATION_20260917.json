@@ -1,0 +1,111 @@
+{
+  "schema": "nvt7.1-structure-hierarchy-user-adjudication/0.2",
+  "status": "USER_OPERATIONAL_EVIDENCE",
+  "symbol": "USDJPY",
+  "timeframe": "H1",
+  "evidence_date": "2026-09-17",
+  "teacher_validated": false,
+  "production_ready": false,
+  "source_cases": [
+    "USDJPY_NVT71_B02_03",
+    "USDJPY_NVT71_B03C_06"
+  ],
+  "semantic_corrections": {
+    "line_promotion_is_not_structure_promotion": true,
+    "turn_line_breakout_does_not_promote_turn_line": true,
+    "mechanical_large_mid_direction_is_not_user_semantic_direction": true
+  },
+  "line_roles": {
+    "LARGE_DOW_TL": {
+      "user_example": "pink TL",
+      "meaning": "Primary large-Dow structural trendline.",
+      "default_visibility": "DRAW",
+      "primary_structure_role": true,
+      "importance_is_not_created_by_small_dow_breakout": true
+    },
+    "TURN_LINE": {
+      "user_example": "red TL",
+      "meaning": "Local/internal turn line used for structure interpretation.",
+      "default_visibility": "VALID_SUPPRESSED",
+      "primary_structure_role": false,
+      "may_be_used_internally": true,
+      "small_dow_high_break_promotes_line": false,
+      "display_exception_rule_fixed": false
+    }
+  },
+  "dow_hierarchy": {
+    "small_dow_high_break": {
+      "result": "SMALL_DOW_RISING",
+      "does_not_imply_large_dow_promotion": true
+    },
+    "active_large_dow_high_gate": {
+      "meaning": "The currently relevant large-Dow structural/swing high that must be exceeded before large-Dow rising is promoted.",
+      "first_and_updated_highs_may_exist": true,
+      "if_unbroken_state": "LARGE_DOW_NOT_PROMOTED",
+      "if_broken_state": "LARGE_DOW_PROMOTED"
+    },
+    "when_small_break_but_large_gate_unbroken": {
+      "local_state": "SMALL_DOW_RISING",
+      "parent_state": "LARGE_DOW_NOT_PROMOTED",
+      "next_major_resistance": "ACTIVE_LARGE_DOW_HIGH",
+      "interpretation": "Local rise can exist while the higher-order structure remains capped by the large-Dow high."
+    }
+  },
+  "structural_high_confirmation": {
+    "preferred_term": "STRUCTURAL_HIGH",
+    "alternate_term": "SWING_HIGH",
+    "candidate_meaning": "A meaningful rising-wave apex/high before full structural confirmation.",
+    "signals_tracked_separately": {
+      "RETRACE_38_CONFIRMED": {
+        "meaning": "The active rise has retraced at least 38%.",
+        "existing_detector_reuse": true,
+        "existing_detector_confirmation_basis": "LATER_CLOSED_BAR_CLOSE",
+        "production_detector_semantics_changed": false
+      },
+      "PROTECTED_LOW_BROKEN": {
+        "protected_low_term": "LAST_PULLBACK_LOW",
+        "meaning": "The last pullback low protecting the rise has been broken.",
+        "break_measurement_rule": "UNFIXED_WICK_OR_CLOSE"
+      }
+    },
+    "strong_confirmation_rule": {
+      "requires_retrace_38_confirmed": true,
+      "requires_protected_low_broken": true,
+      "result": "STRUCTURAL_HIGH_CONFIRMED_STRONG"
+    },
+    "partial_confirmation_allowed_for_research": true
+  },
+  "resistance_context": {
+    "active_large_dow_high_can_be_next_major_resistance": true,
+    "trade_execution_authority": false,
+    "profit_target_is_not_auto_order_instruction": true
+  },
+  "supersedes_prior_b02_03_simplifications": [
+    {
+      "prior": "Structural-high/red-circle breakout promotes the red/cyan local TL to an important line.",
+      "replacement": "The local turn line remains TURN_LINE and is normally VALID_SUPPRESSED; the breakout changes Dow hierarchy state, not the line role."
+    },
+    {
+      "prior": "A second post-break low universally promotes/confirms the large-Dow TL as a current line.",
+      "replacement": "Large-Dow TL identity/importance is a separate structural role. Do not use the second-low event as a universal line-promotion shortcut."
+    }
+  ],
+  "unfixed_items": [
+    "Whether breaking an active structural high/gate requires wick penetration or closed-bar close.",
+    "Whether breaking LAST_PULLBACK_LOW/PROTECTED_LOW requires wick penetration or closed-bar close.",
+    "Objective deterministic classifier that maps pivots into SMALL_DOW/MID_DOW/LARGE_DOW labels in every case.",
+    "Exceptions, if any, that permit automatic display of TURN_LINE."
+  ],
+  "guardrails": [
+    "Keep RETRACE_38_CONFIRMED and PROTECTED_LOW_BROKEN as separate booleans until further evidence fixes their use.",
+    "Do not weaken or alter the Production 38% turn detector in NVT7.1.",
+    "Do not promote TURN_LINE merely because a local structural high is broken.",
+    "Do not equate local SMALL_DOW_RISING with LARGE_DOW_PROMOTED.",
+    "Do not modify frozen NVT7 or Production Normal Run from this adjudication.",
+    "No trade/order authority."
+  ],
+  "production_writeback": false,
+  "normal_run_modified": false,
+  "mt4_object_writeback": false,
+  "trade_authority": false
+}
