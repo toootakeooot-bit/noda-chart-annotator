@@ -1,0 +1,37 @@
+{
+  "schema": "nvt8-held-out-source-registration/1.0",
+  "status": "TEMPLATE_NOT_REGISTERED",
+  "purpose": "Template for registering a previously unseen USDJPY teacher video as a strict NVT8 source before teacher-event inspection.",
+  "source_id": "REPLACE_WITH_NEW_SOURCE_ID",
+  "asset": {
+    "filename": "REPLACE_WITH_VIDEO_FILENAME",
+    "type": "VIDEO",
+    "symbol": "USDJPY",
+    "recording_date": null,
+    "content_hash_or_stable_id": null
+  },
+  "registration": {
+    "registered_before_teacher_event_review": true,
+    "previously_inspected_in_nvt0_to_nvt7_1": false,
+    "previously_used_for_rule_tuning": false,
+    "source_level_holdout": true,
+    "future_hidden_market_replay_required": true
+  },
+  "eligibility_requirements": [
+    "Video source was not inspected, registered, summarized, or used as development evidence before NVT8 registration.",
+    "Video contains USDJPY structural drawing behavior relevant to the frozen NVT7/NVT7.1 scope.",
+    "Teacher-event timestamps can be mapped to broker OHLC without future-bar look-ahead.",
+    "No NVT7/NVT7.1 rule may be changed after teacher-event inspection begins; failures are recorded, not tuned away."
+  ],
+  "frozen_rule_inputs": {
+    "nvt7_scoped_beta_required": true,
+    "nvt7_frozen_scope_regression_required": true,
+    "nvt7_1_semantic_freeze_schema": "nvt7.1-usdjpy-semantic-freeze-candidate/0.2"
+  },
+  "strict_nvt8_only": true,
+  "nvt8h_is_not_substitute": true,
+  "production_writeback": false,
+  "normal_run_modified": false,
+  "mt4_object_writeback": false,
+  "trade_authority": false
+}
