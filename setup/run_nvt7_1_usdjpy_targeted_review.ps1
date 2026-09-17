@@ -16,6 +16,10 @@ $analogueOutFile = Join-Path $analogueOutputDir 'NVT7_1_USDJPY_B02_03_ANALOGUE_B
 $windowAnalogueOutFile = Join-Path $analogueOutputDir 'NVT7_1_USDJPY_B02_03_ANALOGUE_BATCH03B.json'
 $sequenceAnalogueOutFile = Join-Path $analogueOutputDir 'NVT7_1_USDJPY_B02_03_ANALOGUE_BATCH03C.json'
 
+$semanticAdjudication = Join-Path $repo 'nvt\adjudication\NVT71_STRUCTURE_HIERARCHY_USER_ADJUDICATION_20260917.json'
+$semanticOutputDir = Join-Path $common 'nvt_output\nvt7_1_semantic_freeze'
+$semanticOutFile = Join-Path $semanticOutputDir 'NVT7_1_USDJPY_SEMANTIC_FREEZE_CANDIDATE.json'
+
 if (-not (Test-Path $inputDir)) {
     throw "Missing NVT input directory: $inputDir"
 }
@@ -25,10 +29,14 @@ if (-not (Test-Path $priorBundle)) {
 if (-not (Test-Path $importanceAdjudication)) {
     throw "Missing B02_03 user adjudication: $importanceAdjudication"
 }
+if (-not (Test-Path $semanticAdjudication)) {
+    throw "Missing NVT7.1 structure hierarchy adjudication: $semanticAdjudication"
+}
 
 New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
 New-Item -ItemType Directory -Force -Path $importanceOutputDir | Out-Null
 New-Item -ItemType Directory -Force -Path $analogueOutputDir | Out-Null
+New-Item -ItemType Directory -Force -Path $semanticOutputDir | Out-Null
 
 python (Join-Path $repo 'tools\nvt\build_nvt7_1_usdjpy_targeted_review.py') `
     --input-dir $inputDir `
@@ -56,9 +64,9 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ''
-Write-Host 'NVT7.1 B02_03 LINE IMPORTANCE CONTRACT PASS'
+Write-Host 'NVT7.1 B02_03 LEGACY IMPORTANCE CONTRACT PASS'
 Write-Host "Importance handoff: $importanceOutFile"
-Write-Host 'PASS means the research contract is internally consistent; it does NOT mean teacher validation or Production readiness.'
+Write-Host 'This artifact is retained for audit. Conflicting line-promotion semantics are superseded by the 2026-09-17 structure-hierarchy adjudication.'
 
 python (Join-Path $repo 'tools\nvt\build_nvt7_1_usdjpy_b02_03_analogue_search.py') `
     --input-dir $inputDir `
@@ -111,5 +119,21 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ''
 Write-Host 'NVT7.1 B02_03 SEQUENCE-PROXY SEARCH PASS'
 Write-Host "Sequence analogue bundle: $sequenceAnalogueOutFile"
-Write-Host 'Upload BATCH03C JSON to ChatGPT. This broad search drops active-leg/Large-Mid/reanchor requirements and retrieves structural low-high-breakout-higher-low sequences only.'
-Write-Host 'Candidate search PASS is not semantic validation and does not change Production.'
+Write-Host 'Sequence search is evidence retrieval only; it does not promote TURN_LINE or Production semantics.'
+
+python (Join-Path $repo 'tools\nvt\build_nvt7_1_semantic_freeze_candidate.py') `
+    --importance-handoff $importanceOutFile `
+    --batch03c $sequenceAnalogueOutFile `
+    --adjudication $semanticAdjudication `
+    --output $semanticOutFile
+
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
+Write-Host ''
+Write-Host 'NVT7.1 USDJPY SEMANTIC SCOPED FREEZE CANDIDATE PASS'
+Write-Host "Semantic freeze candidate: $semanticOutFile"
+Write-Host 'Upload NVT7_1_USDJPY_SEMANTIC_FREEZE_CANDIDATE.json to ChatGPT.'
+Write-Host 'PASS is research-contract PASS only. Strict NVT8 and NVT9 Production promotion remain separate gates.'
+Write-Host 'Production Normal Run and NCA_DRAW__ were not modified.'
