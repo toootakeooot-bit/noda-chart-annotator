@@ -5,6 +5,7 @@ from typing import Literal
 
 LineRole = Literal["LARGE_DOW_TL", "TURN_LINE"]
 VisibilityState = Literal["DRAW", "VALID_SUPPRESSED"]
+BreakDirection = Literal["ABOVE", "BELOW"]
 HighConfirmationState = Literal[
     "SWING_HIGH_CANDIDATE",
     "STRUCTURAL_HIGH_PARTIAL",
@@ -48,7 +49,7 @@ class DowHierarchyResult:
 def default_visibility(line_role: LineRole) -> VisibilityState:
     """Research-only default visibility.
 
-    TURN_LINE is technically valid but normally suppressed from chart rendering.
+    TURN_LINE is technically valid but suppressed from automatic chart rendering.
     LARGE_DOW_TL is the primary structural TL and is drawable by default.
 
     This module is not imported by Production Normal Run.
@@ -60,6 +61,25 @@ def default_visibility(line_role: LineRole) -> VisibilityState:
     raise ValueError(f"unsupported line_role: {line_role}")
 
 
+def closed_bar_break_confirmed(
+    *,
+    close: float,
+    level: float,
+    direction: BreakDirection,
+) -> bool:
+    """Research-only structural break rule fixed by user adjudication.
+
+    A high/gate break is confirmed only when a later CLOSED BAR closes above
+    the level. A protected-low break is confirmed only when a later CLOSED BAR
+    closes below the level. Wick-only penetration does not count.
+    """
+    if direction == "ABOVE":
+        return close > level
+    if direction == "BELOW":
+        return close < level
+    raise ValueError(f"unsupported direction: {direction}")
+
+
 def evaluate_rising_hierarchy(
     *,
     small_dow_high_broken: bool,
@@ -67,9 +87,10 @@ def evaluate_rising_hierarchy(
 ) -> DowHierarchyResult:
     """Evaluate the user-semantic Dow hierarchy without changing line role.
 
-    Breaking a local/small-Dow high can set SMALL_DOW_RISING, but the parent
-    large-Dow structure is not promoted until the active large-Dow high gate is
-    also broken. A large-Dow break implies the local rise has also progressed.
+    The boolean break inputs are expected to be produced by the closed-bar
+    break rule in research code. Breaking a local/small-Dow high can set
+    SMALL_DOW_RISING, but the parent large-Dow structure is not promoted until
+    the active large-Dow high gate is also broken.
     """
     if active_large_dow_high_broken:
         return DowHierarchyResult(
@@ -99,5 +120,7 @@ def turn_line_role_after_small_dow_break() -> dict:
         "line_role": "TURN_LINE",
         "visibility": default_visibility("TURN_LINE"),
         "promoted_to_major_line": False,
+        "automatic_display": False,
+        "automatic_display_exception": None,
         "note": "Local breakout changes Dow hierarchy state, not TURN_LINE role.",
     }
