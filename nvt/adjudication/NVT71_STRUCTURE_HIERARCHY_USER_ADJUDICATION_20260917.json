@@ -1,9 +1,9 @@
 {
-  "schema": "nvt7.1-structure-hierarchy-user-adjudication/0.2",
+  "schema": "nvt7.1-structure-hierarchy-user-adjudication/0.3",
   "status": "USER_OPERATIONAL_EVIDENCE",
   "symbol": "USDJPY",
   "timeframe": "H1",
-  "evidence_date": "2026-09-17",
+  "evidence_date": "2026-09-18",
   "teacher_validated": false,
   "production_ready": false,
   "source_cases": [
@@ -13,7 +13,9 @@
   "semantic_corrections": {
     "line_promotion_is_not_structure_promotion": true,
     "turn_line_breakout_does_not_promote_turn_line": true,
-    "mechanical_large_mid_direction_is_not_user_semantic_direction": true
+    "mechanical_large_mid_direction_is_not_user_semantic_direction": true,
+    "structural_breaks_use_closed_bar_close": true,
+    "turn_line_has_no_automatic_display_exception": true
   },
   "line_roles": {
     "LARGE_DOW_TL": {
@@ -30,17 +32,34 @@
       "primary_structure_role": false,
       "may_be_used_internally": true,
       "small_dow_high_break_promotes_line": false,
-      "display_exception_rule_fixed": false
+      "display_exception_rule_fixed": true,
+      "automatic_display_exceptions": "NONE_CURRENTLY",
+      "automatic_display_enabled": false,
+      "note": "Current research rule: TURN_LINE is not automatically drawn. A future change requires new evidence and a new version."
+    }
+  },
+  "break_confirmation": {
+    "HIGH_OR_GATE_BREAK": {
+      "measurement_rule": "CLOSED_BAR_CLOSE",
+      "rising_break_condition": "close > active_high_or_gate",
+      "wick_only_penetration_counts": false
+    },
+    "PROTECTED_LOW_BREAK": {
+      "measurement_rule": "CLOSED_BAR_CLOSE",
+      "falling_break_condition": "close < LAST_PULLBACK_LOW",
+      "wick_only_penetration_counts": false
     }
   },
   "dow_hierarchy": {
     "small_dow_high_break": {
       "result": "SMALL_DOW_RISING",
-      "does_not_imply_large_dow_promotion": true
+      "does_not_imply_large_dow_promotion": true,
+      "break_measurement_rule": "CLOSED_BAR_CLOSE"
     },
     "active_large_dow_high_gate": {
       "meaning": "The currently relevant large-Dow structural/swing high that must be exceeded before large-Dow rising is promoted.",
       "first_and_updated_highs_may_exist": true,
+      "break_measurement_rule": "CLOSED_BAR_CLOSE",
       "if_unbroken_state": "LARGE_DOW_NOT_PROMOTED",
       "if_broken_state": "LARGE_DOW_PROMOTED"
     },
@@ -64,8 +83,9 @@
       },
       "PROTECTED_LOW_BROKEN": {
         "protected_low_term": "LAST_PULLBACK_LOW",
-        "meaning": "The last pullback low protecting the rise has been broken.",
-        "break_measurement_rule": "UNFIXED_WICK_OR_CLOSE"
+        "meaning": "The last pullback low protecting the rise has been broken by a later closed-bar close.",
+        "break_measurement_rule": "CLOSED_BAR_CLOSE",
+        "wick_only_penetration_counts": false
       }
     },
     "strong_confirmation_rule": {
@@ -83,23 +103,27 @@
   "supersedes_prior_b02_03_simplifications": [
     {
       "prior": "Structural-high/red-circle breakout promotes the red/cyan local TL to an important line.",
-      "replacement": "The local turn line remains TURN_LINE and is normally VALID_SUPPRESSED; the breakout changes Dow hierarchy state, not the line role."
+      "replacement": "The local turn line remains TURN_LINE and VALID_SUPPRESSED; the breakout changes Dow hierarchy state, not the line role."
     },
     {
       "prior": "A second post-break low universally promotes/confirms the large-Dow TL as a current line.",
       "replacement": "Large-Dow TL identity/importance is a separate structural role. Do not use the second-low event as a universal line-promotion shortcut."
+    },
+    {
+      "prior": "High/gate and protected-low break semantics were unfixed between wick and close.",
+      "replacement": "Both are confirmed only by CLOSED_BAR_CLOSE; wick-only penetration does not count."
     }
   ],
   "unfixed_items": [
-    "Whether breaking an active structural high/gate requires wick penetration or closed-bar close.",
-    "Whether breaking LAST_PULLBACK_LOW/PROTECTED_LOW requires wick penetration or closed-bar close.",
-    "Objective deterministic classifier that maps pivots into SMALL_DOW/MID_DOW/LARGE_DOW labels in every case.",
-    "Exceptions, if any, that permit automatic display of TURN_LINE."
+    "Objective deterministic classifier that maps pivots into SMALL_DOW/MID_DOW/LARGE_DOW labels in every case."
   ],
   "guardrails": [
-    "Keep RETRACE_38_CONFIRMED and PROTECTED_LOW_BROKEN as separate booleans until further evidence fixes their use.",
+    "Keep RETRACE_38_CONFIRMED and PROTECTED_LOW_BROKEN as separate booleans.",
     "Do not weaken or alter the Production 38% turn detector in NVT7.1.",
+    "Confirm high/gate breaks only by closed-bar close; wick-only penetration does not count.",
+    "Confirm LAST_PULLBACK_LOW/PROTECTED_LOW breaks only by closed-bar close; wick-only penetration does not count.",
     "Do not promote TURN_LINE merely because a local structural high is broken.",
+    "Do not automatically display TURN_LINE under the current research contract.",
     "Do not equate local SMALL_DOW_RISING with LARGE_DOW_PROMOTED.",
     "Do not modify frozen NVT7 or Production Normal Run from this adjudication.",
     "No trade/order authority."
