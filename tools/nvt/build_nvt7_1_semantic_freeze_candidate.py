@@ -11,6 +11,7 @@ if str(TOOLS_DIR) not in sys.path:
 
 from nvt.structure_semantics import (
     StructuralHighEvidence,
+    closed_bar_break_confirmed,
     default_visibility,
     evaluate_rising_hierarchy,
     turn_line_role_after_small_dow_break,
@@ -46,7 +47,7 @@ def main() -> int:
         raise ValueError("unexpected importance handoff schema")
     if batch03c.get("schema") != "nvt7.1-b02-03-sequence-proxy-search/0.1":
         raise ValueError("unexpected Batch03C schema")
-    if adjudication.get("schema") != "nvt7.1-structure-hierarchy-user-adjudication/0.2":
+    if adjudication.get("schema") != "nvt7.1-structure-hierarchy-user-adjudication/0.3":
         raise ValueError("unexpected structure hierarchy adjudication schema")
 
     cases = {c.get("case_id"): c for c in batch03c.get("cases") or []}
@@ -55,6 +56,7 @@ def main() -> int:
     line_roles = adjudication.get("line_roles") or {}
     turn_rule = line_roles.get("TURN_LINE") or {}
     large_tl_rule = line_roles.get("LARGE_DOW_TL") or {}
+    break_confirmation = adjudication.get("break_confirmation") or {}
     hierarchy = adjudication.get("dow_hierarchy") or {}
     high_confirmation = adjudication.get("structural_high_confirmation") or {}
     unfixed = adjudication.get("unfixed_items") or []
@@ -78,7 +80,7 @@ def main() -> int:
         "turn_line_default_suppressed",
         default_visibility("TURN_LINE") == "VALID_SUPPRESSED"
         and turn_rule.get("default_visibility") == "VALID_SUPPRESSED",
-        "TURN_LINE is technically valid/internal but normally not rendered.",
+        "TURN_LINE is technically valid/internal but not automatically rendered.",
     )
     add_check(
         checks,
@@ -148,12 +150,42 @@ def main() -> int:
         "Research semantics reuse the existing 38% detector evidence without weakening/changing Production detector behavior.",
     )
 
+    high_break_rule = break_confirmation.get("HIGH_OR_GATE_BREAK") or {}
     add_check(
         checks,
-        "unfixed_break_semantics_preserved",
-        any("structural high/gate" in x and "wick" in x and "close" in x for x in unfixed)
-        and any("LAST_PULLBACK_LOW" in x and "wick" in x and "close" in x for x in unfixed),
-        "Wick-vs-close rules remain explicitly unfixed instead of being invented.",
+        "high_gate_break_requires_closed_bar_close",
+        high_break_rule.get("measurement_rule") == "CLOSED_BAR_CLOSE"
+        and high_break_rule.get("wick_only_penetration_counts") is False
+        and (hierarchy.get("small_dow_high_break") or {}).get("break_measurement_rule") == "CLOSED_BAR_CLOSE"
+        and (hierarchy.get("active_large_dow_high_gate") or {}).get("break_measurement_rule") == "CLOSED_BAR_CLOSE"
+        and closed_bar_break_confirmed(close=101.0, level=100.0, direction="ABOVE") is True
+        and closed_bar_break_confirmed(close=100.0, level=100.0, direction="ABOVE") is False,
+        "Small-/large-Dow high or gate breaks require a later closed-bar close above the level; wick-only penetration does not count.",
+    )
+
+    protected_rule = break_confirmation.get("PROTECTED_LOW_BREAK") or {}
+    protected_signal = signals.get("PROTECTED_LOW_BROKEN") or {}
+    add_check(
+        checks,
+        "protected_low_break_requires_closed_bar_close",
+        protected_rule.get("measurement_rule") == "CLOSED_BAR_CLOSE"
+        and protected_rule.get("wick_only_penetration_counts") is False
+        and protected_signal.get("break_measurement_rule") == "CLOSED_BAR_CLOSE"
+        and protected_signal.get("wick_only_penetration_counts") is False
+        and closed_bar_break_confirmed(close=99.0, level=100.0, direction="BELOW") is True
+        and closed_bar_break_confirmed(close=100.0, level=100.0, direction="BELOW") is False,
+        "LAST_PULLBACK_LOW/PROTECTED_LOW break requires a later closed-bar close below the level; wick-only penetration does not count.",
+    )
+
+    add_check(
+        checks,
+        "turn_line_has_no_automatic_display_exception",
+        turn_rule.get("display_exception_rule_fixed") is True
+        and turn_rule.get("automatic_display_exceptions") == "NONE_CURRENTLY"
+        and turn_rule.get("automatic_display_enabled") is False
+        and turn_after_break.get("automatic_display") is False
+        and turn_after_break.get("automatic_display_exception") is None,
+        "Current research contract has no automatic TURN_LINE display exception; any future exception requires new evidence and a version change.",
     )
 
     add_check(
@@ -170,7 +202,7 @@ def main() -> int:
     all_pass = not failure_checks
 
     report = {
-        "schema": "nvt7.1-usdjpy-semantic-freeze-candidate/0.1",
+        "schema": "nvt7.1-usdjpy-semantic-freeze-candidate/0.2",
         "status": "PASS_CONTRACTS" if all_pass else "FAIL_CONTRACTS",
         "phase": "NVT7.1_SEMANTIC_SCOPED_FREEZE_CANDIDATE",
         "symbol_scope": "USDJPY_ONLY",
@@ -192,6 +224,7 @@ def main() -> int:
         },
         "frozen_semantic_candidate": {
             "line_roles": line_roles,
+            "break_confirmation": break_confirmation,
             "dow_hierarchy": hierarchy,
             "structural_high_confirmation": high_confirmation,
             "research_examples": {
@@ -202,6 +235,10 @@ def main() -> int:
                 "high_partial_38_only": high_38.to_dict(),
                 "high_partial_protected_low_only": high_low.to_dict(),
                 "high_strong_both": high_both.to_dict(),
+                "closed_bar_high_break_true": closed_bar_break_confirmed(close=101.0, level=100.0, direction="ABOVE"),
+                "closed_bar_equal_high_not_break": closed_bar_break_confirmed(close=100.0, level=100.0, direction="ABOVE"),
+                "closed_bar_low_break_true": closed_bar_break_confirmed(close=99.0, level=100.0, direction="BELOW"),
+                "closed_bar_equal_low_not_break": closed_bar_break_confirmed(close=100.0, level=100.0, direction="BELOW"),
             },
         },
         "contract_checks": checks,
@@ -210,10 +247,11 @@ def main() -> int:
         "scoped_research_freeze_candidate": all_pass,
         "still_unfixed": unfixed,
         "interpretation": (
-            "PASS_CONTRACTS freezes the current research semantics only: TURN_LINE is normally suppressed; "
-            "small-Dow breakout is local structure change; large-Dow promotion requires the active large-Dow high gate; "
-            "38% retrace and protected-low break are independent structural-high evidence signals. "
-            "It does not fix wick-vs-close thresholds, complete automatic Dow-scale classification, strict NVT8, or Production promotion."
+            "PASS_CONTRACTS freezes the current research semantics only: TURN_LINE is suppressed from automatic rendering; "
+            "small-Dow breakout is a local structure change; large-Dow promotion requires a closed-bar close above the active large-Dow high gate; "
+            "38% retrace and protected-low break remain independent structural-high evidence signals; protected-low break also requires a closed-bar close. "
+            "Only the complete automatic SMALL/MID/LARGE Dow-scale classifier remains deliberately unfixed. "
+            "Strict NVT8 and Production promotion remain separate gates."
         ),
         "recommended_next_action": (
             "Stop B02_03 proxy-search expansion after this scoped semantic freeze candidate. "
