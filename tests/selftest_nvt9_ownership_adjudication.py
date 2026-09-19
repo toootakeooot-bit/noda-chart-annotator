@@ -107,7 +107,7 @@ def main() -> int:
         assert by_tf["H4"]["same_family_parent_id"] == "D1_A"
         assert by_tf["H1"]["classification"] == "AMBIGUOUS_KEEP_VISIBLE"
         assert by_tf["H1"]["structural_owner_tf"] == "H1"
-        assert by_tf["H1"]["user_observed_owner_candidate_tf"] == "H4"
+        assert by_tf["H1"]["user_observed_owner_candidate_tf"] is None
 
         blocked_gate = out / "gate_blocked.json"
         proc = run(
