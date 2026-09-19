@@ -1,5 +1,5 @@
 {
-  "schema": "nvt9-ownership-adjudication-policy/0.2",
+  "schema": "nvt9-ownership-adjudication-policy/0.3",
   "status": "RESEARCH_ONLY",
   "audit_id": "ID10IQ200",
   "date": "2026-09-20",
@@ -35,11 +35,7 @@
     "visibility": "KEEP_VISIBLE",
     "production_promotion": "BLOCK"
   },
-  "user_observed_owner_candidates": {
-    "H4": "D1",
-    "H1": "H4",
-    "M15": "H1"
-  },
+  "user_observed_owner_candidates": {},
   "production_changed": false,
   "renderer_changed": false,
   "snapshot_changed": false,
@@ -51,5 +47,16 @@
     "same_family_parent_id_required": false,
     "visibility": "KEEP_VISIBLE",
     "production_promotion": "BLOCK_PARENT_MATCH_DEPENDENT_SUPPRESSION"
+  },
+  "legacy_pre_deep_history_owner_hypotheses": {
+    "H4": "D1",
+    "H1": "H4",
+    "M15": "H1"
+  },
+  "deep_history_correction": {
+    "status": "ACTIVE_RESEARCH_CORRECTION",
+    "finding": "The one-step TF shift observation was made against equal-600-bar Normal Run horizons. Deep-history replay changes H4/H1 geometry and must be adjudicated before any owner shift is frozen.",
+    "owner_shift_rule_frozen": false,
+    "default_after_correction": "NO_CROSS_TF_OWNER_PROMOTION_WITHOUT_TEACHER_OR_RETAINED_PARENT_MATCH"
   }
 }
