@@ -152,7 +152,7 @@ def compare(parent: dict, child: dict, eval_end: datetime | None) -> dict:
         "anchor2_price_diff": abs(float(parent["anchor2_price"]) - float(child["anchor2_price"])),
         "parent_ch_offset": float(parent["ch_offset"]),
         "child_ch_offset": float(child["ch_offset"]),
-        "note": "Metrics only. No numeric same-family threshold is frozen in V0.1."
+        "note": "Metrics only. No numeric same-family or elapsed-hour threshold is frozen in V0.2."
     }
 
 
@@ -195,7 +195,7 @@ def main() -> int:
     ))
 
     payload = {
-        "schema": "nvt9-cross-tf-review/0.1",
+        "schema": "nvt9-cross-tf-review/0.2",
         "status": "PASS",
         "symbol": symbol,
         "mode": "THRESHOLD_FREE_REVIEW_MATRIX",
