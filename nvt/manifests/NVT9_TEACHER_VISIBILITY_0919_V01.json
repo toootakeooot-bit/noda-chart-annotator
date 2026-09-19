@@ -1,0 +1,100 @@
+{
+  "schema": "nvt9-teacher-visibility-registry/0.1",
+  "status": "FROZEN_FROM_NVT8_HELDOUT",
+  "audit_id": "ID10IQ200",
+  "source": "分析共有_26-9-19.mp4",
+  "symbol": "USDJPY#",
+  "timeframe": "H1",
+  "cutoff_broker_time": "2026-09-18T23:59:59",
+  "events": [
+    {
+      "teacher_event": "NVT8_TE_01",
+      "classification": "DRAW_REQUIRED",
+      "object_scope": "LARGE_DOW CURRENT TL",
+      "candidate_id": "RISING:2025-10-01T00:00:00:2026-09-08T05:00:00",
+      "anchor1_time": "2025-10-01T00:00:00",
+      "anchor1_price": 147.734,
+      "anchor2_time": "2026-09-08T05:00:00",
+      "anchor2_price": 152.883,
+      "direction": "RISING",
+      "unbroken_close": true
+    },
+    {
+      "teacher_event": "NVT8_TE_02",
+      "classification": "DRAW_REQUIRED",
+      "object_scope": "LARGE_DOW CURRENT CH",
+      "candidate_id": "RISING:2025-10-01T00:00:00:2026-09-08T05:00:00",
+      "ch_anchor_time": "2025-12-17T02:00:00",
+      "ch_anchor_price": 154.868,
+      "ch_contacts": 36,
+      "ch_offset": 5.974174114209177
+    },
+    {
+      "teacher_event": "NVT8_TE_04",
+      "classification": "REFERENCE_REQUIRED",
+      "object_scope": "useful previous/parent H1 structural references",
+      "rule": "do not delete only because a newer local structure exists"
+    },
+    {
+      "teacher_event": "NVT8_TE_04",
+      "classification": "COEXISTENCE_REQUIRED",
+      "object_scope": "parent/local H1 structural states",
+      "rule": "multiple structural line states may coexist at cutoff"
+    }
+  ],
+  "retained_h1_states_at_cutoff": [
+    {
+      "line_id": "NCA_USDJPY#_H1_LARGE_DOW_G120",
+      "structure_level": "LARGE_DOW",
+      "generation_role": "PREVIOUS",
+      "direction": "RISING",
+      "anchor1_time": "2025-10-01T00:00:00",
+      "anchor1_price": 147.734,
+      "anchor2_time": "2026-08-03T03:00:00",
+      "anchor2_price": 155.22,
+      "ch_offset": 4.7713359194228815,
+      "zone_width": 0.018000000000000682
+    },
+    {
+      "line_id": "NCA_USDJPY#_H1_LARGE_DOW_G121",
+      "structure_level": "LARGE_DOW",
+      "generation_role": "CURRENT",
+      "direction": "RISING",
+      "anchor1_time": "2025-10-01T00:00:00",
+      "anchor1_price": 147.734,
+      "anchor2_time": "2026-09-08T05:00:00",
+      "anchor2_price": 152.883,
+      "ch_offset": 5.974174114209177,
+      "zone_width": 0.018000000000000682
+    },
+    {
+      "line_id": "NCA_USDJPY#_H1_MID_DOW_G210",
+      "structure_level": "MID_DOW",
+      "generation_role": "PREVIOUS",
+      "direction": "FALLING",
+      "anchor1_time": "2026-04-30T09:00:00",
+      "anchor1_price": 160.719,
+      "anchor2_time": "2026-09-02T04:00:00",
+      "anchor2_price": 160.387,
+      "ch_offset": -5.232339565943221,
+      "zone_width": 0.0689999999999884
+    },
+    {
+      "line_id": "NCA_USDJPY#_H1_MID_DOW_G211",
+      "structure_level": "MID_DOW",
+      "generation_role": "CURRENT",
+      "direction": "RISING",
+      "anchor1_time": "2025-10-30T05:00:00",
+      "anchor1_price": 152.153,
+      "anchor2_time": "2026-09-08T05:00:00",
+      "anchor2_price": 152.883,
+      "ch_offset": 3.7890588391906306,
+      "zone_width": 0.17900000000000205
+    }
+  ],
+  "not_teacher_asserted": [
+    "that every retained state must render all four roles",
+    "that PREVIOUS zone edges must always remain visible",
+    "that all four H1 retained states must have identical visual prominence"
+  ]
+}
