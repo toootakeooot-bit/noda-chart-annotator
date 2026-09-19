@@ -89,6 +89,18 @@ def main() -> int:
             a2_price=108.7,
             ch_offset=1.5,
         )
+        h1_previous = line(
+            tf="H1",
+            line_id="H1_PREV",
+            direction="FALLING",
+            a1_time="2026-09-09T00:00:00",
+            a1_price=110.0,
+            a2_time="2026-09-10T00:00:00",
+            a2_price=108.0,
+            ch_offset=-0.8,
+        )
+        h1_previous["generation_role"] = "PREVIOUS"
+
         m15 = line(
             tf="M15",
             line_id="M15_A",
@@ -104,7 +116,7 @@ def main() -> int:
             "slots": {
                 "d1": {"current": d1},
                 "h4": {"current": h4},
-                "h1": {"current": h1},
+                "h1": {"current": h1, "previous": h1_previous},
                 "m15": {"current": m15},
             }
         }
@@ -130,7 +142,9 @@ def main() -> int:
             (output_dir / "NVT9_USDJPY_CROSS_TF_0919.json").read_text(encoding="utf-8")
         )
         assert payload["schema"] == "nvt9-cross-tf-review/0.2"
-        assert payload["comparison_count"] == 3
+        assert payload["comparison_count"] == 4
+        assert payload["parent_candidate_scope"] == "CURRENT_PLUS_PREVIOUS"
+        assert payload["child_candidate_scope"] == "CURRENT_ONLY"
         assert payload["production_changed"] is False
         assert payload["renderer_changed"] is False
         assert payload["snapshot_changed"] is False
@@ -138,25 +152,34 @@ def main() -> int:
         assert payload["classification_policy"]["numeric_threshold_frozen"] is False
         assert payload["classification_policy"]["time_span_threshold_frozen"] is False
 
-        by_pair = {
-            (x["parent_tf"], x["child_tf"]): x
-            for x in payload["comparisons"]
-        }
-
-        d1_h4 = by_pair[("D1", "H4")]
+        d1_h4 = [
+            x for x in payload["comparisons"]
+            if x["parent_tf"] == "D1" and x["child_tf"] == "H4"
+        ][0]
         assert d1_h4["relation_without_threshold"] == "EXACT_GEOMETRY_SAME_FAMILY"
         assert d1_h4["parent_generation_role"] == "CURRENT"
         assert d1_h4["child_generation_role"] == "CURRENT"
         assert abs(d1_h4["child_span_over_parent_span"] - 1.0) < 1e-12
 
-        h4_h1 = by_pair[("H4", "H1")]
+        h4_h1 = [
+            x for x in payload["comparisons"]
+            if x["parent_tf"] == "H4" and x["child_tf"] == "H1"
+        ][0]
         assert h4_h1["relation_without_threshold"] == "PENDING_TEACHER_CALIBRATION"
         assert 0.0 < h4_h1["child_span_over_parent_span"] < 1.0
         assert h4_h1["parent_anchor_span_hours"] > h4_h1["child_anchor_span_hours"]
 
-        h1_m15 = by_pair[("H1", "M15")]
-        assert h1_m15["direction_match"] is False
-        assert h1_m15["relation_without_threshold"] == "DISTINCT_DIRECTION_EVIDENCE"
+        h1_m15 = [
+            x for x in payload["comparisons"]
+            if x["parent_tf"] == "H1" and x["child_tf"] == "M15"
+        ]
+        assert len(h1_m15) == 2
+        current_parent = [x for x in h1_m15 if x["parent_generation_role"] == "CURRENT"][0]
+        previous_parent = [x for x in h1_m15 if x["parent_generation_role"] == "PREVIOUS"][0]
+        assert current_parent["direction_match"] is False
+        assert current_parent["relation_without_threshold"] == "DISTINCT_DIRECTION_EVIDENCE"
+        assert previous_parent["direction_match"] is True
+        assert previous_parent["relation_without_threshold"] == "EXACT_GEOMETRY_SAME_FAMILY"
 
     print("NVT9 CROSS-TF SELFTEST PASS")
     return 0
