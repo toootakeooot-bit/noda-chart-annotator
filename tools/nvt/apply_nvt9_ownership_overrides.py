@@ -7,6 +7,7 @@ from pathlib import Path
 TF_RANK = {"M15": 0, "H1": 1, "H4": 2, "D1": 3}
 ALLOWED = {
     "PARENT_OWNED_SAME_FAMILY",
+    "HIGHER_TF_OWNER_PARENT_UNRESOLVED",
     "LOCAL_OWNED_DISTINCT",
     "AMBIGUOUS_KEEP_VISIBLE",
 }
@@ -91,6 +92,31 @@ def main() -> int:
                 continue
             display = "REFERENCE_OR_REFINED_GEOMETRY"
             reason_code = "MANUAL_PARENT_FAMILY_CONFIRMED"
+        elif cls == "HIGHER_TF_OWNER_PARENT_UNRESOLVED":
+            if not owner_tf or TF_RANK.get(owner_tf, -1) <= TF_RANK.get(source_tf, -1):
+                problems.append({
+                    "source_tf": source_tf,
+                    "line_id": line_id,
+                    "reason": "HIGHER_OWNER_TF_REQUIRED",
+                })
+                continue
+            if parent_id not in (None, ""):
+                problems.append({
+                    "source_tf": source_tf,
+                    "line_id": line_id,
+                    "reason": "PARENT_ID_MUST_BE_EMPTY_WHEN_PARENT_UNRESOLVED",
+                })
+                continue
+            if not note:
+                problems.append({
+                    "source_tf": source_tf,
+                    "line_id": line_id,
+                    "reason": "TEACHER_EVIDENCE_NOTE_REQUIRED",
+                })
+                continue
+            parent_id = None
+            display = "KEEP_VISIBLE"
+            reason_code = "HIGHER_TF_OWNER_CONFIRMED_PARENT_MATCH_UNRESOLVED"
         elif cls == "LOCAL_OWNED_DISTINCT":
             if owner_tf not in (None, "", source_tf):
                 problems.append({
@@ -114,6 +140,7 @@ def main() -> int:
         rec["same_family_parent_id"] = parent_id
         rec["relation"] = relation
         rec["adjudication_required"] = cls == "AMBIGUOUS_KEEP_VISIBLE"
+        rec["parent_family_match_required"] = cls == "HIGHER_TF_OWNER_PARENT_UNRESOLVED"
         rec["display_recommendation"] = display
         rec["reason_code"] = reason_code
         rec["teacher_evidence_note"] = note
@@ -148,6 +175,7 @@ def main() -> int:
             **auto.get("guardrails", {}),
             "manual_override_requires_explicit_classification": True,
             "parent_override_must_reference_matrix_parent": True,
+            "higher_tf_owner_may_be_confirmed_without_parent_id": True,
             "elapsed_hour_threshold_used": False,
         },
         "production_changed": False,
