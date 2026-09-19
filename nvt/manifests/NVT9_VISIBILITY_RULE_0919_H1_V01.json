@@ -1,6 +1,6 @@
 {
   "schema": "nvt9-visibility-rule/0.1",
-  "status": "RESEARCH_ONLY_CANDIDATE",
+  "status": "RESEARCH_ONLY_BLOCKED_BY_CROSS_TF_OWNERSHIP",
   "rule_id": "VIS_0919_H1_V01",
   "audit_id": "ID10IQ200",
   "scope": {
@@ -34,6 +34,8 @@
     "H1": 12,
     "M15": 16
   },
+  "blocked_by": "NVT9_CROSS_TF_OWNERSHIP_V01",
+  "block_reason": "Cross-timeframe same-family duplication may explain H1/H4/M15 clutter; ownership must be classified before visibility-only suppression is treated as the primary solution.",
   "teacher_invariant_preservation": {
     "large_current_tl": true,
     "large_current_ch": true,
