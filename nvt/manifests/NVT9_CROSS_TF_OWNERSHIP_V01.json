@@ -1,0 +1,62 @@
+{
+  "schema": "nvt9-cross-tf-ownership/0.1",
+  "status": "RESEARCH_ONLY_UNCALIBRATED",
+  "audit_id": "ID10IQ200",
+  "date": "2026-09-19",
+  "symbol": "USDJPY#",
+  "timeframe_order": ["D1", "H4", "H1", "M15"],
+  "dimensions": [
+    "source_tf",
+    "structural_owner_tf",
+    "display_tf",
+    "decision_owner_tf"
+  ],
+  "adjacent_comparisons": [
+    ["D1", "H4"],
+    ["H4", "H1"],
+    ["H1", "M15"]
+  ],
+  "equivalence_evidence": [
+    "DIRECTION_AGREEMENT",
+    "COMMON_PARENT_SWING",
+    "GEOMETRY_AGREEMENT_OVER_WINDOW",
+    "TL_CH_COMPATIBILITY",
+    "PARENT_CLOSED_BAR_VALIDITY",
+    "LOWER_TF_IS_REFINEMENT_NOT_DISTINCT_LOCAL_STRUCTURE"
+  ],
+  "owner_rule": "HIGHEST_TIMEFRAME_IN_CONFIRMED_SAME_FAMILY",
+  "fallback_rule": "SOURCE_TF_WHEN_SAME_FAMILY_NOT_CONFIRMED",
+  "forbidden_rules": [
+    "FIXED_H4_TO_D1_SHIFT",
+    "FIXED_H1_TO_H4_SHIFT",
+    "FIXED_M15_TO_H1_SHIFT",
+    "VISIBILITY_EQUALS_DECISION_OWNER",
+    "DELETE_STATE_WHEN_VISUALLY_SUPPRESSED"
+  ],
+  "threshold_policy": {
+    "numeric_thresholds_frozen": false,
+    "reason": "09/19 alone is insufficient to calibrate slope/distance/time tolerances",
+    "required_next_evidence": "teacher-labeled SAME_FAMILY and DISTINCT_LOCAL examples"
+  },
+  "0919_working_hypotheses": [
+    {
+      "source_tf": "H4",
+      "teacher_candidate_owner_tf": "D1",
+      "status": "USER_OBSERVED_PENDING_FORMAL_MATCH"
+    },
+    {
+      "source_tf": "H1",
+      "teacher_candidate_owner_tf": "H4",
+      "status": "USER_OBSERVED_PENDING_FORMAL_MATCH"
+    },
+    {
+      "source_tf": "M15",
+      "teacher_candidate_owner_tf": "H1",
+      "status": "USER_OBSERVED_PENDING_FORMAL_MATCH"
+    }
+  ],
+  "production_changed": false,
+  "renderer_changed": false,
+  "snapshot_changed": false,
+  "nca_draw_writeback": false
+}
