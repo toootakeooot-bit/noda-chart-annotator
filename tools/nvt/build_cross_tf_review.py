@@ -36,6 +36,12 @@ def slope_per_day(state: dict) -> float:
     return (float(state["anchor2_price"]) - float(state["anchor1_price"])) / sec * 86400.0
 
 
+def anchor_span_hours(state: dict) -> float:
+    t1 = dt(state["anchor1_time"])
+    t2 = dt(state["anchor2_time"])
+    return (t2 - t1).total_seconds() / 3600.0
+
+
 def latest_input_time(path: Path) -> datetime | None:
     if not path.exists():
         return None
@@ -88,6 +94,9 @@ def compare(parent: dict, child: dict, eval_end: datetime | None) -> dict:
 
     p_slope = slope_per_day(parent)
     c_slope = slope_per_day(child)
+    p_span = anchor_span_hours(parent)
+    c_span = anchor_span_hours(child)
+    span_ratio = (c_span / p_span) if p_span > 0 else None
 
     exact_geometry = (
         parent.get("direction") == child.get("direction")
@@ -111,10 +120,12 @@ def compare(parent: dict, child: dict, eval_end: datetime | None) -> dict:
     return {
         "parent_tf": parent["timeframe"],
         "parent_level": parent["structure_level"],
+        "parent_generation_role": parent.get("generation_role"),
         "parent_line_id": parent["line_id"],
         "parent_direction": parent["direction"],
         "child_tf": child["timeframe"],
         "child_level": child["structure_level"],
+        "child_generation_role": child.get("generation_role"),
         "child_line_id": child["line_id"],
         "child_direction": child["direction"],
         "direction_match": parent["direction"] == child["direction"],
@@ -124,6 +135,10 @@ def compare(parent: dict, child: dict, eval_end: datetime | None) -> dict:
         "parent_slope_price_per_day": p_slope,
         "child_slope_price_per_day": c_slope,
         "slope_abs_diff_price_per_day": abs(p_slope - c_slope),
+        "parent_anchor_span_hours": p_span,
+        "child_anchor_span_hours": c_span,
+        "child_span_over_parent_span": span_ratio,
+        "common_eval_window_hours": (eval_end - eval_start).total_seconds() / 3600.0,
         "tl_gap_at_eval_start": abs(p_tl_start - c_tl_start),
         "tl_gap_at_eval_end": abs(p_tl_end - c_tl_end),
         "tl_gap_change_abs": abs(abs(p_tl_end - c_tl_end) - abs(p_tl_start - c_tl_start)),
@@ -196,7 +211,9 @@ def main() -> int:
             "exact_geometry": "EXACT_GEOMETRY_SAME_FAMILY",
             "opposite_direction": "DISTINCT_DIRECTION_EVIDENCE",
             "same_direction_non_exact": "PENDING_TEACHER_CALIBRATION",
-            "numeric_threshold_frozen": False
+            "numeric_threshold_frozen": False,
+            "time_span_threshold_frozen": False,
+            "time_span_note": "Anchor-span metrics are exported as evidence only; do not map elapsed hours directly to H1/H4/D1 ownership from the 09/19 case alone."
         },
         "0919_user_observation_hypotheses": [
             {"source_tf": "H4", "teacher_owner_candidate": "D1"},
@@ -233,7 +250,9 @@ def main() -> int:
             lines.append(
                 f"  {x['parent_level']} {x['parent_direction']} <-> {x['child_level']} {x['child_direction']} | "
                 f"rel={x['relation_without_threshold']} | TLgapEnd={x['tl_gap_at_eval_end']:.6f} | "
-                f"slopeDiff/day={x['slope_abs_diff_price_per_day']:.6f} | A2timeDiff={x['anchor2_time_diff_hours']:.1f}h"
+                f"slopeDiff/day={x['slope_abs_diff_price_per_day']:.6f} | "
+                f"spanRatio={x['child_span_over_parent_span']:.3f} | "
+                f"A2timeDiff={x['anchor2_time_diff_hours']:.1f}h"
             )
         lines.append("")
     lines += [
@@ -266,6 +285,7 @@ def main() -> int:
                 f"dir={x['parent_direction']}/{x['child_direction']} "
                 f"TLgap={x['tl_gap_at_eval_end']:.6f} "
                 f"slopeDiff/day={x['slope_abs_diff_price_per_day']:.6f} "
+                f"spanRatio={x['child_span_over_parent_span']:.3f} "
                 f"relation={x['relation_without_threshold']}"
             )
     return 0
