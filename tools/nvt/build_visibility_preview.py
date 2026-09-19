@@ -35,6 +35,11 @@ def main() -> int:
     ap.add_argument("--snapshot", required=True)
     ap.add_argument("--rule", required=True)
     ap.add_argument("--output-dir", required=True)
+    ap.add_argument(
+        "--allow-blocked-rule",
+        action="store_true",
+        help="Explicit research override for a rule whose manifest says it is blocked.",
+    )
     args = ap.parse_args()
 
     snapshot = Path(args.snapshot)
@@ -43,6 +48,17 @@ def main() -> int:
     outdir.mkdir(parents=True, exist_ok=True)
 
     rule = load_rule(rule_path)
+    rule_status = str(rule.get("status", ""))
+    if "BLOCKED" in rule_status and not args.allow_blocked_rule:
+        print(json.dumps({
+            "status": "BLOCKED_BY_RULE_MANIFEST",
+            "rule_status": rule_status,
+            "rule": str(rule_path),
+            "reason": rule.get("block_reason"),
+            "production_changed": False,
+        }, ensure_ascii=False, indent=2))
+        return 8
+
     with snapshot.open("r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
