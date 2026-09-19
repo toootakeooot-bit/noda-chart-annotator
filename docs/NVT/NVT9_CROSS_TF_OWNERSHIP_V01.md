@@ -1,7 +1,7 @@
-# NVT9 Cross-Timeframe Ownership Candidate V0.1
+# NVT9 Cross-Timeframe Ownership Candidate V0.2
 
 Audit ID: ID10IQ200  
-Date: 2026-09-19  
+Date: 2026-09-20  
 Status: RESEARCH ONLY / NO PRODUCTION WRITEBACK
 
 ## Problem
@@ -43,9 +43,10 @@ Candidate evidence dimensions:
 1. Direction agreement.
 2. Common market swing / parent-leg correspondence.
 3. Geometry agreement over a common comparison window, not merely one crossing point.
-4. Compatible TL/CH relationship.
-5. Parent structure remains valid under closed-bar break semantics.
-6. Lower-timeframe candidate adds resolution rather than defining a distinct local structure.
+4. Relative anchor-span scale (elapsed hours between structural anchors).
+5. Compatible TL/CH relationship.
+6. Parent structure remains valid under closed-bar break semantics.
+7. Lower-timeframe candidate adds resolution rather than defining a distinct local structure.
 
 If equivalence is established, structural_owner_tf is the HIGHEST timeframe represented in that family.
 
@@ -113,9 +114,11 @@ V9 audit/reason logging
 
 ## Threshold policy
 
-No numeric similarity threshold is frozen in V0.1.
+No numeric similarity threshold is frozen in V0.2.
 
-Do not invent a slope, pip-distance, ATR-distance, or anchor-time tolerance from the 09/19 case alone. Collect teacher-labeled same-family and different-family examples first, then derive a robust tolerance or a non-numeric structural criterion.
+The V3.5 matrix now exports parent/child anchor-span hours and the child/parent span ratio because elapsed structural duration may help distinguish local H1 structure from a broader H4/D1-owned family.
+
+Do not invent a slope, pip-distance, ATR-distance, anchor-time tolerance, or an elapsed-hour rule such as "over X hours = H4" from the 09/19 case alone. Collect teacher-labeled SAME_FAMILY and DISTINCT_LOCAL examples first, then derive a robust tolerance or a non-numeric structural criterion.
 
 ## 09/19 questions to resolve
 
