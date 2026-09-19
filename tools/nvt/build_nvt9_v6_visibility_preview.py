@@ -56,8 +56,9 @@ def main() -> int:
         return 6
 
     with snapshot.open("r", encoding="utf-8-sig", newline="") as f:
-        rows = list(csv.DictReader(f))
-        fields = list(f.fieldnames or [])
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        fields = list(reader.fieldnames or [])
 
     kept = []
     audit_rows = []
