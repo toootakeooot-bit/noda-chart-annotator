@@ -1,0 +1,57 @@
+{
+  "schema": "nvt9-production-promotion-scope/1.0",
+  "status": "SCOPE_FROZEN_NO_PRODUCTION_PATCH",
+  "date": "2026-09-19",
+  "audit_id": "ID10IQ200",
+  "branch": "feature/nvt-validation-v1",
+  "prerequisite": {
+    "strict_nvt8_status": "PASS_STRICT_NVT8",
+    "correction_id": "NVT8_HARNESS_FIX_001",
+    "strict_nvt8_satisfied": true,
+    "nvt9_promotion_review_ready": true,
+    "production_promotion_ready": false
+  },
+  "layers": {
+    "A": {
+      "name": "Market Facts / Turn recognition",
+      "decision": "KEEP BASELINE",
+      "implementation_target": false,
+      "reason": "Existing 38% closed-bar detector was frozen and used by strict NVT8; no validated replacement detector; universal Dow-scale classifier remains unfixed."
+    },
+    "B": {
+      "name": "Structure ownership / Candidate generation",
+      "decision": "KEEP BASELINE",
+      "implementation_target": false,
+      "research_backlog": true,
+      "reason": "Known NO-LINE/Micro-Dow ownership gap exists, but NVT6 ownership gates remain research-only and lack independent held-out validation sufficient for Production promotion."
+    },
+    "C": {
+      "name": "Structure Selector",
+      "decision": "KEEP BASELINE",
+      "implementation_target": false,
+      "reason": "Strict NVT8 used existing Production candidate/selector path; NVT6 selector lead remains exact-anchor/DRAFT constrained."
+    },
+    "D": {
+      "name": "Lifecycle / display role",
+      "decision": "KEEP BASELINE",
+      "implementation_target": false,
+      "reason": "Held-out retention/channel/local-parent checks passed using Production history rebuild/lifecycle; additional NVT7 semantics do not justify a replacement under current evidence."
+    },
+    "E": {
+      "name": "Renderer / style",
+      "decision": "KEEP BASELINE",
+      "implementation_target": false,
+      "reason": "No held-out renderer/style change was locked; MT4 verification remains a gate only."
+    }
+  },
+  "implementation_target_layers": [],
+  "production_semantic_patch": false,
+  "renderer_patch": false,
+  "nca_draw_change": false,
+  "mt4_object_writeback": false,
+  "trade_authority": false,
+  "known_open_research": [
+    "Layer B NO-LINE / structure-ownership generalization and Micro-Dow ownership"
+  ],
+  "next_step": "Run unchanged BASELINE_V1 regression and MT4 verification, then issue NVT9 final audit or reopen only a specifically failing layer."
+}
