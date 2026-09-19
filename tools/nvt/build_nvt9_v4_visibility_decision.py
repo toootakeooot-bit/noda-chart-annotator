@@ -40,6 +40,9 @@ def main() -> int:
         parent_owned = [
             r for r in records if r.get("classification") == "PARENT_OWNED_SAME_FAMILY"
         ]
+        parent_unresolved = [
+            r for r in records if r.get("classification") == "HIGHER_TF_OWNER_PARENT_UNRESOLVED"
+        ]
         local_owned = [
             r for r in records if r.get("classification") == "LOCAL_OWNED_DISTINCT"
         ]
@@ -57,6 +60,12 @@ def main() -> int:
                 note = (
                     "Same-family ownership is confirmed. Decide DRAW vs REFERENCE vs SUPPRESSED "
                     "from visual redundancy; ownership alone does not authorize suppression."
+                )
+            elif cls == "HIGHER_TF_OWNER_PARENT_UNRESOLVED":
+                rec = "KEEP_VISIBLE_PARENT_MATCH_UNRESOLVED"
+                note = (
+                    "Higher-timeframe structural ownership is confirmed, but no current NCA parent-family "
+                    "match is fixed. Keep visible; suppression is forbidden until parent recall/match is resolved."
                 )
             elif cls == "LOCAL_OWNED_DISTINCT":
                 rec = "DRAW_FULL_LOCAL_CONTEXT"
@@ -80,21 +89,31 @@ def main() -> int:
             "gate_status": gate.get("status"),
             "classification_counts": dict(counts),
             "parent_owned_count": len(parent_owned),
+            "parent_match_unresolved_count": len(parent_unresolved),
             "local_owned_count": len(local_owned),
             "recommendations": recommendations,
             "legacy_h1_16_to_12_candidate": {
                 "status": (
-                    "SECONDARY_ONLY_PARENT_DUPLICATION_PRESENT"
-                    if h1_parent_owned
-                    else "MAY_BE_EVALUATED_AFTER_VISUAL_REVIEW"
+                    "BLOCKED_BY_PARENT_MATCH_UNRESOLVED"
+                    if any(r.get("source_tf") == "H1" for r in parent_unresolved)
+                    else (
+                        "SECONDARY_ONLY_PARENT_DUPLICATION_PRESENT"
+                        if h1_parent_owned
+                        else "MAY_BE_EVALUATED_AFTER_VISUAL_REVIEW"
+                    )
                 ),
                 "automatic_run_allowed": False,
                 "reason": (
-                    "H1 has a confirmed higher-timeframe parent family; test duplicate display "
-                    "handling before generic PREVIOUS-zone suppression."
-                    if h1_parent_owned
-                    else "No confirmed H1 parent-family duplication blocks evaluation of the old "
-                    "PREVIOUS-zone visibility hypothesis, but teacher invariants still apply."
+                    "H1 structural owner is higher-TF but its current NCA parent-family match is unresolved; "
+                    "generic suppression is not allowed."
+                    if any(r.get("source_tf") == "H1" for r in parent_unresolved)
+                    else (
+                        "H1 has a confirmed higher-timeframe parent family; test duplicate display "
+                        "handling before generic PREVIOUS-zone suppression."
+                        if h1_parent_owned
+                        else "No confirmed H1 parent-family duplication blocks evaluation of the old "
+                        "PREVIOUS-zone visibility hypothesis, but teacher invariants still apply."
+                    )
                 ),
             },
             "v4_policy_selected": False,
