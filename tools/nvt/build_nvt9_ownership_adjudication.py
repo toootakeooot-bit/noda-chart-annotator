@@ -170,10 +170,41 @@ def main() -> int:
         "nca_draw_writeback": False,
     }
 
-    json_path = outdir / "NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919.json"
-    csv_path = outdir / "NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919.csv"
-    txt_path = outdir / "NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919.txt"
+    json_path = outdir / "NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919_AUTO.json"
+    csv_path = outdir / "NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919_AUTO.csv"
+    txt_path = outdir / "NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919_AUTO.txt"
+    override_path = outdir / "NVT9_USDJPY_OWNERSHIP_OVERRIDES_0919_TEMPLATE.json"
     json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    override_template = {
+        "schema": "nvt9-ownership-overrides/0.1",
+        "status": "TEMPLATE",
+        "audit_id": "ID10IQ200",
+        "source_auto_adjudication": str(json_path),
+        "instructions": (
+            "Fill only teacher/manual-confirmed rows. Do not infer from metric closeness or elapsed hours alone."
+        ),
+        "overrides": [
+            {
+                "source_tf": rec["source_tf"],
+                "line_id": rec["line_id"],
+                "classification": None,
+                "structural_owner_tf": None,
+                "same_family_parent_id": None,
+                "relation": None,
+                "teacher_evidence_note": None,
+                "user_observed_owner_candidate_tf": rec.get("user_observed_owner_candidate_tf"),
+                "best_metric_parent_tf": rec.get("best_metric_parent_tf"),
+                "best_metric_parent_id": rec.get("best_metric_parent_id"),
+            }
+            for rec in records
+            if rec.get("adjudication_required")
+        ],
+    }
+    override_path.write_text(
+        json.dumps(override_template, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
     fields = [
         "source_tf", "line_id", "structure_level", "generation_role", "direction",
@@ -219,6 +250,7 @@ def main() -> int:
         "json": str(json_path),
         "csv": str(csv_path),
         "txt": str(txt_path),
+        "override_template": str(override_path),
         "production_changed": False,
     }, ensure_ascii=False, indent=2))
     return 0
