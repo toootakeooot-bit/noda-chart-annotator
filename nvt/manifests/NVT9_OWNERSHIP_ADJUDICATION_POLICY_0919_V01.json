@@ -1,11 +1,12 @@
 {
-  "schema": "nvt9-ownership-adjudication-policy/0.1",
+  "schema": "nvt9-ownership-adjudication-policy/0.2",
   "status": "RESEARCH_ONLY",
   "audit_id": "ID10IQ200",
   "date": "2026-09-20",
   "symbol": "USDJPY#",
   "allowed_classifications": [
     "PARENT_OWNED_SAME_FAMILY",
+    "HIGHER_TF_OWNER_PARENT_UNRESOLVED",
     "LOCAL_OWNED_DISTINCT",
     "AMBIGUOUS_KEEP_VISIBLE"
   ],
@@ -42,5 +43,13 @@
   "production_changed": false,
   "renderer_changed": false,
   "snapshot_changed": false,
-  "nca_draw_writeback": false
+  "nca_draw_writeback": false,
+  "owner_parent_separation": {
+    "structural_owner_can_be_confirmed_without_current_nca_parent_match": true,
+    "classification": "HIGHER_TF_OWNER_PARENT_UNRESOLVED",
+    "required_evidence": "explicit teacher/manual timeframe-placement confirmation",
+    "same_family_parent_id_required": false,
+    "visibility": "KEEP_VISIBLE",
+    "production_promotion": "BLOCK_PARENT_MATCH_DEPENDENT_SUPPRESSION"
+  }
 }
