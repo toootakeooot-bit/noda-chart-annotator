@@ -9,6 +9,7 @@ $Common = Join-Path $env:APPDATA 'MetaQuotes\Terminal\Common\Files\noda_draw'
 $OutDir = Join-Path $Common 'live_output'
 $Gate = Join-Path $OutDir 'NVT9_USDJPY_OWNERSHIP_GATE_0919.json'
 $Auto = Join-Path $OutDir 'NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919_AUTO.json'
+$Overrides = Join-Path $OutDir 'NVT9_USDJPY_OWNERSHIP_OVERRIDES_0919.json'
 $Final = Join-Path $OutDir 'NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919_FINAL.json'
 $V4 = Join-Path $OutDir 'NVT9_USDJPY_V4_VISIBILITY_DECISION_0919.json'
 
@@ -33,7 +34,7 @@ if (-not (Test-Path $Gate)) {
 $GatePayload = Get-Content -Raw -Encoding UTF8 $Gate | ConvertFrom-Json
 
 $Adjudication = $Auto
-if (Test-Path $Final) { $Adjudication = $Final }
+if ((Test-Path $Overrides) -and (Test-Path $Final)) { $Adjudication = $Final }
 
 Write-Host ''
 Write-Host '[C] V4 decision input'
