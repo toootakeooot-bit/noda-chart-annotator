@@ -12,10 +12,10 @@ Scope: USDJPY# / 09-19 teacher comparison
 | V1 | Explain every NCA line | IMPLEMENTED |
 | V2 | Freeze 09/19 teacher evidence | PASS |
 | V3 | Compare teacher assertions with NCA structure | PASS at declared NVT8 scope |
-| V3.5 | Cross-timeframe structural ownership | IMPLEMENTED_PENDING_LOCAL_MATRIX |
-| V4 | Derive Visibility rule after ownership | BLOCKED_PENDING_V3.5 |
-| V5 | Regression against 09/19 teacher invariants | WAIT |
-| V6 | Audit-only preview snapshot | WAIT |
+| V3.5 | Cross-timeframe structural ownership | TOOLING_COMPLETE_PENDING_LOCAL_EXECUTION_AND_ADJUDICATION |
+| V4 | Derive Visibility rule after ownership | DECISION_TOOL_READY_BLOCKED_PENDING_V3.5 |
+| V5 | Regression against 09/19 teacher invariants | REGRESSION_TOOL_READY_WAITING_V4_PREVIEW |
+| V6 | Audit-only preview snapshot | IMPLEMENTED_WAITING_V4_POLICY |
 | V7 | MT4 visual comparison | WAIT |
 | V8 | Production promotion | NOT STARTED |
 | V9 | Reason/audit logging | DESIGN INPUT ACTIVE; Production integration later |
@@ -49,3 +49,18 @@ Visibility suppression may then use ownership without deleting lifecycle state.
 ## Safety
 
 No Turn detector, candidate generator, selector, lifecycle, production snapshot, renderer, or NCA_DRAW__ behavior is changed in V3.5.
+
+
+## 2026-09-20 tooling advance
+
+Repository-side preparation now includes:
+
+- threshold-free cross-TF matrix with anchor-span evidence
+- conservative AUTO adjudication
+- explicit override template and validated override merger
+- V3.5 gate evaluator
+- ownership-aware V4 decision builder
+- V5 teacher-invariant regression validator
+- one-shot local runner: setup\\RUN_NVT9_PHASE1_ADVANCE_0919.cmd
+
+The next evidence-bearing step is local execution against the live MT4 state. Non-exact rows remain AMBIGUOUS_KEEP_VISIBLE until explicitly adjudicated. No Production writeback is authorized by tooling completion.
