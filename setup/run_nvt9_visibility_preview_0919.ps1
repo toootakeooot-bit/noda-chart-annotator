@@ -22,11 +22,17 @@ if (-not (Test-Path $Rule)) {
 
 Write-Host 'NVT9 09/19 VISIBILITY PREVIEW'
 Write-Host '============================'
+Write-Host 'Legacy H1 16->12 candidate only. It is blocked until V3.5 ownership is resolved.'
 Write-Host 'Audit only. Production snapshot and renderer will not be changed.'
 Write-Host ''
 
 & $Python (Join-Path $RepoRoot 'tools\nvt\build_visibility_preview.py') --snapshot $Snapshot --rule $Rule --output-dir $OutDir
 $code = $LASTEXITCODE
+if ($code -eq 8) {
+  Write-Host 'STOP: rule manifest is still blocked by V3.5 cross-TF ownership.'
+  Write-Host 'Use RUN_NVT9_PHASE1_ADVANCE_0919.cmd instead.'
+  exit 0
+}
 if ($code -ne 0) {
   Write-Host "VISIBILITY PREVIEW FAILED - exit=$code"
   exit $code
