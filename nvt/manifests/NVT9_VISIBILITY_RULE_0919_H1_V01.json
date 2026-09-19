@@ -1,0 +1,53 @@
+{
+  "schema": "nvt9-visibility-rule/0.1",
+  "status": "RESEARCH_ONLY_CANDIDATE",
+  "rule_id": "VIS_0919_H1_V01",
+  "audit_id": "ID10IQ200",
+  "scope": {
+    "symbol": "USDJPY#",
+    "timeframes": ["H1"]
+  },
+  "policy": [
+    {
+      "generation_role": "CURRENT",
+      "roles": ["TL", "CH", "TL_ZONE_EDGE", "CH_ZONE_EDGE"],
+      "visibility": "DRAW",
+      "reason": "CURRENT_STRUCTURE_FULL_CONTEXT"
+    },
+    {
+      "generation_role": "PREVIOUS",
+      "roles": ["TL", "CH"],
+      "visibility": "REFERENCE",
+      "reason": "PRESERVE_USEFUL_STRUCTURAL_REFERENCE"
+    },
+    {
+      "generation_role": "PREVIOUS",
+      "roles": ["TL_ZONE_EDGE", "CH_ZONE_EDGE"],
+      "visibility": "SUPPRESSED",
+      "reason": "PREVIOUS_ZONE_NOT_REQUIRED_FOR_REFERENCE_IN_0919_MINIMAL_TEST"
+    }
+  ],
+  "non_scoped_policy": "PASS_THROUGH_UNCHANGED",
+  "expected_counts_from_16_row_baseline": {
+    "D1": 16,
+    "H4": 16,
+    "H1": 12,
+    "M15": 16
+  },
+  "teacher_invariant_preservation": {
+    "large_current_tl": true,
+    "large_current_ch": true,
+    "previous_reference_tl": true,
+    "previous_reference_ch": true,
+    "state_coexistence_unchanged": true
+  },
+  "does_not_change": [
+    "Turn detector",
+    "candidate generation",
+    "Large/Mid selector",
+    "lifecycle state",
+    "source snapshot",
+    "Production Renderer",
+    "NCA_DRAW__ ownership"
+  ]
+}
