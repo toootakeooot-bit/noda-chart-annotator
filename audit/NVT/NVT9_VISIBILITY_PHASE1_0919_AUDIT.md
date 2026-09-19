@@ -12,7 +12,8 @@ Scope: USDJPY# / 09-19 teacher evidence / H1-first visibility review
 | V1 NCA rationale mechanism | IMPLEMENTED | Existing draw-rationale tool explains line set, anchors, contacts and lifecycle role. |
 | V2 Teacher registry | PASS | Frozen from corrected NVT8 09/19 held-out evidence. |
 | V3 Teacher/NCA comparison | PASS_WITH_VISIBILITY_OPEN | Primary H1 Large TL/CH agree with teacher evidence; state coexistence is valid. Exact zone-edge visibility is not teacher-asserted. |
-| V3.5 Cross-TF ownership | IMPLEMENTED_PENDING_LOCAL_MATRIX | Source TF may differ from structural owner TF; adjacent TFs must be compared before visibility reduction. |\n| V4 Visibility rule candidate | BLOCKED_PENDING_V3.5 | Prior H1 16->12 hypothesis remains only as a test candidate until ownership is classified. |
+| V3.5 Cross-TF ownership | IMPLEMENTED_PENDING_LOCAL_MATRIX | Source TF may differ from structural owner TF; adjacent TFs are compared with direction, geometry, channel, anchor-time and anchor-span evidence. Self-test is wired into the local runner. |
+| V4 Visibility rule candidate | BLOCKED_PENDING_V3.5 | Prior H1 16->12 hypothesis remains only as a test candidate until ownership is classified. |
 | V5 09/19 invariant regression | WAIT | Run after V3.5 ownership and revised V4 visibility rule. |
 | V6 Preview snapshot | WAIT | Existing preview builder is retained but must wait for V3.5/V4. |
 | V7 MT4 visual comparison | NOT_STARTED | Start only after V6 local output confirms expected counts. |
@@ -27,12 +28,12 @@ The former visibility-only candidate is retained as a secondary experiment. Cros
 - PREVIOUS LARGE/MID: TL + CH remain REFERENCE.
 - PREVIOUS LARGE/MID: TL_ZONE_EDGE + CH_ZONE_EDGE become SUPPRESSED in preview only.
 
-Expected H1 count: 16 -> 12.
+If V3.5 does not explain the H1 clutter and the former visibility candidate is retained, its preview target remains H1 16 -> 12.
 
-D1/H4/M15 remain 16 because the 09/19 teacher visibility evidence being used for this first rule is H1-specific.
+D1/H4/M15 remain unchanged by that secondary visibility hypothesis because the 09/19 teacher visibility evidence used for it is H1-specific.
 
 ## Safety boundary
 
 This phase does not change Turn detection, candidate generation, selector semantics, lifecycle state, Production snapshot, Production Renderer, or existing NCA_DRAW__ objects.
 
-A V6 preview PASS is not Production approval. The next gate is V7 visual comparison on MT4.
+A V6 preview PASS is not Production approval. The immediate next gate is the V3.5 local cross-TF ownership matrix; V7 MT4 visual comparison remains downstream of V4-V6.
