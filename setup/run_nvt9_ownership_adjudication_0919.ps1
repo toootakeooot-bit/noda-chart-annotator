@@ -1,6 +1,7 @@
 param(
   [string]$Python = 'python',
-  [string]$Symbol = 'USDJPY#'
+  [string]$Symbol = 'USDJPY#',
+  [switch]$UseOverrides
 )
 
 $ErrorActionPreference = 'Stop'
@@ -35,15 +36,19 @@ if (-not (Test-Path $Matrix)) {
 if ($LASTEXITCODE -ne 0) { Write-Host "AUTO ADJUDICATION FAILED - exit=$LASTEXITCODE"; exit $LASTEXITCODE }
 
 Write-Host ''
-Write-Host '[3/4] Apply explicit overrides when present'
+Write-Host '[3/4] Explicit override policy'
 $AdjudicationForGate = $Auto
-if (Test-Path $Overrides) {
+if ($UseOverrides -and (Test-Path $Overrides)) {
   & $Python (Join-Path $RepoRoot 'tools\nvt\apply_nvt9_ownership_overrides.py') --auto $Auto --overrides $Overrides --output $Final
   if ($LASTEXITCODE -ne 0) { Write-Host "OVERRIDE MERGE FAILED - exit=$LASTEXITCODE"; exit $LASTEXITCODE }
   $AdjudicationForGate = $Final
-} else {
-  Write-Host 'No filled override file found. Auto adjudication will be evaluated.'
+} elseif ($UseOverrides) {
+  Write-Host 'UseOverrides was requested, but no filled override file exists. Auto adjudication will be evaluated.'
   Write-Host ("Template: {0}" -f $Template)
+} else {
+  Write-Host 'Overrides are disabled for this research rerun to prevent stale adjudication from a prior matrix.'
+  if (Test-Path $Overrides) { Write-Host ("Ignored stale/manual override file: {0}" -f $Overrides) }
+  Write-Host ("Fresh template: {0}" -f $Template)
 }
 
 Write-Host ''
@@ -55,7 +60,7 @@ Write-Host ''
 Write-Host 'OWNERSHIP REVIEW COMPLETE'
 Write-Host ("Auto:     {0}" -f $Auto)
 Write-Host ("Template: {0}" -f $Template)
-if (Test-Path $Overrides) { Write-Host ("Final:    {0}" -f $Final) }
+if ($UseOverrides -and (Test-Path $Overrides)) { Write-Host ("Final:    {0}" -f $Final) }
 Write-Host ("Gate:     {0}" -f $Gate)
 Write-Host ''
 Write-Host 'BLOCKED_V3_5 means remaining non-exact rows need explicit teacher/manual adjudication.'
