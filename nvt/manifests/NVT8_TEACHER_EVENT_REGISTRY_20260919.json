@@ -1,0 +1,133 @@
+{
+  "schema": "nvt8-teacher-event-registry/1.0",
+  "status": "FROZEN_AFTER_HELD_OUT_REVIEW",
+  "source_id": "NVT8_HOLDOUT_41B3868CFDD2",
+  "source_filename": "分析共有_26-9-19.mp4",
+  "source_sha256": "41b3868cfdd2ff9381603d92ae4934b637805b261404efc026f115ce6118db8c",
+  "inspection_lock_frozen_nvt_git_head": "e964cd002f3c3b23d992c9cf6963cfe81fffec14",
+  "evidence_class": "STRICT_HELD_OUT_TEACHER_VISUAL_EVIDENCE",
+  "teacher_event_registry_frozen": true,
+  "rule_tuning_after_teacher_review_allowed": false,
+  "failure_patch_and_rerun_same_source_allowed": false,
+  "market_cutoff_policy": {
+    "recording_day": "2026-09-19",
+    "source_context": "weekend teacher review of the prior trading week",
+    "requested_cutoff_broker_time": "2026-09-18T23:59:59",
+    "resolution_rule": "For each timeframe use the latest closed broker bar at or before the requested cutoff. The replay bundle records the effective last closed bar and fails stale exports."
+  },
+  "events": [
+    {
+      "event_id": "NVT8_TE_01",
+      "timeframe": "H1",
+      "video_window": {"start": "00:22:15", "end": "00:30:20"},
+      "teacher_visual_observation": "A broad, gently rising lower blue support trendline is retained across repeated zoom/pan changes. At 00:22:15 the teacher explicitly circles a later pullback low at/near this support while the older origin side remains visible.",
+      "classification": "MAJOR_STRUCTURE_RETAINED",
+      "strict_assertion": {
+        "line_role": "LARGE_DOW_TL_CANDIDATE",
+        "visibility": "DRAW",
+        "retained_visible": true,
+        "newest_only_delete": false
+      },
+      "lifecycle_owner_exactly_resolved": false,
+      "anchor_geometry_exactly_locked": false,
+      "scoring_scope": ["STRUCTURE_SCALE_MATCH", "LIFECYCLE_RETENTION", "VISIBILITY"],
+      "notes": "Video supports major-structure retention. It does not by itself resolve CURRENT_ACTIVE versus REFERENCE_RETAINED or exact numeric anchors."
+    },
+    {
+      "event_id": "NVT8_TE_02",
+      "timeframe": "H1",
+      "video_window": {"start": "00:22:30", "end": "00:30:20"},
+      "teacher_visual_observation": "A second parallel blue boundary is visible with the retained lower blue line and continues through later H1 views.",
+      "classification": "CHANNEL_BOUNDARY_RETAINED",
+      "strict_assertion": {
+        "line_role": "CHANNEL_BOUNDARY",
+        "visibility": "DRAW",
+        "retained_visible": true
+      },
+      "anchor_geometry_exactly_locked": false,
+      "scoring_scope": ["CANDIDATE_PRESENT", "LIFECYCLE_RETENTION", "VISIBILITY"],
+      "notes": "Treat as channel/parallel-boundary evidence; exact CH anchor is not frozen from screenshot geometry."
+    },
+    {
+      "event_id": "NVT8_TE_03",
+      "timeframe": "H1",
+      "video_window": {"start": "00:29:40", "end": "00:29:50"},
+      "teacher_visual_observation": "A thin aqua rising line appears at 00:29:40 and remains at 00:29:45, but is absent by 00:29:50 while the underlying market chart remains on the same analysis sequence.",
+      "classification": "EDIT_TRANSIENT",
+      "strict_assertion": {
+        "observation_filter_state": "EDIT_TRANSIENT",
+        "stable_market_lifecycle_state": false,
+        "must_not_be_promoted_to_persistent_teacher_geometry": true
+      },
+      "scoring_scope": ["LIFECYCLE_TRANSIENT_FILTER"],
+      "notes": "This directly tests the frozen NVT7 rule that transient video edits are an observation filter, not a stable market-time state."
+    },
+    {
+      "event_id": "NVT8_TE_04",
+      "timeframe": "H1",
+      "video_window": {"start": "00:14:40", "end": "00:17:20"},
+      "teacher_visual_observation": "A local rising recovery structure develops while a broad descending parent/reference structure remains visible. The local rise does not erase the higher-scale descending structure from the chart.",
+      "classification": "LOCAL_RISING_WITH_PARENT_REFERENCE_VISIBLE",
+      "strict_assertion": {
+        "local_parent_state_decoupled": true,
+        "parent_reference_may_remain_visible": true,
+        "local_break_does_not_imply_parent_delete": true
+      },
+      "scoring_scope": ["STRUCTURE_SCALE_MATCH", "LIFECYCLE_RETENTION"],
+      "notes": "Semantic held-out evidence for local-versus-parent separation; no exact Dow-scale numeric classifier is inferred."
+    },
+    {
+      "event_id": "NVT8_TE_05",
+      "timeframe": "H4",
+      "video_window": {"start": "00:13:05", "end": "00:14:10"},
+      "teacher_visual_observation": "An MT4 Trendline properties dialog for an Aqua trendline is visibly opened during the H4 review, followed by continued fan/reference-line inspection and an old-low emphasis.",
+      "classification": "ACTUAL_MT4_TRENDLINE_EDIT_CONTEXT",
+      "strict_assertion": null,
+      "scoring_scope": [],
+      "score_exclusion_reason": "The 5-second samples do not lock a unique before/after geometry strongly enough for a strict anchor or selector assertion."
+    },
+    {
+      "event_id": "NVT8_TE_06",
+      "timeframe": "D1",
+      "video_window": {"start": "00:04:40", "end": "00:06:40"},
+      "teacher_visual_observation": "White freehand swing arrows/circles are drawn over D1 to explain high/low relationships.",
+      "classification": "ANNOTATION_ONLY_CONTEXT",
+      "strict_assertion": null,
+      "scoring_scope": [],
+      "score_exclusion_reason": "Freehand explanation is not a persistent MT4 TL/CH object."
+    },
+    {
+      "event_id": "NVT8_TE_07",
+      "timeframe": "H4",
+      "video_window": {"start": "00:11:40", "end": "00:12:20"},
+      "teacher_visual_observation": "White/yellow explanatory marks are used around the current H4 high, target/gate and retracement sequence.",
+      "classification": "ANNOTATION_ONLY_CONTEXT",
+      "strict_assertion": null,
+      "scoring_scope": [],
+      "score_exclusion_reason": "Explanatory overlay does not by itself establish persistent MT4 line geometry."
+    },
+    {
+      "event_id": "NVT8_TE_08",
+      "timeframe": "H1",
+      "video_window": {"start": "00:18:55", "end": "00:19:05"},
+      "teacher_visual_observation": "A white freehand zigzag/circle is drawn over the internal H1 sequence and then removed.",
+      "classification": "ANNOTATION_ONLY_CONTEXT",
+      "strict_assertion": null,
+      "scoring_scope": [],
+      "score_exclusion_reason": "Screen annotation only; excluded from TL/CH scoring."
+    }
+  ],
+  "scored_event_ids": ["NVT8_TE_01", "NVT8_TE_02", "NVT8_TE_03", "NVT8_TE_04"],
+  "context_only_event_ids": ["NVT8_TE_05", "NVT8_TE_06", "NVT8_TE_07", "NVT8_TE_08"],
+  "unresolved_by_video_sampling": [
+    "Exact numeric anchors for the retained H1 major support line and parallel channel boundary.",
+    "Exact CURRENT_ACTIVE versus REFERENCE_RETAINED ownership for NVT8_TE_01.",
+    "A universal SMALL/MID/LARGE Dow classifier remains intentionally unfixed.",
+    "H4 Trendline edit before/after geometry is not uniquely locked from 5-second samples."
+  ],
+  "production_promotion_ready": false,
+  "production_writeback": false,
+  "normal_run_modified": false,
+  "mt4_object_writeback": false,
+  "trade_authority": false
+}
