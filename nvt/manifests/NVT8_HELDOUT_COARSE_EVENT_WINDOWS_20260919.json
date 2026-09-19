@@ -1,0 +1,33 @@
+{
+  "schema": "nvt8-held-out-coarse-event-windows/1.0",
+  "status": "FROZEN_COARSE_REVIEW_WINDOWS",
+  "source_id": "NVT8_HOLDOUT_41B3868CFDD2",
+  "source_filename": "分析共有_26-9-19.mp4",
+  "basis": {
+    "review_bundle_schema": "nvt8-held-out-review-bundle/1.0",
+    "coarse_sample_seconds": 10.0,
+    "teacher_content_reviewed_after_inspection_lock": true,
+    "rule_tuning_performed": false,
+    "note": "Windows are evidence-localization intervals only. They do not assert teacher labels, anchors, or NVT pass/fail."
+  },
+  "windows": [
+    {"id":"NVT8W_01","tf_hint":"D1","start_seconds":70,"end_seconds":140,"focus":"baseline channel / structural line context"},
+    {"id":"NVT8W_02","tf_hint":"D1","start_seconds":150,"end_seconds":190,"focus":"current descending line fan and rebound context"},
+    {"id":"NVT8W_03","tf_hint":"D1","start_seconds":250,"end_seconds":310,"focus":"turn/rebound structure and annotated swing relation"},
+    {"id":"NVT8W_04","tf_hint":"D1","start_seconds":360,"end_seconds":410,"focus":"high relation / structural swing explanation"},
+    {"id":"NVT8W_05","tf_hint":"H4","start_seconds":440,"end_seconds":510,"focus":"recovery leg, retained structure, line-role context"},
+    {"id":"NVT8W_06","tf_hint":"H4","start_seconds":670,"end_seconds":750,"focus":"high gate / target line and retracement context"},
+    {"id":"NVT8W_07","tf_hint":"H4","start_seconds":780,"end_seconds":860,"focus":"descending fan / anchor and old-low reference context"},
+    {"id":"NVT8W_08","tf_hint":"H1","start_seconds":880,"end_seconds":1040,"focus":"large descending channel versus rising recovery structure"},
+    {"id":"NVT8W_09","tf_hint":"H1","start_seconds":1110,"end_seconds":1200,"focus":"line lifecycle / removal-retention / rising structure context"},
+    {"id":"NVT8W_10","tf_hint":"H1","start_seconds":1280,"end_seconds":1360,"focus":"broad support introduction and structure promotion explanation"},
+    {"id":"NVT8W_11","tf_hint":"H1","start_seconds":1380,"end_seconds":1550,"focus":"rising support/channel and structural swing sequence"},
+    {"id":"NVT8W_12","tf_hint":"H1","start_seconds":1640,"end_seconds":1820,"focus":"post-break line ownership, support and recent high/pullback"}
+  ],
+  "strict_nvt8": {
+    "rules_frozen": true,
+    "same_source_must_not_be_used_for_rule_tuning": true,
+    "failures_recorded_not_tuned_away": true,
+    "production_writeback": false
+  }
+}
