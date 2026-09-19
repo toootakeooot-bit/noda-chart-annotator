@@ -1,0 +1,37 @@
+{
+  "schema": "nvt9-visibility-baseline/0.1",
+  "status": "FROZEN_RESEARCH_BASELINE",
+  "audit_id": "ID10IQ200",
+  "date": "2026-09-19",
+  "symbol": "USDJPY#",
+  "teacher_source": {
+    "video": "分析共有_26-9-19.mp4",
+    "supporting_pdf": "ドル円_基礎ライン＆フィボナッチ分析_26-9-19.pdf",
+    "strict_evidence": "NVT8_STRICT_HELDOUT_COMPARISON_CORRECTED.json",
+    "strict_status": "PASS_STRICT_NVT8",
+    "cutoff_broker_time": "2026-09-18T23:59:59"
+  },
+  "production_baseline": {
+    "renderer_objects_per_timeframe": {
+      "D1": 16,
+      "H4": 16,
+      "H1": 16,
+      "M15": 16
+    },
+    "formula": "2 structure levels x 2 generations x 4 roles",
+    "roles": ["TL", "CH", "TL_ZONE_EDGE", "CH_ZONE_EDGE"],
+    "generation_roles": ["CURRENT", "PREVIOUS"],
+    "structure_levels": ["LARGE_DOW", "MID_DOW"]
+  },
+  "h1_teacher_invariants": [
+    "LARGE_DOW current TL remains drawable",
+    "selected LARGE_DOW channel exists with actual CH contacts",
+    "useful references are not deleted solely because a newer local structure exists",
+    "local rise does not automatically promote the parent Large-Dow direction",
+    "more than one H1 structural line state may coexist"
+  ],
+  "production_changed": false,
+  "renderer_changed": false,
+  "snapshot_changed": false,
+  "nca_draw_writeback": false
+}
