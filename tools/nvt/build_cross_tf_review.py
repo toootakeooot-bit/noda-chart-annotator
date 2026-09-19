@@ -232,14 +232,16 @@ def main() -> int:
             "time_span_threshold_frozen": False,
             "time_span_note": "Anchor-span metrics are exported as evidence only; do not map elapsed hours directly to H1/H4/D1 ownership from the 09/19 case alone."
         },
-        "0919_user_observation_hypotheses": [
+        "0919_pre_deep_history_user_observation_hypotheses": [
             {"source_tf": "H4", "teacher_owner_candidate": "D1"},
             {"source_tf": "H1", "teacher_owner_candidate": "H4"},
             {"source_tf": "M15", "teacher_owner_candidate": "H1"}
         ],
         "parent_candidate_scope": "CURRENT_PLUS_PREVIOUS",
         "child_candidate_scope": "CURRENT_ONLY",
-        "retained_reference_note": "Parent CURRENT and PREVIOUS are both reviewed because NVT8 teacher evidence requires useful parent/reference structures to coexist."
+        "retained_reference_note": "Parent CURRENT and PREVIOUS are both reviewed because NVT8 teacher evidence requires useful parent/reference structures to coexist.",
+        "owner_shift_rule_frozen": False,
+        "deep_history_correction_note": "The original one-step timeframe-shift observation was made on equal-600-bar Normal Run windows and is retained only as historical evidence, not as an active ownership rule."
     }
 
     json_path = outdir / "NVT9_USDJPY_CROSS_TF_0919.json"
@@ -277,9 +279,9 @@ def main() -> int:
         lines.append("")
     lines += [
         "Next adjudication:",
-        "  H4: teacher D1 same-family / H4-local / ambiguous",
-        "  H1: teacher H4 same-family / H1-local / ambiguous",
-        "  M15: teacher H1 same-family / M15-local / ambiguous",
+        "  Compare child CURRENT against parent CURRENT + PREVIOUS retained references.",
+        "  Treat the original H4->D1 / H1->H4 / M15->H1 shift only as a pre-deep-history hypothesis.",
+        "  Do not promote structural owner unless teacher evidence or retained-parent matching supports it.",
         "",
         "No Production file was changed."
     ]
