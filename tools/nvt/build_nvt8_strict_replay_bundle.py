@@ -5,7 +5,7 @@ import json
 import re
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 TOOLS_DIR = Path(__file__).resolve().parents[1]
@@ -34,6 +34,37 @@ def safe_symbol(value: str) -> str:
 
 def parse_cutoff(value: str) -> datetime:
     return datetime.fromisoformat(value)
+
+
+def expected_previous_closed_bar_open(cutoff: datetime, timeframe: str) -> datetime:
+    """
+    Return the latest bar-open timestamp that should be available from the
+    research exporter when shift 0 is intentionally excluded.
+
+    Important MT4 detail: on Friday after the market has stopped ticking,
+    Friday's D1 candle is still shift 0 until the next D1 bar is created.
+    Therefore a Saturday research run with a Friday 23:59 cutoff legitimately
+    has Thursday 00:00 as the latest *closed/exported* D1 bar.  H4/H1 follow
+    the same shift-0 rule at their own bar cadence.
+    """
+    if timeframe == "H1":
+        current_open = cutoff.replace(minute=0, second=0, microsecond=0)
+        return current_open - timedelta(hours=1)
+    if timeframe == "H4":
+        current_open = cutoff.replace(
+            hour=(cutoff.hour // 4) * 4,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+        return current_open - timedelta(hours=4)
+    if timeframe == "D1":
+        current_open = cutoff.replace(hour=0, minute=0, second=0, microsecond=0)
+        previous = current_open - timedelta(days=1)
+        while previous.weekday() >= 5:
+            previous -= timedelta(days=1)
+        return previous
+    raise ValueError(f"unsupported timeframe for freshness expectation: {timeframe}")
 
 
 def pivot_dict(p):
@@ -134,12 +165,15 @@ def main() -> int:
             continue
 
         effective = frozen[-1].time
-        if effective.date().isoformat() < "2026-09-18":
+        expected = expected_previous_closed_bar_open(cutoff, tf)
+        if effective < expected:
             stale.append({
                 "timeframe": tf,
-                "reason": "STALE_EXPORT_BEFORE_HELD_OUT_WEEK",
+                "reason": "STALE_EXPORT_BEFORE_EXPECTED_SHIFT1_BAR",
                 "effective_last_closed_bar": effective.isoformat(),
-                "required_date_at_least": "2026-09-18",
+                "expected_shift1_bar_open_at_or_after": expected.isoformat(),
+                "cutoff": cutoff_text,
+                "closed_bar_policy": "MT4_SHIFT0_EXCLUDED",
             })
             continue
 
@@ -159,7 +193,10 @@ def main() -> int:
         tf_payload[tf] = {
             "source_csv": str(src),
             "requested_cutoff": cutoff_text,
+            "expected_shift1_bar_open": expected.isoformat(),
             "effective_last_closed_bar": effective.isoformat(),
+            "freshness_guard": "PASS",
+            "closed_bar_policy": "MT4_SHIFT0_EXCLUDED",
             "first_bar": frozen[0].time.isoformat(),
             "frozen_bar_count": len(frozen),
             "excluded_future_bar_count": sum(1 for b in bars if b.time > cutoff),
@@ -181,7 +218,7 @@ def main() -> int:
 
     status = "REPLAY_BUNDLE_READY_FOR_HELDOUT_COMPARISON" if not stale and len(tf_payload) == 3 else "WAITING_FOR_FRESH_MT4_HISTORY_EXPORT"
     payload = {
-        "schema": "nvt8-strict-replay-bundle/1.0",
+        "schema": "nvt8-strict-replay-bundle/1.1",
         "status": status,
         "source_id": registry.get("source_id"),
         "teacher_event_registry_status": registry.get("status"),
@@ -191,6 +228,7 @@ def main() -> int:
         "frozen_algorithm_paths_unchanged": True,
         "frozen_algorithm_path_diff": [],
         "requested_cutoff_broker_time": cutoff_text,
+        "closed_bar_policy": "MT4_SHIFT0_EXCLUDED",
         "broker_symbol": broker_symbol,
         "timeframes": tf_payload,
         "stale_or_missing": stale,
@@ -206,6 +244,8 @@ def main() -> int:
     print(json.dumps({
         "status": status,
         "output": str(out_path),
+        "schema": payload["schema"],
+        "closed_bar_policy": payload["closed_bar_policy"],
         "frozen_algorithm_paths_unchanged": True,
         "timeframes_ready": sorted(tf_payload),
         "stale_or_missing_count": len(stale),
