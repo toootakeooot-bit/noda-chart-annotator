@@ -64,18 +64,32 @@ def load_state(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
-def current_sets(state: dict, symbol: str) -> dict[str, list[dict]]:
-    result = {tf: [] for tf in TF_ORDER}
+def line_sets(state: dict, symbol: str) -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
+    current = {tf: [] for tf in TF_ORDER}
+    retained = {tf: [] for tf in TF_ORDER}
+
     for slot in state.get("slots", {}).values():
-        s = slot.get("current")
-        if not s or s.get("symbol") != symbol:
-            continue
-        tf = s.get("timeframe")
-        if tf in result:
-            result[tf].append(dict(s))
-    for tf in result:
-        result[tf].sort(key=lambda s: (s.get("structure_level", ""), s.get("line_id", "")))
-    return result
+        for role in ("current", "previous"):
+            s = slot.get(role)
+            if not s or s.get("symbol") != symbol:
+                continue
+            tf = s.get("timeframe")
+            if tf not in current:
+                continue
+            item = dict(s)
+            item["generation_role"] = item.get("generation_role") or role.upper()
+            retained[tf].append(item)
+            if role == "current":
+                current[tf].append(item)
+
+    for sets in (current, retained):
+        for tf in sets:
+            sets[tf].sort(key=lambda s: (
+                0 if s.get("generation_role") == "CURRENT" else 1,
+                s.get("structure_level", ""),
+                s.get("line_id", ""),
+            ))
+    return current, retained
 
 
 def compare(parent: dict, child: dict, eval_end: datetime | None) -> dict:
@@ -176,7 +190,7 @@ def main() -> int:
         return 2
 
     state = load_state(state_path)
-    sets = current_sets(state, symbol)
+    current_sets, retained_sets = line_sets(state, symbol)
 
     safe = symbol.replace("/", "_").replace(chr(92), "_")
     latest = {tf: latest_input_time(input_dir / f"{args.input_prefix}_{safe}_{tf}.csv") for tf in TF_ORDER}
@@ -184,9 +198,9 @@ def main() -> int:
     comparisons = []
     for parent_tf, child_tf in ADJACENT:
         common_latest = min(latest[parent_tf], latest[child_tf]) if latest[parent_tf] and latest[child_tf] else None
-        for p in sets[parent_tf]:
-            for c in sets[child_tf]:
-                comparisons.append(compare(p, c, common_latest))
+        for p in retained_sets[parent_tf]:
+            for child in current_sets[child_tf]:
+                comparisons.append(compare(p, child, common_latest))
 
     comparisons.sort(key=lambda x: (
         0 if x["direction_match"] else 1,
@@ -205,7 +219,8 @@ def main() -> int:
         "renderer_changed": False,
         "snapshot_changed": False,
         "nca_draw_writeback": False,
-        "current_line_sets": sets,
+        "current_line_sets": current_sets,
+        "retained_parent_line_sets": retained_sets,
         "latest_input_time": {k: (v.isoformat() if v else None) for k, v in latest.items()},
         "comparison_count": len(comparisons),
         "comparisons": comparisons,
@@ -221,7 +236,10 @@ def main() -> int:
             {"source_tf": "H4", "teacher_owner_candidate": "D1"},
             {"source_tf": "H1", "teacher_owner_candidate": "H4"},
             {"source_tf": "M15", "teacher_owner_candidate": "H1"}
-        ]
+        ],
+        "parent_candidate_scope": "CURRENT_PLUS_PREVIOUS",
+        "child_candidate_scope": "CURRENT_ONLY",
+        "retained_reference_note": "Parent CURRENT and PREVIOUS are both reviewed because NVT8 teacher evidence requires useful parent/reference structures to coexist."
     }
 
     json_path = outdir / "NVT9_USDJPY_CROSS_TF_0919.json"
