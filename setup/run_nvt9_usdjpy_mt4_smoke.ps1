@@ -106,9 +106,12 @@ if ($normalAudit.status -ne 'PASS' -or $normalAudit.snapshot_published -ne $true
 }
 
 $reg = Get-Content -Raw -Path $regression | ConvertFrom-Json
+$snapshotRows = @(Import-Csv -Path $snapshot)
 $expected = [ordered]@{}
 foreach ($tf in @('D1','H4','H1','M15')) {
-  $value = $reg.snapshot.rows_by_timeframe.$tf
+  $value = @($snapshotRows | Where-Object {
+    $_.symbol -eq $Symbol -and $_.timeframe -eq $tf
+  }).Count
   $expected[$tf] = $value
 }
 
