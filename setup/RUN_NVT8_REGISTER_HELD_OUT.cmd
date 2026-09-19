@@ -16,7 +16,20 @@ if "%VIDEO%"=="" (
   exit /b 1
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -File ".\setup\run_nvt8_register_held_out.ps1" -VideoPath "%VIDEO%"
+echo.
+echo STRICT NVT8 ATTESTATION
+echo Confirm BOTH are true:
+echo   1. This video itself has not been watched/inspected for NVT.
+echo   2. No related PDF, screenshots, transcript, subtitle, or same-source teacher material has been inspected for NVT.
+echo.
+set /p "ATTEST=Type YES to confirm, anything else to abort: "
+if /i not "%ATTEST%"=="YES" (
+  echo Registration aborted. Source was NOT marked clean held-out.
+  pause
+  exit /b 2
+)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\setup\run_nvt8_register_held_out.ps1" -VideoPath "%VIDEO%" -AttestUnseen
 set ERR=%ERRORLEVEL%
 
 echo.
