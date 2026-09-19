@@ -6,6 +6,7 @@ from pathlib import Path
 
 ALLOWED = {
     "PARENT_OWNED_SAME_FAMILY",
+    "HIGHER_TF_OWNER_PARENT_UNRESOLVED",
     "LOCAL_OWNED_DISTINCT",
     "AMBIGUOUS_KEEP_VISIBLE",
 }
@@ -23,6 +24,7 @@ def main() -> int:
 
     problems = []
     unresolved = []
+    parent_match_unresolved = []
     for rec in records:
         cls = rec.get("classification")
         source_tf = rec.get("source_tf")
@@ -38,6 +40,14 @@ def main() -> int:
                 problems.append({"line_id": line_id, "reason": "PARENT_ID_REQUIRED"})
             if not owner_tf or owner_tf == source_tf:
                 problems.append({"line_id": line_id, "reason": "HIGHER_OWNER_TF_REQUIRED"})
+        elif cls == "HIGHER_TF_OWNER_PARENT_UNRESOLVED":
+            if not owner_tf or owner_tf == source_tf:
+                problems.append({"line_id": line_id, "reason": "HIGHER_OWNER_TF_REQUIRED"})
+            if rec.get("same_family_parent_id"):
+                problems.append({"line_id": line_id, "reason": "PARENT_ID_MUST_BE_EMPTY"})
+            if not rec.get("teacher_evidence_note"):
+                problems.append({"line_id": line_id, "reason": "TEACHER_EVIDENCE_NOTE_REQUIRED"})
+            parent_match_unresolved.append({"source_tf": source_tf, "line_id": line_id, "owner_tf": owner_tf})
         elif cls == "LOCAL_OWNED_DISTINCT":
             if owner_tf != source_tf:
                 problems.append({"line_id": line_id, "reason": "LOCAL_OWNER_MUST_EQUAL_SOURCE_TF"})
@@ -50,10 +60,12 @@ def main() -> int:
         "record_count": len(records),
         "problem_count": len(problems),
         "unresolved_count": len(unresolved),
+        "parent_match_unresolved_count": len(parent_match_unresolved),
         "problems": problems,
         "unresolved": unresolved,
+        "parent_match_unresolved": parent_match_unresolved,
         "v4_unblocked": gate_pass,
-        "guardrail": "AMBIGUOUS_KEEP_VISIBLE blocks V4 but does not alter Production or MT4.",
+        "guardrail": "AMBIGUOUS_KEEP_VISIBLE blocks V4. HIGHER_TF_OWNER_PARENT_UNRESOLVED may pass V3.5 ownership but must remain visible until parent-family match is resolved.",
         "production_changed": False,
         "renderer_changed": False,
         "snapshot_changed": False,
