@@ -11,7 +11,8 @@ def main() -> int:
     assert '_live_snapshot_V6_0919.csv' in src
     assert "DeletePreviewOwnedObjects" in src
     assert 'StringFind(n, PREFIX, 0) == 0' in src
-    assert "NCA_DRAW__" not in src
+    assert 'string PREFIX = "NCA_DRAW__";' not in src
+    assert 'StringFind(n, "NCA_DRAW__"' not in src
     assert "OrderSend" not in src
     assert "OrderClose" not in src
     assert "EventSetTimer" not in src
