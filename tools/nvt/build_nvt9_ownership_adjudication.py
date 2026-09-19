@@ -127,6 +127,18 @@ def main() -> int:
             adjudication_required = True
             ambiguous += 1
 
+        owner_candidate_tf = user_candidates.get(meta["source_tf"])
+        owner_rows = [r for r in rows if r.get("parent_tf") == owner_candidate_tf] if owner_candidate_tf else []
+        owner_same_direction_rows = [r for r in owner_rows if r.get("direction_match") is True]
+        if not owner_candidate_tf:
+            owner_parent_set_status = "NO_OWNER_TF_CANDIDATE"
+        elif not owner_rows:
+            owner_parent_set_status = "OWNER_TF_NOT_PRESENT_IN_MATRIX"
+        elif not owner_same_direction_rows:
+            owner_parent_set_status = "CURRENT_PARENT_SET_NO_SAME_DIRECTION_MATCH"
+        else:
+            owner_parent_set_status = "CURRENT_PARENT_SET_HAS_SAME_DIRECTION_CANDIDATE"
+
         records.append({
             **meta,
             "classification": classification,
@@ -134,7 +146,9 @@ def main() -> int:
             "same_family_parent_id": parent_id,
             "relation": relation,
             "adjudication_required": adjudication_required,
-            "user_observed_owner_candidate_tf": user_candidates.get(meta["source_tf"]),
+            "user_observed_owner_candidate_tf": owner_candidate_tf,
+            "owner_candidate_parent_set_status": owner_parent_set_status,
+            "owner_candidate_same_direction_parent_count": len(owner_same_direction_rows),
             "best_metric_parent_tf": chosen.get("parent_tf") if chosen else None,
             "best_metric_parent_id": chosen.get("parent_line_id") if chosen else None,
             "candidate_parents": [slim_candidate(r) for r in rows],
@@ -194,6 +208,8 @@ def main() -> int:
                 "relation": None,
                 "teacher_evidence_note": None,
                 "user_observed_owner_candidate_tf": rec.get("user_observed_owner_candidate_tf"),
+                "owner_candidate_parent_set_status": rec.get("owner_candidate_parent_set_status"),
+                "owner_candidate_same_direction_parent_count": rec.get("owner_candidate_same_direction_parent_count"),
                 "best_metric_parent_tf": rec.get("best_metric_parent_tf"),
                 "best_metric_parent_id": rec.get("best_metric_parent_id"),
             }
@@ -210,6 +226,7 @@ def main() -> int:
         "source_tf", "line_id", "structure_level", "generation_role", "direction",
         "classification", "structural_owner_tf", "same_family_parent_id", "relation",
         "adjudication_required", "user_observed_owner_candidate_tf",
+        "owner_candidate_parent_set_status", "owner_candidate_same_direction_parent_count",
         "best_metric_parent_tf", "best_metric_parent_id", "display_recommendation", "reason_code",
     ]
     with csv_path.open("w", encoding="utf-8-sig", newline="") as f:
