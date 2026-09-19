@@ -33,7 +33,8 @@ jobs:
             tests/selftest_nvt9_ownership_adjudication.py \
             tests/selftest_nvt9_v4_visibility_decision.py \
             tests/selftest_nvt9_v4_v6_preview.py \
-            tests/selftest_nvt9_visibility_invariants.py
+            tests/selftest_nvt9_visibility_invariants.py \
+            tests/selftest_nvt9_preview_renderer_safety.py
 
       - name: Cross-TF ownership self-test
         run: python tests/selftest_nvt9_cross_tf.py
@@ -49,3 +50,6 @@ jobs:
 
       - name: V5 invariant self-test
         run: python tests/selftest_nvt9_visibility_invariants.py
+
+      - name: Preview renderer safety self-test
+        run: python tests/selftest_nvt9_preview_renderer_safety.py
