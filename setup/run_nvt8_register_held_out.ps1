@@ -1,10 +1,15 @@
 param(
     [Parameter(Mandatory=$true)]
     [string]$VideoPath,
-    [string]$RecordingDate = ''
+    [string]$RecordingDate = '',
+    [switch]$AttestUnseen
 )
 
 $ErrorActionPreference = 'Stop'
+
+if (-not $AttestUnseen) {
+    throw 'Strict NVT8 registration requires explicit unseen-source attestation, including no inspected related PDF/screenshots/transcript/same-source teacher material.'
+}
 
 $repo = Split-Path -Parent $PSScriptRoot
 $common = Join-Path $env:APPDATA 'MetaQuotes\Terminal\Common\Files\noda_draw'
@@ -34,6 +39,7 @@ if ($RecordingDate) {
 
 Write-Host 'NVT8 HELD-OUT REGISTRATION'
 Write-Host 'This step hashes metadata/file bytes only. It does NOT inspect frames, audio, subtitles, or teacher events.'
+Write-Host 'Attestation includes no prior NVT inspection of related PDF/screenshots/transcript/same-source teacher material.'
 Write-Host "Video: $VideoPath"
 Write-Host ''
 
