@@ -25,7 +25,9 @@ Scope: USDJPY# / 09-19 teacher comparison
 Do not assume source timeframe equals structural owner timeframe.
 
 Review D1-H4, H4-H1, H1-M15 and export threshold-free evidence:
-direction agreement, projected TL/CH gaps, slope difference, anchor differences and channel-width-normalized gap.
+direction agreement, projected TL/CH gaps, slope difference, anchor differences, parent/child anchor-span hours, child/parent span ratio and channel-width-normalized gap.
+
+The remembered "H1 -> H4 time range" is therefore measured at V3.5, but no fixed elapsed-hour boundary is permitted yet.
 
 No automatic SAME_FAMILY threshold is allowed from 09/19 alone.
 
