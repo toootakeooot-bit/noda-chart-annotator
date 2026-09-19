@@ -29,12 +29,14 @@ jobs:
             tools/nvt/build_nvt9_v4_display_template.py \
             tools/nvt/build_nvt9_v6_visibility_preview.py \
             tools/nvt/validate_nvt9_visibility_invariants.py \
+            tools/nvt/prepare_nvt9_v7_preview_ready.py \
             tests/selftest_nvt9_cross_tf.py \
             tests/selftest_nvt9_ownership_adjudication.py \
             tests/selftest_nvt9_v4_visibility_decision.py \
             tests/selftest_nvt9_v4_v6_preview.py \
             tests/selftest_nvt9_visibility_invariants.py \
-            tests/selftest_nvt9_preview_renderer_safety.py
+            tests/selftest_nvt9_preview_renderer_safety.py \
+            tests/selftest_nvt9_v7_preview_ready.py
 
       - name: Cross-TF ownership self-test
         run: python tests/selftest_nvt9_cross_tf.py
@@ -53,3 +55,6 @@ jobs:
 
       - name: Preview renderer safety self-test
         run: python tests/selftest_nvt9_preview_renderer_safety.py
+
+      - name: V7 preview readiness self-test
+        run: python tests/selftest_nvt9_v7_preview_ready.py
