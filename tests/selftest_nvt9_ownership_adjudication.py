@@ -122,11 +122,11 @@ def main() -> int:
 
         overrides = template
         ov = overrides["overrides"][0]
-        ov["classification"] = "PARENT_OWNED_SAME_FAMILY"
+        ov["classification"] = "HIGHER_TF_OWNER_PARENT_UNRESOLVED"
         ov["structural_owner_tf"] = "H4"
-        ov["same_family_parent_id"] = "H4_A"
-        ov["relation"] = "MANUAL_TEACHER_CONFIRMED_SAME_FAMILY"
-        ov["teacher_evidence_note"] = "selftest explicit confirmation"
+        ov["same_family_parent_id"] = None
+        ov["relation"] = "MANUAL_TEACHER_OWNER_CONFIRMED_PARENT_UNRESOLVED"
+        ov["teacher_evidence_note"] = "selftest explicit teacher timeframe-placement confirmation"
         overrides_path = out / "NVT9_USDJPY_OWNERSHIP_OVERRIDES_0919.json"
         overrides_path.write_text(json.dumps(overrides), encoding="utf-8")
 
@@ -142,6 +142,11 @@ def main() -> int:
         assert final["status"] == "PASS_FINAL_ADJUDICATION"
         assert final["ambiguous_count"] == 0
         assert final["override_applied_count"] == 1
+        final_h1 = {r["source_tf"]: r for r in final["records"]}["H1"]
+        assert final_h1["classification"] == "HIGHER_TF_OWNER_PARENT_UNRESOLVED"
+        assert final_h1["structural_owner_tf"] == "H4"
+        assert final_h1["same_family_parent_id"] is None
+        assert final_h1["parent_family_match_required"] is True
 
         passed_gate = out / "gate_pass.json"
         proc = run(
@@ -155,6 +160,7 @@ def main() -> int:
         assert gate_payload["v4_unblocked"] is True
         assert gate_payload["unresolved_count"] == 0
         assert gate_payload["problem_count"] == 0
+        assert gate_payload["parent_match_unresolved_count"] == 1
 
     print("NVT9 OWNERSHIP ADJUDICATION SELFTEST PASS")
     return 0
