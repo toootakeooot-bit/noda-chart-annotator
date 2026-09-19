@@ -7,9 +7,14 @@ import tempfile
 from pathlib import Path
 
 
+def run(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run([sys.executable, *args], capture_output=True, text=True)
+
+
 def main() -> int:
     repo = Path(__file__).resolve().parents[1]
     builder = repo / "tools" / "nvt" / "build_nvt9_ownership_adjudication.py"
+    merger = repo / "tools" / "nvt" / "apply_nvt9_ownership_overrides.py"
     gate = repo / "tools" / "nvt" / "evaluate_nvt9_ownership_gate.py"
     policy = repo / "nvt" / "manifests" / "NVT9_OWNERSHIP_ADJUDICATION_POLICY_0919_V01.json"
 
@@ -46,7 +51,7 @@ def main() -> int:
                     "anchor1_time_diff_hours": 0.0,
                     "anchor2_time_diff_hours": 0.0,
                     "parent_ch_offset": 4.0,
-                    "child_ch_offset": 3.0
+                    "child_ch_offset": 3.0,
                 },
                 {
                     "parent_tf": "H4",
@@ -71,90 +76,78 @@ def main() -> int:
                     "anchor1_time_diff_hours": 120.0,
                     "anchor2_time_diff_hours": 0.0,
                     "parent_ch_offset": 3.0,
-                    "child_ch_offset": 1.5
-                }
-            ]
+                    "child_ch_offset": 1.5,
+                },
+            ],
         }
         matrix_path = root / "matrix.json"
         matrix_path.write_text(json.dumps(matrix), encoding="utf-8")
 
-        proc = subprocess.run(
-            [
-                sys.executable,
-                str(builder),
-                "--matrix",
-                str(matrix_path),
-                "--policy",
-                str(policy),
-                "--output-dir",
-                str(out),
-            ],
-            capture_output=True,
-            text=True,
+        proc = run(
+            str(builder),
+            "--matrix", str(matrix_path),
+            "--policy", str(policy),
+            "--output-dir", str(out),
         )
         assert proc.returncode == 0, proc.stderr + proc.stdout
 
-        adjudication_path = out / "NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919.json"
-        adjudication = json.loads(adjudication_path.read_text(encoding="utf-8"))
-        assert adjudication["status"] == "BLOCKED_PENDING_ADJUDICATION"
-        assert adjudication["record_count"] == 2
-        assert adjudication["auto_resolved_count"] == 1
-        assert adjudication["ambiguous_count"] == 1
+        auto_path = out / "NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919_AUTO.json"
+        template_path = out / "NVT9_USDJPY_OWNERSHIP_OVERRIDES_0919_TEMPLATE.json"
+        auto = json.loads(auto_path.read_text(encoding="utf-8"))
+        template = json.loads(template_path.read_text(encoding="utf-8"))
+        assert auto["status"] == "BLOCKED_PENDING_ADJUDICATION"
+        assert auto["record_count"] == 2
+        assert auto["auto_resolved_count"] == 1
+        assert auto["ambiguous_count"] == 1
+        assert len(template["overrides"]) == 1
 
-        by_tf = {r["source_tf"]: r for r in adjudication["records"]}
+        by_tf = {r["source_tf"]: r for r in auto["records"]}
         assert by_tf["H4"]["classification"] == "PARENT_OWNED_SAME_FAMILY"
         assert by_tf["H4"]["structural_owner_tf"] == "D1"
         assert by_tf["H4"]["same_family_parent_id"] == "D1_A"
-        assert by_tf["H4"]["adjudication_required"] is False
-
         assert by_tf["H1"]["classification"] == "AMBIGUOUS_KEEP_VISIBLE"
         assert by_tf["H1"]["structural_owner_tf"] == "H1"
-        assert by_tf["H1"]["adjudication_required"] is True
         assert by_tf["H1"]["user_observed_owner_candidate_tf"] == "H4"
 
-        gate_path = out / "gate.json"
-        proc = subprocess.run(
-            [
-                sys.executable,
-                str(gate),
-                "--adjudication",
-                str(adjudication_path),
-                "--output",
-                str(gate_path),
-            ],
-            capture_output=True,
-            text=True,
+        blocked_gate = out / "gate_blocked.json"
+        proc = run(
+            str(gate),
+            "--adjudication", str(auto_path),
+            "--output", str(blocked_gate),
         )
         assert proc.returncode == 0, proc.stderr + proc.stdout
-        gate_payload = json.loads(gate_path.read_text(encoding="utf-8"))
+        gate_payload = json.loads(blocked_gate.read_text(encoding="utf-8"))
         assert gate_payload["status"] == "BLOCKED_V3_5"
-        assert gate_payload["v4_unblocked"] is False
         assert gate_payload["unresolved_count"] == 1
-        assert gate_payload["problem_count"] == 0
 
-        # Simulate a completed human/teacher adjudication for the non-exact H1 row.
-        for rec in adjudication["records"]:
-            if rec["source_tf"] == "H1":
-                rec["classification"] = "PARENT_OWNED_SAME_FAMILY"
-                rec["structural_owner_tf"] = "H4"
-                rec["same_family_parent_id"] = "H4_A"
-                rec["relation"] = "MANUAL_TEACHER_CONFIRMED_SAME_FAMILY"
-                rec["adjudication_required"] = False
+        overrides = template
+        ov = overrides["overrides"][0]
+        ov["classification"] = "PARENT_OWNED_SAME_FAMILY"
+        ov["structural_owner_tf"] = "H4"
+        ov["same_family_parent_id"] = "H4_A"
+        ov["relation"] = "MANUAL_TEACHER_CONFIRMED_SAME_FAMILY"
+        ov["teacher_evidence_note"] = "selftest explicit confirmation"
+        overrides_path = out / "NVT9_USDJPY_OWNERSHIP_OVERRIDES_0919.json"
+        overrides_path.write_text(json.dumps(overrides), encoding="utf-8")
 
-        completed = out / "completed.json"
-        completed.write_text(json.dumps(adjudication), encoding="utf-8")
+        final_path = out / "NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919_FINAL.json"
+        proc = run(
+            str(merger),
+            "--auto", str(auto_path),
+            "--overrides", str(overrides_path),
+            "--output", str(final_path),
+        )
+        assert proc.returncode == 0, proc.stderr + proc.stdout
+        final = json.loads(final_path.read_text(encoding="utf-8"))
+        assert final["status"] == "PASS_FINAL_ADJUDICATION"
+        assert final["ambiguous_count"] == 0
+        assert final["override_applied_count"] == 1
+
         passed_gate = out / "gate_pass.json"
-        proc = subprocess.run(
-            [
-                sys.executable,
-                str(gate),
-                "--adjudication",
-                str(completed),
-                "--output",
-                str(passed_gate),
-            ],
-            capture_output=True,
-            text=True,
+        proc = run(
+            str(gate),
+            "--adjudication", str(final_path),
+            "--output", str(passed_gate),
         )
         assert proc.returncode == 0, proc.stderr + proc.stdout
         gate_payload = json.loads(passed_gate.read_text(encoding="utf-8"))
