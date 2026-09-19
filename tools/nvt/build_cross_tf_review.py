@@ -161,6 +161,7 @@ def main() -> int:
     ap.add_argument("--symbol", default="USDJPY#")
     ap.add_argument("--state", required=True)
     ap.add_argument("--input-dir", required=True)
+    ap.add_argument("--input-prefix", default="NORMAL", choices=["NORMAL", "NVT"])
     ap.add_argument("--output-dir", required=True)
     args = ap.parse_args()
 
@@ -178,7 +179,7 @@ def main() -> int:
     sets = current_sets(state, symbol)
 
     safe = symbol.replace("/", "_").replace(chr(92), "_")
-    latest = {tf: latest_input_time(input_dir / f"NORMAL_{safe}_{tf}.csv") for tf in TF_ORDER}
+    latest = {tf: latest_input_time(input_dir / f"{args.input_prefix}_{safe}_{tf}.csv") for tf in TF_ORDER}
 
     comparisons = []
     for parent_tf, child_tf in ADJACENT:
@@ -199,6 +200,7 @@ def main() -> int:
         "status": "PASS",
         "symbol": symbol,
         "mode": "THRESHOLD_FREE_REVIEW_MATRIX",
+        "input_prefix": args.input_prefix,
         "production_changed": False,
         "renderer_changed": False,
         "snapshot_changed": False,
