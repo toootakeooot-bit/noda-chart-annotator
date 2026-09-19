@@ -29,6 +29,14 @@ def main() -> int:
                     "structural_owner_tf": "M15",
                     "same_family_parent_id": None,
                 },
+                {
+                    "source_tf": "H4",
+                    "line_id": "H4_B",
+                    "classification": "HIGHER_TF_OWNER_PARENT_UNRESOLVED",
+                    "structural_owner_tf": "D1",
+                    "same_family_parent_id": None,
+                    "teacher_evidence_note": "teacher D1 placement confirmed; NCA D1 parent line unresolved",
+                },
             ]
         }
         adjudication_path = root / "adj.json"
@@ -63,6 +71,9 @@ def main() -> int:
         assert payload["status"] == "READY_FOR_VISUAL_POLICY_SELECTION"
         assert payload["parent_owned_count"] == 1
         assert payload["local_owned_count"] == 1
+        assert payload["parent_match_unresolved_count"] == 1
+        unresolved = [r for r in payload["recommendations"] if r["classification"] == "HIGHER_TF_OWNER_PARENT_UNRESOLVED"][0]
+        assert unresolved["v4_display_review"] == "KEEP_VISIBLE_PARENT_MATCH_UNRESOLVED"
         assert payload["legacy_h1_16_to_12_candidate"]["status"] == "SECONDARY_ONLY_PARENT_DUPLICATION_PRESENT"
         assert payload["v4_policy_selected"] is False
 
