@@ -1,0 +1,46 @@
+{
+  "schema": "nvt9-ownership-adjudication-policy/0.1",
+  "status": "RESEARCH_ONLY",
+  "audit_id": "ID10IQ200",
+  "date": "2026-09-20",
+  "symbol": "USDJPY#",
+  "allowed_classifications": [
+    "PARENT_OWNED_SAME_FAMILY",
+    "LOCAL_OWNED_DISTINCT",
+    "AMBIGUOUS_KEEP_VISIBLE"
+  ],
+  "automatic_resolution": {
+    "EXACT_GEOMETRY_SAME_FAMILY": "PARENT_OWNED_SAME_FAMILY",
+    "all_other_non_exact_cases": "AMBIGUOUS_KEEP_VISIBLE"
+  },
+  "automatic_local_distinct_allowed": false,
+  "reason": "Opposite direction or distance alone cannot prove that a child structure is globally local/distinct because the relevant parent may be a different retained generation or a visually adjudicated family.",
+  "manual_same_family_evidence_required": [
+    "DIRECTION_AGREEMENT",
+    "COMMON_PARENT_SWING",
+    "GEOMETRY_AGREEMENT_OVER_WINDOW",
+    "TL_CH_COMPATIBILITY",
+    "PARENT_CLOSED_BAR_VALIDITY",
+    "LOWER_TF_IS_REFINEMENT_NOT_DISTINCT_LOCAL_STRUCTURE"
+  ],
+  "time_span_policy": {
+    "export_anchor_span_hours": true,
+    "export_child_parent_span_ratio": true,
+    "numeric_hour_threshold_frozen": false,
+    "forbidden": "Do not map elapsed hours directly to H1/H4/D1 ownership from the 09/19 case alone."
+  },
+  "ambiguous_policy": {
+    "structural_owner_runtime_fallback": "SOURCE_TF",
+    "visibility": "KEEP_VISIBLE",
+    "production_promotion": "BLOCK"
+  },
+  "user_observed_owner_candidates": {
+    "H4": "D1",
+    "H1": "H4",
+    "M15": "H1"
+  },
+  "production_changed": false,
+  "renderer_changed": false,
+  "snapshot_changed": false,
+  "nca_draw_writeback": false
+}
