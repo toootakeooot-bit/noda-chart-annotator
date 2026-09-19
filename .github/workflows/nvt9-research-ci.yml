@@ -27,6 +27,7 @@ jobs:
           python -m py_compile \
             tools/nvt/build_cross_tf_review.py \
             tools/nvt/audit_nvt9_normal_vs_full_history.py \
+            tools/nvt/build_nvt9_deep_lifecycle_state.py \
             tools/nvt/build_nvt9_ownership_adjudication.py \
             tools/nvt/apply_nvt9_ownership_overrides.py \
             tools/nvt/evaluate_nvt9_ownership_gate.py \
@@ -37,6 +38,7 @@ jobs:
             tools/nvt/prepare_nvt9_v7_preview_ready.py \
             tests/selftest_nvt9_cross_tf.py \
             tests/selftest_nvt9_normal_vs_full_history.py \
+            tests/selftest_nvt9_deep_lifecycle_state.py \
             tests/selftest_nvt9_ownership_adjudication.py \
             tests/selftest_nvt9_v4_visibility_decision.py \
             tests/selftest_nvt9_v4_v6_preview.py \
@@ -49,6 +51,9 @@ jobs:
 
       - name: Normal vs full-history audit self-test
         run: python tests/selftest_nvt9_normal_vs_full_history.py
+
+      - name: Deep lifecycle state self-test
+        run: python tests/selftest_nvt9_deep_lifecycle_state.py
 
       - name: Ownership adjudication self-test
         run: python tests/selftest_nvt9_ownership_adjudication.py
