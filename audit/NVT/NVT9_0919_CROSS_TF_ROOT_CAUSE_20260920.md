@@ -103,3 +103,34 @@ No Production change has been made to:
 - trade authority
 
 The next valid evidence step is to rerun Phase-1 using the deep NVT history path.
+
+
+## Second finding from the uploaded deep-history review bundle
+
+The deep-history rerun corrected the first horizon problem:
+
+- all 8 published Normal Run CURRENT structures differed from direct deep-history CURRENT selection;
+- deep H4 changed from short FALLING structures to broad RISING structures;
+- deep H1 changed from short FALLING structures to broad RISING structures;
+- deep H1 LARGE exactly reproduces the frozen teacher-required H1 current geometry
+  (2025-10-01 00:00 -> 2026-09-08 05:00, RISING, CH offset 5.974174114209177);
+- deep M15 CURRENT is FALLING while deep H1 CURRENT is RISING.
+
+This invalidates treating the original one-step timeframe-shift observation as an active owner rule.
+
+However, the first deep-history V3.5 matrix still compared child CURRENT only against parent CURRENT. That is insufficient under the already-frozen NVT8 lifecycle semantics, because useful parent/reference structures may remain visible as PREVIOUS while a newer local CURRENT structure exists.
+
+This matters directly for M15: a FALLING M15 CURRENT may correspond to a retained FALLING H1 PREVIOUS even when H1 CURRENT is RISING. A current-only parent matrix would falsely report opposite-direction evidence.
+
+## Second correction
+
+V3.5 now builds a deep lifecycle state with CURRENT + PREVIOUS and requires lifecycle CURRENT to match direct full-history CURRENT before the matrix is accepted.
+
+Cross-TF comparison scope is now:
+
+- child: CURRENT only;
+- parent: CURRENT + PREVIOUS retained references.
+
+The old H4->D1 / H1->H4 / M15->H1 shift is retained only as pre-deep-history historical evidence.
+
+No Production behavior is changed.
