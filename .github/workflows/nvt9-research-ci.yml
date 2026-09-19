@@ -26,10 +26,13 @@ jobs:
             tools/nvt/apply_nvt9_ownership_overrides.py \
             tools/nvt/evaluate_nvt9_ownership_gate.py \
             tools/nvt/build_nvt9_v4_visibility_decision.py \
+            tools/nvt/build_nvt9_v4_display_template.py \
+            tools/nvt/build_nvt9_v6_visibility_preview.py \
             tools/nvt/validate_nvt9_visibility_invariants.py \
             tests/selftest_nvt9_cross_tf.py \
             tests/selftest_nvt9_ownership_adjudication.py \
             tests/selftest_nvt9_v4_visibility_decision.py \
+            tests/selftest_nvt9_v4_v6_preview.py \
             tests/selftest_nvt9_visibility_invariants.py
 
       - name: Cross-TF ownership self-test
@@ -40,6 +43,9 @@ jobs:
 
       - name: V4 visibility decision self-test
         run: python tests/selftest_nvt9_v4_visibility_decision.py
+
+      - name: V4 to V6 preview self-test
+        run: python tests/selftest_nvt9_v4_v6_preview.py
 
       - name: V5 invariant self-test
         run: python tests/selftest_nvt9_visibility_invariants.py
