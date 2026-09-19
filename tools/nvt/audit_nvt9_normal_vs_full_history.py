@@ -11,7 +11,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 from live_draw.geometry import build_channel_candidates, select_large_mid
 from live_draw.market_input import load_ohlc_csv
-from live_draw.normal_run import TFS, normal_input_name
+from live_draw.normal_run import TFS, safe_symbol_filename
 from live_draw.turn_detector import detect_turns
 
 LEVELS = ("LARGE_DOW", "MID_DOW")
@@ -102,6 +102,7 @@ def main() -> int:
     ap.add_argument("--symbol", default="USDJPY#")
     ap.add_argument("--state", required=True)
     ap.add_argument("--input-dir", required=True)
+    ap.add_argument("--input-prefix", default="NORMAL", choices=["NORMAL", "NVT"])
     ap.add_argument("--output-dir", required=True)
     args = ap.parse_args()
 
@@ -122,7 +123,7 @@ def main() -> int:
     mismatch_count = 0
 
     for tf in TFS:
-        src = input_dir / normal_input_name(symbol, tf)
+        src = input_dir / f"{args.input_prefix}_{safe_symbol_filename(symbol)}_{tf}.csv"
         if not src.exists():
             missing_inputs.append(str(src))
             continue
@@ -192,12 +193,13 @@ def main() -> int:
         "symbol": symbol,
         "source_live_state": str(state_path),
         "input_dir": str(input_dir),
+        "input_prefix": args.input_prefix,
         "comparison_count": len(audit_rows),
         "mismatch_count": mismatch_count,
         "missing_inputs": missing_inputs,
         "comparisons": audit_rows,
         "finding": (
-            "Published Normal Run current geometry differs from the direct full-history selector. "
+            "Published Normal Run current geometry differs from the selected research-history selector. "
             "Cross-TF ownership research must use the research full-history state until this integration discrepancy is resolved."
             if mismatch_count else
             "Published Normal Run current geometry matches direct full-history selector output."
