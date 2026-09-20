@@ -79,6 +79,11 @@ class LineSetState:
     zone_width: float
     selection_version: str
     created_at: str
+    decision_hl_time: Optional[str] = None
+    decision_hl_price: Optional[float] = None
+    decision_hl_kind: Optional[PivotKind] = None
+    hl_break_time: Optional[str] = None
+    hl_break_mode: Optional[str] = None
     replaced_at: Optional[str] = None
     replacement_line_id: Optional[str] = None
 
