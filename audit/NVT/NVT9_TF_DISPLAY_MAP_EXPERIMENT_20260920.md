@@ -127,3 +127,32 @@ The preview keeps the nearest two families as the near-price set. They retain TL
 If the near-price set does not contain higher-timeframe context, or its directions conflict, at most one farther CURRENT higher-timeframe family may be retained as directional context. That far context renders TL + CH only, without zone edges.
 
 The count of two near families and one context family is a research-preview control, not a frozen Production rule.
+
+
+## Plan B direction correction
+
+A prior implementation inverted the user's instruction.
+
+Incorrect interpretation that must not be reused:
+
+- H4 chart <- D1 + H4
+- H1 chart <- H4 + H1
+- M15 chart <- H1 + M15
+
+The user's intended Plan B is source-oriented:
+
+- H4 structure -> H4 chart AND D1 chart
+- H1 structure -> H1 chart AND H4 chart
+- M15 structure -> M15 chart AND H1 chart
+- D1 structure -> D1 chart
+
+Equivalent chart-oriented view:
+
+- D1 chart = D1 + H4 structures
+- H4 chart = H4 + H1 structures
+- H1 chart = H1 + M15 structures
+- M15 chart = M15 structures
+
+This is now locked by the manifest and self-test. The phrase "source -> self + one higher chart" is the canonical direction.
+
+The current-price relevance filter still applies inside each chart's assigned source set.
