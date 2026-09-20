@@ -1,11 +1,11 @@
 {
-  "schema": "nvt9-hl-direction-gate/1.1",
+  "schema": "nvt9-hl-direction-gate/1.2",
   "audit_id": "ID10IQ200",
   "status": "RESEARCH_HL_PREVIEW_IMPLEMENTED_PENDING_VIDEO_VALIDATION",
   "date": "2026-09-20",
   "purpose": "Direction gate for deciding which-side TL is eligible to draw on each source timeframe.",
   "terms": {
-    "HL": "The timeframe-local decision line used to determine whether price has completed/confirmed the N-shaped structural transition.",
+    "HL": "A timeframe-local pair of horizontal decision lines derived from the two most recent 38%-confirmed alternating pivots: one HIGH-side HL and one LOW-side HL.",
     "TL": "Trendline candidate drawn in the direction allowed by the HL decision gate.",
     "retracement_38": "Minimum retracement used to recognize/confirm a reaction Turn/Pivot. It is NOT the HL price."
   },
@@ -14,14 +14,16 @@
     "after_hl_break": "When price breaks the timeframe-local HL, switch eligibility to the TL on the breakout side.",
     "scope": "Evaluate independently on each source timeframe before Plan-B display copying.",
     "display_copy": "After a source timeframe selects its TL, copy the exact selected geometry to its Plan-B display timeframe(s); do not re-decide direction on the destination chart.",
-    "hl_display": "Always draw the timeframe-local HL whether price has broken it or not."
+    "hl_display": "Always draw both HIGH-side and LOW-side HL lines whether price has broken either line or not."
   },
   "important": [
-    "HL is always drawn, before and after any break.",
-    "38% is reaction/Turn confirmation only; 38% is not the HL line.",
-    "HL is a direction gate, not merely a display line.",
-    "Current research candidate must be compared with teacher/video examples before it can be treated as validated.",
-    "Exact breakout confirmation semantics (wick vs close, one-bar vs confirmed close, tolerance) are intentionally NOT frozen yet.",
+    "There are two HL sides: one above and one below the current structure.",
+    "For a falling example, the working pair is the recent confirmed LOW and the previous confirmed HIGH.",
+    "For a rising example, the working pair is the recent confirmed HIGH and the previous confirmed LOW.",
+    "Both HL lines are always drawn, before and after any break.",
+    "Each HL anchor must already be a Turn/Pivot confirmed by the existing 38% reaction rule.",
+    "38% is reaction/Turn confirmation only; 38% itself is not an HL price.",
+    "HL break-to-TL switching is still not automated until video comparison confirms the pair selection and breakout semantics.",
     "Plan-B destination charts do not reinterpret source-timeframe HL decisions."
   ],
   "implementation_status": {
@@ -31,13 +33,15 @@
     "hl_break_detection": false,
     "direction_gate_in_selection": false,
     "retracement_38_separated_from_hl": true,
-    "plan_b_exact_geometry_copy": true
+    "plan_b_exact_geometry_copy": true,
+    "hl_pair_preview": true
   },
   "research_candidate": {
     "video_validation_required": true,
     "candidate_rule": {
-      "RISING": "latest confirmed LOW pivot on that source timeframe",
-      "FALLING": "latest confirmed HIGH pivot on that source timeframe"
+      "pair": "latest two confirmed alternating pivots",
+      "falling_example": "recent confirmed LOW + one previous confirmed HIGH",
+      "rising_example": "recent confirmed HIGH + one previous confirmed LOW"
     },
     "display_scope": "source timeframe chart only during validation",
     "break_status_used_for_visibility": false,
