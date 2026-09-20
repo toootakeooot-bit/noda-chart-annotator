@@ -35,6 +35,7 @@ jobs:
             tools/nvt/validate_nvt9_plan_b_contract.py \
             tools/nvt/build_nvt9_tf_mapped_preview.py \
             tools/nvt/build_nvt9_historical_4w.py \
+            tools/nvt/build_nvt9_ab_0912_0919.py \
             tools/nvt/build_nvt9_v4_visibility_decision.py \
             tools/nvt/build_nvt9_v4_display_template.py \
             tools/nvt/build_nvt9_v6_visibility_preview.py \
