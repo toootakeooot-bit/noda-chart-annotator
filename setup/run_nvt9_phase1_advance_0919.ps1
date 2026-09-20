@@ -12,6 +12,7 @@ $Auto = Join-Path $OutDir 'NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919_AUTO.json'
 $Overrides = Join-Path $OutDir 'NVT9_USDJPY_OWNERSHIP_OVERRIDES_0919.json'
 $Final = Join-Path $OutDir 'NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919_FINAL.json'
 $V4 = Join-Path $OutDir 'NVT9_USDJPY_V4_VISIBILITY_DECISION_0919.json'
+$OwnerEvidence = Join-Path $OutDir 'NVT9_USDJPY_OWNER_EVIDENCE_REVIEW_0919.json'
 
 Write-Host 'NVT9 09/19 PHASE-1 ADVANCE'
 Write-Host '=========================='
@@ -21,6 +22,13 @@ Write-Host ''
 Write-Host '[A] Cross-timeframe ownership matrix'
 & (Join-Path $PSScriptRoot 'run_nvt9_cross_tf_0919.ps1') -Python $Python -Symbol $Symbol
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+Write-Host ''
+Write-Host '[A2] Threshold-free owner evidence review'
+& $Python (Join-Path $RepoRoot 'tests\selftest_nvt9_owner_evidence_review.py')
+if ($LASTEXITCODE -ne 0) { Write-Host "OWNER EVIDENCE SELFTEST FAILED - exit=$LASTEXITCODE"; exit $LASTEXITCODE }
+& $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_owner_evidence_review.py') --matrix (Join-Path $OutDir 'NVT9_USDJPY_CROSS_TF_0919.json') --output $OwnerEvidence
+if ($LASTEXITCODE -ne 0) { Write-Host "OWNER EVIDENCE REVIEW FAILED - exit=$LASTEXITCODE"; exit $LASTEXITCODE }
 
 Write-Host ''
 Write-Host '[B] Conservative ownership adjudication + V3.5 gate'
@@ -69,6 +77,7 @@ $ReviewFiles = @(
   (Join-Path $OutDir 'NVT9_USDJPY_DEEP_LIFECYCLE_STATE_0919.json'),
   (Join-Path $OutDir 'NVT9_USDJPY_DEEP_LIFECYCLE_AUDIT_0919.json'),
   (Join-Path $OutDir 'NVT9_USDJPY_CROSS_TF_0919.json'),
+  (Join-Path $OutDir 'NVT9_USDJPY_OWNER_EVIDENCE_REVIEW_0919.json'),
   (Join-Path $OutDir 'NVT9_USDJPY_OWNERSHIP_ADJUDICATION_0919_AUTO.json'),
   (Join-Path $OutDir 'NVT9_USDJPY_OWNERSHIP_OVERRIDES_0919_TEMPLATE.json'),
   (Join-Path $OutDir 'NVT9_USDJPY_OWNERSHIP_GATE_0919.json'),
