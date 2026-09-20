@@ -115,13 +115,16 @@ def select_source_families(
     for c in candidates:
         if c["source_tf"] != source_tf:
             continue
+        # Audit preview reproduces the source chart's aqua CURRENT structure.
+        # PREVIOUS is intentionally excluded from this visual verification.
+        if c["generation_role"] != "CURRENT":
+            continue
         by_geom[geometry_key(c["_state"])].append(c)
 
     deduped = []
     for group in by_geom.values():
         group.sort(key=lambda x: (
             x["distance_to_channel"],
-            0 if x["generation_role"] == "CURRENT" else 1,
             0 if x["structure_level"] == "LARGE_DOW" else 1,
             x["line_id"],
         ))
@@ -133,7 +136,6 @@ def select_source_families(
         deduped,
         key=lambda x: (
             x["distance_to_channel"],
-            0 if x["generation_role"] == "CURRENT" else 1,
             0 if x["structure_level"] == "LARGE_DOW" else 1,
             x["line_id"],
         ),
@@ -200,6 +202,7 @@ def main() -> int:
     rows = []
     audit_rows = []
     display_counts = Counter()
+    candidate_counts = Counter()
     selected_family_counts = Counter()
     selected_source_counts: dict[str, Counter] = {}
     source_selection: dict[str, list[dict]] = {}
@@ -223,6 +226,9 @@ def main() -> int:
                     continue
                 candidates.append(family_record(s, gen_role, source_tf, current_price, eval_time))
 
+        candidate_counts[source_tf] = sum(
+            1 for x in candidates if x["generation_role"] == "CURRENT"
+        )
         selected = select_source_families(candidates, source_tf, per_source)
         if len(selected) < per_source:
             raise ValueError(
@@ -321,6 +327,7 @@ def main() -> int:
         },
         "selection_policy": {
             "near_price_family_per_source_tf": per_source,
+            "generation_scope": "CURRENT_ONLY",
             "far_direction_context_max_families": context_max,
             "fixed_pip_threshold_used": False,
             "atr_threshold_used": False,
