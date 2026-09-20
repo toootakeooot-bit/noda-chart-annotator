@@ -117,7 +117,7 @@ def main() -> int:
         assert audit["display_sources"]["H4"] == ["D1", "H4"]
         assert audit["display_sources"]["H1"] == ["H4", "H1"]
         assert audit["display_sources"]["M15"] == ["H1", "M15"]
-        assert audit["selection_policy"]["near_price_family_count"] == 2
+        assert audit["selection_policy"]["near_price_family_per_source_tf"] == 1
         assert audit["selection_policy"]["far_direction_context_max_families"] == 1
         assert audit["production_changed"] is False
         assert audit["production_renderer_changed"] is False
@@ -129,15 +129,15 @@ def main() -> int:
         h4_sources = {x["source_tf"] for x in selected if x["display_tf"] == "H4"}
         assert "D1" in h4_sources
         assert "H4" in h4_sources
-        assert any(
-            x["display_tf"] == "H4" and x["display_reason"] == "NEAR_CURRENT_PRICE"
-            for x in selected
+        assert all(
+            x["display_reason"] in {"NEAREST_FAMILY_FOR_SOURCE_TF", "FAR_HIGHER_TF_DIRECTION_CONTEXT"}
+            for x in selected if x["display_tf"] == "H4"
         )
         m15_sources = {x["source_tf"] for x in selected if x["display_tf"] == "M15"}
         assert "H1" in m15_sources
         assert "M15" in m15_sources
         assert any(
-            x["display_tf"] == "M15" and x["display_reason"] == "NEAR_CURRENT_PRICE"
+            x["display_tf"] == "M15" and x["display_reason"] == "NEAREST_FAMILY_FOR_SOURCE_TF"
             for x in selected
         )
 
