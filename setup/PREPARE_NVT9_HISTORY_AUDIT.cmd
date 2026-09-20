@@ -5,13 +5,21 @@ cd /d "%~dp0.."
 echo NVT9 HISTORY AUDIT PREPARE
 echo ==========================
 echo [1/2] Build four no-lookahead historical cases
-call "%~dp0RUN_NVT9_HISTORY_4W_0919.cmd"
-if errorlevel 1 exit /b %ERRORLEVEL%
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0run_nvt9_history_4w_0919.ps1"
+if errorlevel 1 (
+  echo HISTORY BUILD FAILED
+  pause
+  exit /b %ERRORLEVEL%
+)
 
 echo.
 echo [2/2] Install/compile MT4 history and return-live scripts
-call "%~dp0INSTALL_NVT9_TFMAP_PREVIEW_AUTO.cmd"
-if errorlevel 1 exit /b %ERRORLEVEL%
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install_nvt9_tfmap_preview_auto.ps1"
+if errorlevel 1 (
+  echo MT4 INSTALL FAILED
+  pause
+  exit /b %ERRORLEVEL%
+)
 
 echo.
 echo PREPARE COMPLETE
