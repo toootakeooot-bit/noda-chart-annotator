@@ -1,10 +1,20 @@
 $ErrorActionPreference = 'Stop'
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $TerminalRoot = Join-Path $env:APPDATA 'MetaQuotes\Terminal'
-$Source = Join-Path $RepoRoot 'mt4\NCA_NVT9_TFMap_Preview_Renderer.mq4'
 
-if (!(Test-Path $Source)) {
-  throw "Renderer source not found: $Source"
+$Sources = @(
+  'NCA_NVT9_TFMap_Preview_Renderer.mq4',
+  'NCA_NVT9_History_View.mq4',
+  'NCA_NVT9_Return_Live.mq4'
+) | ForEach-Object {
+  Join-Path $RepoRoot ("mt4\{0}" -f $_)
+}
+
+$MissingSources = @($Sources | Where-Object { !(Test-Path $_) })
+if ($MissingSources.Count -gt 0) {
+  Write-Host 'AUTO INSTALL STOP: one or more NVT9 sources are missing.'
+  $MissingSources | ForEach-Object { Write-Host ("  missing: {0}" -f $_) }
+  exit 1
 }
 
 $candidates = @()
@@ -36,8 +46,13 @@ if ($candidates.Count -gt 1) {
 
 $DataFolder = $candidates[0]
 $Scripts = Join-Path $DataFolder 'MQL4\Scripts'
-$Target = Join-Path $Scripts 'NCA_NVT9_TFMap_Preview_Renderer.mq4'
-Copy-Item $Source $Target -Force
+$Targets = @()
+
+foreach ($Source in $Sources) {
+  $Target = Join-Path $Scripts ([System.IO.Path]::GetFileName($Source))
+  Copy-Item $Source $Target -Force
+  $Targets += $Target
+}
 
 $origin = Join-Path $DataFolder 'origin.txt'
 $installRoot = ''
@@ -52,29 +67,42 @@ if ($installRoot -ne '') {
 }
 $meta = $metaCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
-Write-Host 'NVT9 TFMAP AUTO INSTALL'
-Write-Host '======================='
+Write-Host 'NVT9 TFMAP / HISTORY AUTO INSTALL'
+Write-Host '================================='
 Write-Host ("DataFolder: {0}" -f $DataFolder)
-Write-Host ("Source:     {0}" -f $Source)
-Write-Host ("Target:     {0}" -f $Target)
+$Targets | ForEach-Object { Write-Host ("Target:     {0}" -f $_) }
 
+$compileMissing = @()
 if ($meta) {
   Write-Host ("MetaEditor: {0}" -f $meta)
-  & $meta /compile:$Target /log
-  Start-Sleep -Milliseconds 500
-  $ex4 = [System.IO.Path]::ChangeExtension($Target, '.ex4')
-  if (Test-Path $ex4) {
-    Write-Host ("Compiled:   {0}" -f $ex4)
-  } else {
-    Write-Host 'Compile was requested. If the script does not appear in MT4, open MetaEditor and compile the MQ4 once.'
+  foreach ($Target in $Targets) {
+    & $meta /compile:$Target /log
+    Start-Sleep -Milliseconds 300
+    $ex4 = [System.IO.Path]::ChangeExtension($Target, '.ex4')
+    if (Test-Path $ex4) {
+      Write-Host ("Compiled:   {0}" -f $ex4)
+    } else {
+      $compileMissing += $Target
+    }
   }
 } else {
-  Write-Host 'MetaEditor was not auto-detected. The MQ4 was copied successfully.'
-  Write-Host 'Open MT4 MetaEditor and compile NCA_NVT9_TFMap_Preview_Renderer.mq4 once.'
+  Write-Host 'MetaEditor was not auto-detected. MQ4 files were copied successfully.'
+  $compileMissing = @($Targets)
+}
+
+if ($compileMissing.Count -gt 0) {
+  Write-Host ''
+  Write-Host 'These scripts may require one manual compile in MetaEditor:'
+  $compileMissing | ForEach-Object { Write-Host ("  {0}" -f $_) }
 }
 
 Write-Host ''
 Write-Host 'AUTO INSTALL COMPLETE'
-Write-Host 'This installs only the isolated NVT9_TFMAP__ research renderer.'
-Write-Host 'Production NCA_DRAW__ objects are not changed.'
+Write-Host 'Installed scripts:'
+Write-Host '  NCA_NVT9_TFMap_Preview_Renderer'
+Write-Host '  NCA_NVT9_History_View'
+Write-Host '  NCA_NVT9_Return_Live'
+Write-Host ''
+Write-Host 'History_View reads historical cases directly and does NOT overwrite the current live preview.'
+Write-Host 'Return_Live moves the four target charts back to the latest bar and re-enables AutoScroll.'
 exit 0
