@@ -49,6 +49,7 @@ jobs:
             tests/selftest_nvt9_hl_activated_geometry.py \
             tests/selftest_nvt9_tf_mapped_preview.py \
             tests/selftest_nvt9_tfmap_renderer_safety.py \
+            tests/selftest_nvt9_history_view.py \
             tests/selftest_nvt9_v4_visibility_decision.py \
             tests/selftest_nvt9_v4_v6_preview.py \
             tests/selftest_nvt9_visibility_invariants.py \
