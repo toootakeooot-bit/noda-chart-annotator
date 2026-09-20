@@ -88,3 +88,42 @@ This is a visual experiment, not a Production promotion.
 The next evidence step is an MT4 visual comparison on H4, H1 and M15.
 
 If the mapped preview reproduces the intended historical aqua-line layout better than same-timeframe rendering, the display-timeframe layer should be promoted into NVT9 design while keeping structural ownership unchanged.
+
+
+## 2026-09-20 display-density refinement
+
+User clarified that the display objective is not to show every structurally valid line.
+
+Primary display objective:
+
+- make the structures nearest current price easy to identify;
+- omit far redundant lines;
+- retain a farther line when it is useful to make the broader direction understandable.
+
+The research display source set is now:
+
+- D1 chart: D1
+- H4 chart: D1 + H4
+- H1 chart: H4 + H1
+- M15 chart: H1 + M15
+
+H1/H4 are allowed to represent one merged structural family when broad turns, long adjustments, or long ranges make the two scales non-separable. Exact geometry duplicates may be deduplicated automatically; non-exact H1/H4 merging is not automatic.
+
+### Price relevance
+
+Selection is performed at the structural-family level rather than on individual line objects.
+
+For each family, TL and CH are projected to the latest closed bar of the display timeframe.
+
+Distance to current price is:
+
+- zero when current price is inside the TL/CH channel;
+- otherwise the distance to the nearest projected channel boundary.
+
+No fixed pip threshold and no ATR threshold are used.
+
+The preview keeps the nearest two families as the near-price set. They retain TL, CH and zone edges.
+
+If the near-price set does not contain higher-timeframe context, or its directions conflict, at most one farther CURRENT higher-timeframe family may be retained as directional context. That far context renders TL + CH only, without zone edges.
+
+The count of two near families and one context family is a research-preview control, not a frozen Production rule.
