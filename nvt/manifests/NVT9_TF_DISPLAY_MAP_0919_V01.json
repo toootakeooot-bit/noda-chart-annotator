@@ -1,5 +1,5 @@
 {
-  "schema": "nvt9-tf-display-map/0.4",
+  "schema": "nvt9-tf-display-map/0.5",
   "status": "RESEARCH_CANDIDATE_PLAN_B_SOURCE_TO_SELF_PLUS_HIGHER",
   "audit_id": "ID10IQ200",
   "date": "2026-09-20",
@@ -41,8 +41,9 @@
   "important": [
     "PLAN B direction is source -> self + one higher chart. Do not invert it.",
     "H4 structure must be visible on H4 and D1; H1 structure on H1 and H4; M15 structure on M15 and H1.",
+    "Each assigned source TF must contribute one nearest family in this audit preview; cross-source dedupe must not remove a source.",
+    "Far redundant families are hidden in the current audit preview. Re-add a far context family only after visual/manual confirmation that direction is unclear.",
     "This is a display mapping only; structural ownership does not change.",
-    "H1 and H4 may later be merged as one structural family when broad turns/long adjustments/long ranges make them non-separable.",
     "No Production Normal Run, Production snapshot, Production Renderer, NCA_DRAW__, or trade authority writeback is allowed."
   ],
   "production_changed": false,
@@ -82,15 +83,16 @@
       "TL_ZONE_EDGE",
       "CH_ZONE_EDGE"
     ],
-    "far_direction_context_max_families": 1,
+    "far_direction_context_max_families": 0,
     "far_direction_context_roles": [
       "TL",
       "CH"
     ],
     "fixed_pip_threshold_used": false,
     "atr_threshold_used": false,
-    "note": "Research preview: keep the nearest family from each displayed source TF. Add at most one higher-TF CURRENT context family only when the selected directions conflict or the higher-TF nearest family is PREVIOUS.",
-    "near_price_family_per_source_tf": 1
+    "note": "Current audit preview shows only the nearest family from each Plan-B source TF. Far context is disabled for now. It may be reintroduced only after visual confirmation that direction is otherwise hard to read.",
+    "near_price_family_per_source_tf": 1,
+    "far_direction_context_policy": "MANUAL_REVIEW_ONLY_FOR_NOW"
   },
   "plan": "B",
   "source_to_display_tfs": {
