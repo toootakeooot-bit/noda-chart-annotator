@@ -18,6 +18,13 @@ def main() -> int:
     assert "StringLen(name) > 63" in src
     assert "ObjectCreate failed" in src
     assert "ready rows=" in src
+    assert 'DeleteObjectsByPrefix("NCA_DRAW__")' in src
+    assert "IsolatePreviewFromNormalRun = true" in src
+    assert "Manual objects are not touched" in src
+    assert "PreviewPreviousColor" not in src
+    assert 'StringFind(objectId, "SRC_H4_", 0) == 0' in src
+    assert 'StringFind(objectId, "SRC_H1_", 0) == 0' in src
+    assert 'StringFind(objectId, "SRC_M15_", 0) == 0' in src
 
     print("NVT9 TFMAP PREVIEW RENDERER SAFETY SELFTEST PASS")
     return 0
