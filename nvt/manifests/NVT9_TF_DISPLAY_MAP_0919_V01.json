@@ -1,5 +1,5 @@
 {
-  "schema": "nvt9-tf-display-map/0.2",
+  "schema": "nvt9-tf-display-map/0.3",
   "status": "RESEARCH_CANDIDATE_LOCAL_PLUS_PARENT_PRICE_RELEVANCE",
   "audit_id": "ID10IQ200",
   "date": "2026-09-20",
@@ -72,7 +72,6 @@
     "objective": "Show structures most relevant to current price; retain a farther line only when needed to preserve higher-timeframe directional context.",
     "family_unit": "TL+CH family, not individual role",
     "current_price_metric": "Project TL/CH to the latest closed bar of the display timeframe. Distance is zero when price lies inside the channel; otherwise use distance to the nearest channel boundary.",
-    "near_price_family_count": 2,
     "near_price_roles": [
       "TL",
       "CH",
@@ -86,6 +85,7 @@
     ],
     "fixed_pip_threshold_used": false,
     "atr_threshold_used": false,
-    "note": "Counts are a research preview control, not a frozen Production rule."
+    "note": "Research preview: keep the nearest family from each displayed source TF. Add at most one higher-TF CURRENT context family only when the selected directions conflict or the higher-TF nearest family is PREVIOUS.",
+    "near_price_family_per_source_tf": 1
   }
 }
