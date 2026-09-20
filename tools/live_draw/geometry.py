@@ -64,34 +64,54 @@ def build_channel_candidates(bars: list[Bar], pivots: list[Pivot]) -> list[Chann
                 if direction == 'FALLING' and not (b.price < a.price):
                     continue
                 slope = _slope(a, b)
-                valid_opp = [p for p in opposite if p.time >= a.time]
-                if not valid_opp:
+
+                # The TL anchors must form one structural N with a decision HL
+                # between them. For FALLING use the lowest confirmed LOW
+                # between HIGH1/HIGH2; for RISING use the highest confirmed HIGH
+                # between LOW1/LOW2.
+                between_opp = [p for p in opposite if a.time < p.time < b.time]
+                if not between_opp:
+                    continue
+                if direction == 'FALLING':
+                    decision_hl = min(between_opp, key=lambda p: (p.price, p.time))
+                else:
+                    decision_hl = max(between_opp, key=lambda p: (p.price, p.time))
+
+                # Research activation rule: after anchor2 formed, a CLOSED-BAR
+                # close must cross the decision HL before the new-direction TL
+                # becomes eligible. Wick-vs-close semantics remain provisional
+                # until video validation; closed-bar close is used because the
+                # existing Turn detector is also close-confirmed.
+                hl_break_bar = None
+                for bar in bars[b.bar_index + 1:]:
+                    if direction == 'FALLING' and bar.close < decision_hl.price:
+                        hl_break_bar = bar
+                        break
+                    if direction == 'RISING' and bar.close > decision_hl.price:
+                        hl_break_bar = bar
+                        break
+                if hl_break_bar is None:
                     continue
 
-                tl_contacts = sum(_pivot_contact(p, bars, a.time, a.price, slope) for p in same if p.time >= a.time)
+                tl_contacts = sum(
+                    _pivot_contact(p, bars, a.time, a.price, slope)
+                    for p in same if p.time >= a.time
+                )
 
-                best_ch = None
-                best_key = None
-                for ch_anchor in valid_opp:
-                    base_y = line_value(ch_anchor.time, a.time, a.price, slope)
-                    offset = ch_anchor.price - base_y
-                    if direction == 'RISING' and offset <= 0:
-                        continue
-                    if direction == 'FALLING' and offset >= 0:
-                        continue
-                    ch_contacts = sum(
-                        _pivot_contact(p, bars, a.time, a.price, slope, offset)
-                        for p in opposite if p.time >= a.time
-                    )
-                    # No weighted strength score: lexicographic evidence only.
-                    key = (ch_contacts, ch_anchor.time)
-                    if best_key is None or key > best_key:
-                        best_key = key
-                        best_ch = (ch_anchor, offset, ch_contacts)
-                if best_ch is None:
+                # The opposite side of this N is the same decision HL used to
+                # activate the TL, so use it as the canonical CH anchor.
+                ch_anchor = decision_hl
+                base_y = line_value(ch_anchor.time, a.time, a.price, slope)
+                offset = ch_anchor.price - base_y
+                if direction == 'RISING' and offset <= 0:
                     continue
+                if direction == 'FALLING' and offset >= 0:
+                    continue
+                ch_contacts = sum(
+                    _pivot_contact(p, bars, a.time, a.price, slope, offset)
+                    for p in opposite if p.time >= a.time
+                )
 
-                ch_anchor, offset, ch_contacts = best_ch
                 candidates.append(
                     ChannelCandidate(
                         direction=direction,
@@ -105,6 +125,9 @@ def build_channel_candidates(bars: list[Bar], pivots: list[Pivot]) -> list[Chann
                         ch_anchor=ch_anchor,
                         ch_offset=offset,
                         zone_width=_zone_width(direction, bars[a.bar_index]),
+                        decision_hl=decision_hl,
+                        hl_break_time=hl_break_bar.time,
+                        hl_break_mode='CLOSED_BAR_CLOSE_PROVISIONAL',
                     )
                 )
 
@@ -121,6 +144,7 @@ def select_large_mid(symbol: str, timeframe: str, candidates: list[ChannelCandid
     """Provisional relative structure classifier and in-process TL selector.
 
     No timeframe->Dow mapping and no weighted score is used.
+    Candidate generation already requires an N-structure decision-HL break.
     LARGE_DOW: close-unbroken after anchor2, larger relative turn scope, then
     CH/TL direct-contact evidence, then gentler slope as tie-break only.
     MID_DOW: structurally smaller/recent candidate inside the active large
