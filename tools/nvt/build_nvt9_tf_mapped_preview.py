@@ -250,9 +250,11 @@ def main() -> int:
             s = fam["_state"]
             for role in fam["display_roles"]:
                 p1, p2 = line_points(s, role)
+                level_code = "L" if s["structure_level"] == "LARGE_DOW" else "M"
+                gen_role_code = "C" if fam["generation_role"] == "CURRENT" else "P"
                 oid = (
-                    f"TFMAP__SRC_{fam['source_tf']}__DST_{display_tf}__"
-                    f"{s['line_id']}__{role}"
+                    f"SRC_{fam['source_tf']}_DST_{display_tf}_"
+                    f"{level_code}_G{s['generation']}_{gen_role_code}_{role}"
                 )
                 rows.append([
                     oid, s["symbol"], display_tf, s["structure_level"], role,
@@ -292,6 +294,13 @@ def main() -> int:
         "selected_family_counts": dict(selected_family_counts),
         "display_row_counts": dict(display_counts),
         "selected_families": audit_rows,
+        "object_name_policy": {
+            "renderer_prefix": "NVT9_TFMAP__",
+            "max_full_object_name_length": max(
+                [len("NVT9_TFMAP__" + row[0]) for row in rows] or [0]
+            ),
+            "mt4_name_limit_guard": 63,
+        },
         "selection_policy": {
             "near_price_family_per_source_tf": per_source,
             "far_direction_context_max_families": context_max,
@@ -311,6 +320,12 @@ def main() -> int:
         "trade_authority": False,
     }
     audit_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    if payload["object_name_policy"]["max_full_object_name_length"] > payload["object_name_policy"]["mt4_name_limit_guard"]:
+        raise ValueError(
+            "TFMap MT4 object name exceeds 63 characters: "
+            f"{payload['object_name_policy']['max_full_object_name_length']}"
+        )
 
     print(json.dumps({
         "status": payload["status"],
