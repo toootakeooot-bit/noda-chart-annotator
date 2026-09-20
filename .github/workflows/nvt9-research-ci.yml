@@ -32,6 +32,7 @@ jobs:
             tools/nvt/build_nvt9_ownership_adjudication.py \
             tools/nvt/apply_nvt9_ownership_overrides.py \
             tools/nvt/evaluate_nvt9_ownership_gate.py \
+            tools/nvt/validate_nvt9_plan_b_contract.py \
             tools/nvt/build_nvt9_tf_mapped_preview.py \
             tools/nvt/build_nvt9_v4_visibility_decision.py \
             tools/nvt/build_nvt9_v4_display_template.py \
@@ -43,6 +44,7 @@ jobs:
             tests/selftest_nvt9_deep_lifecycle_state.py \
             tests/selftest_nvt9_owner_evidence_review.py \
             tests/selftest_nvt9_ownership_adjudication.py \
+            tests/selftest_nvt9_plan_b_contract.py \
             tests/selftest_nvt9_tf_mapped_preview.py \
             tests/selftest_nvt9_tfmap_renderer_safety.py \
             tests/selftest_nvt9_v4_visibility_decision.py \
@@ -65,6 +67,9 @@ jobs:
 
       - name: Ownership adjudication self-test
         run: python tests/selftest_nvt9_ownership_adjudication.py
+
+      - name: Plan B display contract self-test
+        run: python tests/selftest_nvt9_plan_b_contract.py
 
       - name: Timeframe display map preview self-test
         run: python tests/selftest_nvt9_tf_mapped_preview.py
