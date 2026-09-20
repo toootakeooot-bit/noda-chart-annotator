@@ -45,6 +45,7 @@ jobs:
             tests/selftest_nvt9_owner_evidence_review.py \
             tests/selftest_nvt9_ownership_adjudication.py \
             tests/selftest_nvt9_plan_b_contract.py \
+            tests/selftest_nvt9_hl_activated_geometry.py \
             tests/selftest_nvt9_tf_mapped_preview.py \
             tests/selftest_nvt9_tfmap_renderer_safety.py \
             tests/selftest_nvt9_v4_visibility_decision.py \
@@ -70,6 +71,9 @@ jobs:
 
       - name: Plan B display contract self-test
         run: python tests/selftest_nvt9_plan_b_contract.py
+
+      - name: HL-activated geometry self-test
+        run: python tests/selftest_nvt9_hl_activated_geometry.py
 
       - name: Timeframe display map preview self-test
         run: python tests/selftest_nvt9_tf_mapped_preview.py
