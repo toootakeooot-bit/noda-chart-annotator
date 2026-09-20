@@ -24,8 +24,8 @@ Write-Host 'PLAN B display direction: SOURCE TF -> SELF + ONE HIGHER CHART.'
 Write-Host 'H4 structure -> H4 + D1; H1 structure -> H1 + H4; M15 structure -> M15 + H1.'
 Write-Host 'Equivalent chart view: D1=D1+H4, H4=H4+H1, H1=H1+M15, M15=M15.'
 Write-Host 'Structural owner remains the SOURCE timeframe.'
-Write-Host 'Audit preview is nearest-only. Far context is disabled.'
-Write-Host 'MT4 preview isolation removes only generated NCA_DRAW__ objects from the current chart; manual objects are untouched.'
+Write-Host 'Audit preview is CURRENT-only and nearest-only. Far context is disabled.'
+Write-Host 'MT4 audit preview clears ALL chart objects on the current chart, then draws only the selected preview.'
 Write-Host ''
 
 Write-Host '[0/4] Independent Plan B contract gate'
@@ -98,8 +98,9 @@ Write-Host ("  H4 chart <- H4:{0} H1:{1}" -f $AuditPayload.selected_source_count
 Write-Host ("  H1 chart <- H1:{0} M15:{1}" -f $AuditPayload.selected_source_counts.H1.H1,$AuditPayload.selected_source_counts.H1.M15)
 Write-Host ("  M15 chart <- M15:{0}" -f $AuditPayload.selected_source_counts.M15.M15)
 Write-Host ''
-Write-Host 'Current audit preview: nearest family only from each assigned source TF.'
-Write-Host 'Far context families are disabled for now.'
+Write-Host 'Current audit preview: nearest CURRENT family only from each assigned source TF.'
+Write-Host 'Far context is disabled.'
+Write-Host 'MT4 audit mode clears all existing chart objects on the chart before drawing the preview.'
 Write-Host ''
 Write-Host 'Next MT4 step: install/compile NCA_NVT9_TFMap_Preview_Renderer.mq4 and run it on the charts you want to compare (especially H4 and M15).'
 Write-Host 'Research objects use NVT9_TFMAP__ only.'
