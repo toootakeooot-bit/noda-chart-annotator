@@ -28,6 +28,10 @@ def main() -> int:
     assert 'StringFind(objectId, "SRC_H4_", 0) == 0' in src
     assert 'StringFind(objectId, "SRC_H1_", 0) == 0' in src
     assert 'StringFind(objectId, "SRC_M15_", 0) == 0' in src
+    assert "input color HLColor = clrMagenta;" in src
+    assert 'role != "HL"' in src
+    assert 'if(role == "HL")' in src
+    assert "c = HLColor;" in src
 
     print("NVT9 TFMAP PREVIEW RENDERER SAFETY SELFTEST PASS")
     return 0
