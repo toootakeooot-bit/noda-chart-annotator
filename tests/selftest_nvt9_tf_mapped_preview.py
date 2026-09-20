@@ -27,11 +27,23 @@ def state_line(tf: str, level: str, gen: int, *, direction: str, p1: float, p2: 
 
 
 def write_input(path: Path, close: float) -> None:
+    # Synthetic alternating structure with >38% closed-bar reactions so the
+    # Turn detector produces confirmed pivots and an HL research candidate.
     path.parent.mkdir(parents=True, exist_ok=True)
+    rows = [
+        ["2026-09-18 16:00:00", 156.0, 157.0, 155.0, 156.0, 1],
+        ["2026-09-18 17:00:00", 156.0, 161.0, 156.0, 160.0, 1],
+        ["2026-09-18 18:00:00", 160.0, 160.0, 158.0, 158.0, 1],
+        ["2026-09-18 19:00:00", 158.0, 158.0, 154.0, 155.0, 1],
+        ["2026-09-18 20:00:00", 155.0, 157.0, 155.0, 157.0, 1],
+        ["2026-09-18 21:00:00", 157.0, 162.0, 157.0, 161.0, 1],
+        ["2026-09-18 22:00:00", 161.0, 161.0, 158.0, 158.0, 1],
+        ["2026-09-18 23:00:00", 158.0, 158.0, 153.0, close, 1],
+    ]
     with path.open("w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["time","open","high","low","close","volume"])
-        w.writerow(["2026-09-18 23:00:00", close, close + 0.2, close - 0.2, close, 1])
+        w.writerows(rows)
 
 
 def main() -> int:
@@ -122,6 +134,12 @@ def main() -> int:
         assert audit["selection_policy"]["near_price_family_per_source_tf"] == 1
         assert audit["selection_policy"]["far_direction_context_max_families"] == 0
         assert audit["selection_policy"]["generation_scope"] == "CURRENT_ONLY"
+        assert audit["hl_preview_policy"]["always_draw"] is True
+        assert audit["hl_preview_policy"]["break_logic_applied"] is False
+        assert audit["hl_preview_policy"]["retracement_38_role"] == "TURN_CONFIRMATION_ONLY_NOT_HL"
+        assert set(audit["hl_candidates"]) == {"D1", "H4", "H1", "M15"}
+        assert all(x["always_draw"] is True for x in audit["hl_candidates"].values())
+        assert all(x["break_logic_applied"] is False for x in audit["hl_candidates"].values())
         assert audit["production_changed"] is False
         assert audit["production_renderer_changed"] is False
         assert audit["nca_draw_writeback"] is False
@@ -180,6 +198,12 @@ def main() -> int:
         assert any(r["timeframe"] == "H4" and r["object_id"].startswith("SRC_H1_DST_H4_") for r in rows)
         assert any(r["timeframe"] == "H1" and r["object_id"].startswith("SRC_M15_DST_H1_") for r in rows)
         assert any(r["timeframe"] == "M15" and r["object_id"].startswith("SRC_M15_DST_M15_") for r in rows)
+        hl_rows = [r for r in rows if r["role"] == "HL"]
+        assert len(hl_rows) == 4
+        assert {r["timeframe"] for r in hl_rows} == {"D1", "H4", "H1", "M15"}
+        assert all(r["structure_level"] == "HL_GATE" for r in hl_rows)
+        assert all(float(r["p1"]) == float(r["p2"]) for r in hl_rows)
+        assert all(r["object_id"] == f"HL_SRC_{r['timeframe']}_DST_{r['timeframe']}" for r in hl_rows)
         assert audit["object_name_policy"]["max_full_object_name_length"] <= 63
         assert all(len("NVT9_TFMAP__" + r["object_id"]) <= 63 for r in rows)
 
@@ -207,6 +231,8 @@ def main() -> int:
         assert normal_audit["source_state_mode"] == "NORMAL_RUN_LIVE_STATE"
         assert normal_audit["input_prefix"] == "NORMAL"
         assert normal_audit["selection_policy"]["generation_scope"] == "CURRENT_ONLY"
+        assert set(normal_audit["hl_candidates"]) == {"D1", "H4", "H1", "M15"}
+        assert normal_audit["hl_preview_policy"]["always_draw"] is True
         assert normal_audit["selected_source_counts"]["D1"] == {"D1": 1, "H4": 1}
         assert normal_audit["source_presence_problems"] == []
 
