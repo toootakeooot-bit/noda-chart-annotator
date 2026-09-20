@@ -40,6 +40,7 @@ jobs:
             tools/nvt/build_nvt9_v6_visibility_preview.py \
             tools/nvt/validate_nvt9_visibility_invariants.py \
             tools/nvt/prepare_nvt9_v7_preview_ready.py \
+            tests/selftest_normal_run.py \
             tests/selftest_nvt9_cross_tf.py \
             tests/selftest_nvt9_normal_vs_full_history.py \
             tests/selftest_nvt9_deep_lifecycle_state.py \
@@ -55,6 +56,9 @@ jobs:
             tests/selftest_nvt9_visibility_invariants.py \
             tests/selftest_nvt9_preview_renderer_safety.py \
             tests/selftest_nvt9_v7_preview_ready.py
+
+      - name: NormalRun lifecycle replay self-test
+        run: python tests/selftest_normal_run.py
 
       - name: Cross-TF ownership self-test
         run: python tests/selftest_nvt9_cross_tf.py
