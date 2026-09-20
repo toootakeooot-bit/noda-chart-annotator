@@ -57,6 +57,53 @@ def structural_event_end_indices(bars: list[Bar]) -> list[int]:
     return sorted(indices)
 
 
+def hl_activation_event_end_indices(bars: list[Bar]) -> list[int]:
+    """Return closed-bar indices where an N-structure decision HL is crossed.
+
+    A TL candidate can become eligible *after* its anchor2 pivot was already
+    confirmed.  Such an HL-break bar may not confirm a new Pivot, so replaying
+    Pivot-confirmation events alone can leave an obsolete TL active until the
+    next Turn.  Build the full-history candidate set once, then schedule each
+    candidate's first recorded HL-break close as an additional lifecycle event.
+
+    This function does not promote anything by itself.  The prefix rebuild at
+    the returned index re-runs Turn detection + candidate selection using only
+    bars available through that closed bar, preserving no-lookahead behavior.
+    """
+    if len(bars) < 3:
+        return []
+    turns = detect_turns(bars)
+    candidates = build_channel_candidates(bars, turns.pivots)
+    time_to_index = {bar.time: i for i, bar in enumerate(bars)}
+    indices = set()
+    for candidate in candidates:
+        t = candidate.hl_break_time
+        if t is None:
+            continue
+        idx = time_to_index.get(t)
+        if idx is None or idx < 2 or idx >= len(bars):
+            continue
+        # If full-history geometry recorded a break before anchor2 itself was
+        # confirmed, that break could not have activated this candidate at the
+        # time. The later Pivot-confirmation event remains authoritative.
+        confirmed_idx = max(
+            int(candidate.anchor1.confirmed_by_index),
+            int(candidate.anchor2.confirmed_by_index),
+            int(candidate.decision_hl.confirmed_by_index) if candidate.decision_hl else 0,
+        )
+        if idx < confirmed_idx:
+            continue
+        indices.add(idx)
+    return sorted(indices)
+
+
+def lifecycle_event_end_indices(bars: list[Bar]) -> tuple[list[int], list[int], list[int]]:
+    """Return (all, pivot-confirmation, HL-activation) replay event indices."""
+    pivot_events = structural_event_end_indices(bars)
+    hl_events = hl_activation_event_end_indices(bars)
+    return sorted(set(pivot_events) | set(hl_events)), pivot_events, hl_events
+
+
 def rebuild_timeframe_from_bars(
     bars: list[Bar],
     symbol: str,
@@ -81,7 +128,9 @@ def rebuild_timeframe_from_bars(
 
     state = empty_state()
     transitions: list[dict] = []
-    event_indices = structural_event_end_indices(bars)
+    event_indices, pivot_event_indices, hl_event_indices = lifecycle_event_end_indices(bars)
+    pivot_event_set = set(pivot_event_indices)
+    hl_event_set = set(hl_event_indices)
     evaluated_prefixes = 0
     final_event_detector = None
     final_classifier = None
@@ -103,13 +152,31 @@ def rebuild_timeframe_from_bars(
             if did_change:
                 key = f'{selected.symbol}|{selected.timeframe}|{selected.level}'
                 slot = state['slots'][key]
+                event_kinds = []
+                if end_index in pivot_event_set:
+                    event_kinds.append('PIVOT_CONFIRMATION')
+                if end_index in hl_event_set:
+                    event_kinds.append('HL_ACTIVATION')
                 transitions.append({
                     'closed_bar_time': prefix[-1].time.isoformat(),
                     'closed_bar_index': end_index,
+                    'event_kinds': event_kinds,
                     'level': selected.level,
                     'generation': slot['current']['generation'],
                     'line_id': slot['current']['line_id'],
                     'candidate_id': selected.candidate.id_key,
+                    'decision_hl_time': (
+                        selected.candidate.decision_hl.time.isoformat()
+                        if selected.candidate.decision_hl else None
+                    ),
+                    'decision_hl_price': (
+                        float(selected.candidate.decision_hl.price)
+                        if selected.candidate.decision_hl else None
+                    ),
+                    'hl_break_time': (
+                        selected.candidate.hl_break_time.isoformat()
+                        if selected.candidate.hl_break_time else None
+                    ),
                 })
 
         final_event_detector = turns
@@ -130,11 +197,16 @@ def rebuild_timeframe_from_bars(
     audit = {
         'status': 'PASS',
         'mode': 'NORMAL_RUN_HISTORY_REBUILD',
-        'replay_strategy': 'CONFIRMED_TURN_EVENTS_ONLY',
+        'replay_strategy': 'PIVOT_CONFIRMATION_PLUS_HL_ACTIVATION',
         'symbol': symbol,
         'timeframe': timeframe,
         'closed_bars': len(bars),
         'structural_event_count': len(event_indices),
+        'pivot_confirmation_event_count': len(pivot_event_indices),
+        'hl_activation_event_count': len(hl_event_indices),
+        'event_indices': event_indices,
+        'pivot_confirmation_event_indices': pivot_event_indices,
+        'hl_activation_event_indices': hl_event_indices,
         'evaluated_prefixes': evaluated_prefixes,
         'skipped_non_structural_prefixes': max(0, (len(bars) - 2) - evaluated_prefixes),
         'last_structural_event_index': last_event_end_index,
