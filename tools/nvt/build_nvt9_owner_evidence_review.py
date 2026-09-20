@@ -99,15 +99,15 @@ def main() -> int:
             if r["structural_evidence_class"] == "SAME_DIRECTION_RETAINED_PARENT_REFERENCE"
         ]
         if strong:
-            # Deterministic tie break only for presentation; this does not promote ownership.
-            best = sorted(
+            strong = sorted(
                 strong,
                 key=lambda r: (
                     0 if r.get("parent_generation_role") == "CURRENT" else 1,
                     r.get("parent_level", ""),
                     r.get("parent_line_id", ""),
                 ),
-            )[0]
+            )
+            best = strong[0]
             status = "STRONG_OWNER_CANDIDATE_NEEDS_TEACHER_CONFIRMATION"
             rationale = (
                 "Child and higher-TF parent share direction and the exact terminal pivot price; "
@@ -160,7 +160,19 @@ def main() -> int:
             "candidate_owner_tf": best.get("parent_tf"),
             "candidate_parent_generation_role": best.get("parent_generation_role"),
             "candidate_parent_level": best.get("parent_level"),
-            "candidate_parent_line_id": best.get("parent_line_id"),
+            "candidate_parent_line_id": (
+                None if status == "STRONG_OWNER_CANDIDATE_NEEDS_TEACHER_CONFIRMATION"
+                else best.get("parent_line_id")
+            ),
+            "strong_parent_candidates": [
+                {
+                    "parent_tf": r.get("parent_tf"),
+                    "parent_generation_role": r.get("parent_generation_role"),
+                    "parent_level": r.get("parent_level"),
+                    "parent_line_id": r.get("parent_line_id"),
+                }
+                for r in strong
+            ] if status == "STRONG_OWNER_CANDIDATE_NEEDS_TEACHER_CONFIRMATION" else [],
             "structural_evidence_class": best.get("structural_evidence_class"),
             "terminal_pivot_price_exact": float(best.get("anchor2_price_diff") or 0.0) == 0.0,
             "terminal_pivot_same_parent_bar": same_parent_bar(
@@ -176,6 +188,7 @@ def main() -> int:
             "slope_abs_diff_price_per_day": best.get("slope_abs_diff_price_per_day"),
             "rationale": rationale,
             "automatic_owner_promotion": False,
+            "parent_family_id_fixed": False,
             "teacher_or_manual_confirmation_required": True,
         })
 
