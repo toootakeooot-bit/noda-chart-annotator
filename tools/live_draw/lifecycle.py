@@ -70,6 +70,11 @@ def promote_selection(state: dict, selected: SelectedStructure) -> tuple[dict, b
         zone_width=c.zone_width,
         selection_version=selected.selection_version,
         created_at=_now(),
+        decision_hl_time=(c.decision_hl.time.isoformat() if c.decision_hl else None),
+        decision_hl_price=(float(c.decision_hl.price) if c.decision_hl else None),
+        decision_hl_kind=(c.decision_hl.kind if c.decision_hl else None),
+        hl_break_time=(c.hl_break_time.isoformat() if c.hl_break_time else None),
+        hl_break_mode=c.hl_break_mode,
     ).to_dict()
 
     if current:
