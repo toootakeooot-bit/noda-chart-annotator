@@ -14,9 +14,9 @@ input color H1TLColor = clrLime;
 input color H1CHColor = clrGreen;
 input color M15TLColor = clrMagenta;
 input color M15CHColor = clrViolet;
-input color PreviewPreviousColor = clrDimGray;
 input int PreviewCurrentWidth = 2;
 input int PreviewPreviousWidth = 1;
+input bool IsolatePreviewFromNormalRun = true;
 
 string PREFIX = "NVT9_TFMAP__";
 string BASE_DIR = "noda_draw\\live_output";
@@ -106,13 +106,23 @@ int CountRenderableRows(string path, string symbol, string tf)
    return count;
 }
 
-void DeleteOwnedObjects()
+int DeleteObjectsByPrefix(string prefix)
 {
+   int deleted = 0;
    for(int i=ObjectsTotal()-1; i>=0; i--)
    {
       string n = ObjectName(i);
-      if(StringFind(n, PREFIX, 0) == 0) ObjectDelete(n);
+      if(StringFind(n, prefix, 0) == 0)
+      {
+         if(ObjectDelete(n)) deleted++;
+      }
    }
+   return deleted;
+}
+
+void DeleteOwnedObjects()
+{
+   DeleteObjectsByPrefix(PREFIX);
 }
 
 int RenderRows(string path, string symbol, string tf)
@@ -175,7 +185,9 @@ int RenderRows(string path, string symbol, string tf)
       int width = PreviewCurrentWidth;
       if(previous)
       {
-         c = PreviewPreviousColor;
+         // Keep source-timeframe color so the user can still identify H4/H1/M15.
+         // PREVIOUS is distinguished only by dotted style and thinner width.
+         c = (role == "CH") ? chColor : tlColor;
          style = STYLE_DOT;
          width = PreviewPreviousWidth;
       }
@@ -219,6 +231,14 @@ void OnStart()
    }
 
    Print("NVT9 TFMap Renderer: ready rows=", ready, " symbol=", symbol, " tf=", tf);
+   int removedNormal = 0;
+   if(IsolatePreviewFromNormalRun)
+   {
+      // Remove only generated NormalRun drawing objects from THIS chart.
+      // Manual objects are not touched. Re-running NCA_NormalRun_Renderer restores them.
+      removedNormal = DeleteObjectsByPrefix("NCA_DRAW__");
+      Print("NVT9 TFMap Renderer: isolated preview removed NCA_DRAW__ objects=", removedNormal);
+   }
    DeleteOwnedObjects();
    int rendered = RenderRows(path, symbol, tf);
    if(rendered < 0)
