@@ -1,0 +1,38 @@
+{
+  "schema": "nvt9-tf-display-map/0.1",
+  "status": "RESEARCH_CANDIDATE_FROM_USER_MT4_VISUAL_REVIEW",
+  "audit_id": "ID10IQ200",
+  "date": "2026-09-20",
+  "symbol": "USDJPY#",
+  "mapping": {
+    "D1": "H4",
+    "H4": "H1",
+    "H1": "M15",
+    "M15": null
+  },
+  "semantics": {
+    "source_tf": "timeframe whose deep-history bars produce the structural line",
+    "structural_owner_tf": "same as source_tf for this experiment",
+    "display_tf": "chart timeframe on which that source structure is rendered",
+    "decision_owner_tf": "not changed by this experiment"
+  },
+  "m15_policy": {
+    "independent_m15_structure_display": false,
+    "m15_chart_uses": "H1 structural lines",
+    "reason": "User visual review indicates the historical M15 chart used H1 aqua structural lines and did not require independent M15 structure lines."
+  },
+  "scope": {
+    "include_structure_levels": ["LARGE_DOW", "MID_DOW"],
+    "include_generation_roles": ["CURRENT", "PREVIOUS"],
+    "include_roles": ["TL", "CH", "TL_ZONE_EDGE", "CH_ZONE_EDGE"]
+  },
+  "important": [
+    "This is a display-timeframe hypothesis, not a cross-timeframe ownership promotion rule.",
+    "D1 remains D1-owned when displayed on H4; H4 remains H4-owned when displayed on H1; H1 remains H1-owned when displayed on M15.",
+    "No Production Normal Run, Production snapshot, Production Renderer, NCA_DRAW__, or trade authority writeback is allowed."
+  ],
+  "production_changed": false,
+  "renderer_changed": false,
+  "snapshot_changed": false,
+  "nca_draw_writeback": false
+}
