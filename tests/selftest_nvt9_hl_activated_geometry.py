@@ -9,6 +9,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 from live_draw.geometry import build_channel_candidates
 from live_draw.model import Bar, Pivot
+from live_draw.normal_run import hl_activation_event_end_indices_from_pivots
 
 
 def main() -> int:
@@ -41,6 +42,7 @@ def main() -> int:
     assert c.decision_hl is low
     assert c.hl_break_time == bars[7].time
     assert c.hl_break_mode == "CLOSED_BAR_CLOSE_PROVISIONAL"
+    assert hl_activation_event_end_indices_from_pivots(bars, [h1, low, h2]) == [7]
 
     # Without a post-anchor2 break of the middle LOW, no falling TL may activate.
     unbroken = list(bars)
@@ -49,6 +51,7 @@ def main() -> int:
         x for x in build_channel_candidates(unbroken, [h1, low, h2])
         if x.direction == "FALLING"
     ]
+    assert hl_activation_event_end_indices_from_pivots(unbroken, [h1, low, h2]) == []
 
     print("NVT9 HL-ACTIVATED GEOMETRY SELFTEST PASS")
     return 0
