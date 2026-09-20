@@ -20,7 +20,10 @@ def main() -> int:
     assert "ready rows=" in src
     assert 'DeleteObjectsByPrefix("NCA_DRAW__")' in src
     assert "IsolatePreviewFromNormalRun = true" in src
-    assert "Manual objects are not touched" in src
+    assert "AuditCleanAllTrendObjects = true" in src
+    assert "DeleteAuditTrendObjects" in src
+    assert "OBJ_TREND" in src
+    assert "OBJ_CHANNEL" in src
     assert "PreviewPreviousColor" not in src
     assert 'StringFind(objectId, "SRC_H4_", 0) == 0' in src
     assert 'StringFind(objectId, "SRC_H1_", 0) == 0' in src
