@@ -6,9 +6,14 @@
 // Owns only NVT9_TFMAP__ objects and never touches Production NCA_DRAW__ or manual objects.
 // No timer, no continuous polling, no trading functions.
 
-input color PreviewTLColor = clrYellow;
-input color PreviewCHColor = clrOrange;
-input color PreviewZoneColor = clrViolet;
+input color D1TLColor = clrYellow;
+input color D1CHColor = clrOrange;
+input color H4TLColor = clrAqua;
+input color H4CHColor = clrDeepSkyBlue;
+input color H1TLColor = clrLime;
+input color H1CHColor = clrGreen;
+input color M15TLColor = clrMagenta;
+input color M15CHColor = clrViolet;
 input color PreviewPreviousColor = clrDimGray;
 input int PreviewCurrentWidth = 2;
 input int PreviewPreviousWidth = 1;
@@ -154,7 +159,18 @@ int RenderRows(string path, string symbol, string tf)
       ObjectSet(name, OBJPROP_BACK, false);
 
       bool previous = (genRole == "PREVIOUS");
-      color c = PreviewTLColor;
+      bool isD1 = (StringFind(objectId, "SRC_D1_", 0) == 0);
+      bool isH4 = (StringFind(objectId, "SRC_H4_", 0) == 0);
+      bool isH1 = (StringFind(objectId, "SRC_H1_", 0) == 0);
+      bool isM15 = (StringFind(objectId, "SRC_M15_", 0) == 0);
+
+      color tlColor = D1TLColor;
+      color chColor = D1CHColor;
+      if(isH4) { tlColor = H4TLColor; chColor = H4CHColor; }
+      else if(isH1) { tlColor = H1TLColor; chColor = H1CHColor; }
+      else if(isM15) { tlColor = M15TLColor; chColor = M15CHColor; }
+
+      color c = tlColor;
       int style = STYLE_SOLID;
       int width = PreviewCurrentWidth;
       if(previous)
@@ -165,11 +181,11 @@ int RenderRows(string path, string symbol, string tf)
       }
       else if(role == "CH")
       {
-         c = PreviewCHColor;
+         c = chColor;
       }
       else if(role == "TL_ZONE_EDGE" || role == "CH_ZONE_EDGE")
       {
-         c = PreviewZoneColor;
+         c = tlColor;
          style = STYLE_DASH;
          width = 1;
       }
