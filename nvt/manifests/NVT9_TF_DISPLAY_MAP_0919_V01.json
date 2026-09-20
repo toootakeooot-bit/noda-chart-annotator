@@ -1,5 +1,5 @@
 {
-  "schema": "nvt9-tf-display-map/0.6",
+  "schema": "nvt9-tf-display-map/0.7",
   "status": "RESEARCH_CANDIDATE_PLAN_B_SOURCE_TO_SELF_PLUS_HIGHER",
   "audit_id": "ID10IQ200",
   "date": "2026-09-20",
@@ -28,8 +28,7 @@
       "MID_DOW"
     ],
     "include_generation_roles": [
-      "CURRENT",
-      "PREVIOUS"
+      "CURRENT"
     ],
     "include_roles": [
       "TL",
@@ -41,11 +40,11 @@
   "important": [
     "PLAN B direction is source -> self + one higher chart. Do not invert it.",
     "H4 structure must be visible on H4 and D1; H1 structure on H1 and H4; M15 structure on M15 and H1.",
-    "Each assigned source TF must contribute one nearest family in this audit preview; cross-source dedupe must not remove a source.",
-    "Far redundant families are hidden in the current audit preview. Re-add a far context family only after visual/manual confirmation that direction is unclear.",
+    "Source family is selected once on its own timeframe from CURRENT structures only, then copied with identical geometry to every display timeframe.",
+    "Far context is disabled.",
+    "Audit preview clears ALL MT4 chart objects on the current chart before drawing only NVT9_TFMAP__ objects.",
     "This is a display mapping only; structural ownership does not change.",
-    "No Production Normal Run, Production snapshot, Production Renderer, NCA_DRAW__, or trade authority writeback is allowed.",
-    "Audit preview is isolated from existing NCA_DRAW__ objects on the current chart so obsolete NormalRun lines do not contaminate visual review."
+    "No trade authority writeback is allowed."
   ],
   "production_changed": false,
   "renderer_changed": false,
@@ -93,7 +92,8 @@
     "atr_threshold_used": false,
     "note": "Current audit preview shows only the nearest family from each Plan-B source TF. Far context is disabled for now. It may be reintroduced only after visual confirmation that direction is otherwise hard to read.",
     "near_price_family_per_source_tf": 1,
-    "far_direction_context_policy": "MANUAL_REVIEW_ONLY_FOR_NOW"
+    "far_direction_context_policy": "MANUAL_REVIEW_ONLY_FOR_NOW",
+    "generation_scope": "CURRENT_ONLY"
   },
   "plan": "B",
   "source_to_display_tfs": {
@@ -115,9 +115,9 @@
   },
   "preview_isolation": {
     "enabled_by_default": true,
-    "removes_only_prefix": "NCA_DRAW__",
-    "scope": "CURRENT_CHART_ONLY",
-    "manual_objects_untouched": true,
-    "restore_method": "Run NCA_NormalRun_Renderer again on that chart."
+    "delete_scope": "ALL_MT4_CHART_OBJECTS_ON_CURRENT_CHART",
+    "reason": "User confirmed this is a drawing-only audit; all non-preview chart objects may be removed for clean visual verification.",
+    "indicators_themselves_removed": false,
+    "note": "Objects created by indicators are chart objects and may also be removed."
   }
 }
