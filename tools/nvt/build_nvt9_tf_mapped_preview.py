@@ -179,7 +179,7 @@ def main() -> int:
             "m15_source_displayed": False,
         },
         "production_changed": False,
-        "production_snapshot_changed": false if False else False,
+        "production_snapshot_changed": False,
         "production_renderer_changed": False,
         "nca_draw_writeback": False,
         "trade_authority": False,
