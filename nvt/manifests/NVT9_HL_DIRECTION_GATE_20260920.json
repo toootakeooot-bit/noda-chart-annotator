@@ -1,62 +1,53 @@
 {
-  "schema": "nvt9-hl-direction-gate/1.3",
+  "schema": "nvt9-hl-direction-gate/1.4",
   "audit_id": "ID10IQ200",
-  "status": "RESEARCH_BREAKOUT_PAIR_PREVIEW_PENDING_VIDEO_VALIDATION",
+  "status": "RESEARCH_SELECTED_TL_DECISION_HL_PENDING_VIDEO_VALIDATION",
   "date": "2026-09-20",
   "purpose": "Direction gate for deciding which-side TL is eligible to draw on each source timeframe.",
   "terms": {
-    "HL": "A timeframe-local upper/lower pair tied to the structural reversal that established the selected TL direction.",
+    "HL": "The decision pivot between the two same-side TL anchors. FALLING: LOW between HIGH1/HIGH2. RISING: HIGH between LOW1/LOW2.",
     "TL": "Trendline candidate drawn in the direction allowed by the HL decision gate.",
     "retracement_38": "Minimum retracement used to recognize/confirm a reaction Turn/Pivot. It is NOT the HL price."
   },
   "rule": {
-    "before_hl_break": "Keep the trend-following TL direction that was valid before the HL break.",
-    "after_hl_break": "When price breaks the timeframe-local HL, switch eligibility to the TL on the breakout side.",
-    "scope": "Evaluate independently on each source timeframe before Plan-B display copying.",
-    "display_copy": "After a source timeframe selects its TL, copy the exact selected geometry to its Plan-B display timeframe(s); do not re-decide direction on the destination chart.",
-    "hl_display": "Always draw both HL lines whether price has broken either line or not.",
-    "breakout_pair": {
-      "RISING": {
-        "lower_hl": "confirmed LOW immediately before the breakout HIGH",
-        "upper_hl": "previous confirmed HIGH that was first broken to establish the rising structural switch"
-      },
-      "FALLING": {
-        "upper_hl": "confirmed HIGH immediately before the breakout LOW",
-        "lower_hl": "previous confirmed LOW that was first broken to establish the falling structural switch"
-      }
+    "candidate_structure": {
+      "FALLING": "HIGH1 -> LOW(HL) -> HIGH2, with HIGH2 < HIGH1",
+      "RISING": "LOW1 -> HIGH(HL) -> LOW2, with LOW2 > LOW1"
     },
-    "continuation": "After the switch, later continuation HH/LL breaks do not move the HL pair; change the pair only on the next opposite structural switch."
+    "activation": {
+      "FALLING": "after HIGH2 forms, a closed-bar close below the LOW(HL) makes the falling TL eligible",
+      "RISING": "after LOW2 forms, a closed-bar close above the HIGH(HL) makes the rising TL eligible",
+      "mode": "CLOSED_BAR_CLOSE_PROVISIONAL_PENDING_VIDEO_VALIDATION"
+    },
+    "hl_display": "Always draw the decision HL tied to the selected TL, even after it has been broken.",
+    "color": "HL uses the same color as its source-timeframe TL.",
+    "scope": "Evaluate on the source timeframe; Plan-B destinations copy the selected TL geometry without re-selection."
   },
   "important": [
-    "HL color must match the source timeframe TL color.",
-    "Both upper and lower HL lines remain visible regardless of break status.",
-    "HL anchors must be 38%-confirmed pivots, but 38% itself is not an HL price.",
-    "The HL pair is tied to the first structural breakout that established the selected TL direction, not simply the latest two pivots.",
-    "RISING: broken previous HIGH + reversal-origin LOW.",
-    "FALLING: reversal-origin HIGH + broken previous LOW.",
-    "Continuation breaks do not move the pair.",
-    "Video comparison is still required before this research rule is promoted.",
-    "HL break-to-TL switching remains disabled until video validation."
+    "The selected TL anchors and HL must belong to the same N-structure.",
+    "FALLING TL is HIGH-to-HIGH; its decision HL is the LOW between those anchors.",
+    "RISING TL is LOW-to-LOW; its decision HL is the HIGH between those anchors.",
+    "A new-direction TL is not eligible until its decision HL has been broken.",
+    "38% confirms reaction pivots; 38% itself is not the HL price.",
+    "Current break implementation uses closed-bar close provisionally; wick-vs-close remains for video validation.",
+    "HL remains visible after the break and uses the same source-TF color as the TL."
   ],
   "implementation_status": {
-    "hl_line_detection_research_preview": true,
     "hl_candidate_video_validated": false,
+    "decision_hl_tied_to_selected_tl": true,
+    "hl_activation_filter_research": true,
+    "hl_color_matches_source_tl": true,
     "hl_always_drawn": true,
-    "hl_break_detection": false,
-    "direction_gate_in_selection": false,
     "retracement_38_separated_from_hl": true,
-    "plan_b_exact_geometry_copy": true,
-    "hl_pair_preview": true,
-    "hl_breakout_pair_detection_research": true,
-    "hl_color_matches_source_tl": true
+    "plan_b_exact_geometry_copy": true
   },
   "research_candidate": {
     "video_validation_required": true,
-    "candidate_rule": "STRUCTURAL_SWITCH_BREAKOUT_PAIR",
+    "candidate_rule": "SAME_SIDE_ANCHORS_PLUS_BETWEEN_DECISION_HL",
     "display_scope": "source timeframe chart only during validation",
     "color_rule": "SAME_AS_SOURCE_TF_TL",
-    "always_draw_both": true,
-    "break_status_used_for_visibility": false,
+    "always_draw": true,
+    "break_mode": "CLOSED_BAR_CLOSE_PROVISIONAL",
     "direction_switch_automation": false
   }
 }
