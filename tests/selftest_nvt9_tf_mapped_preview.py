@@ -146,10 +146,12 @@ def main() -> int:
         ) as f:
             rows = list(csv.DictReader(f))
         assert {r["timeframe"] for r in rows} == {"D1","H4","H1","M15"}
-        assert any(r["timeframe"] == "H4" and "SRC_D1" in r["object_id"] for r in rows)
-        assert any(r["timeframe"] == "H4" and "SRC_H4" in r["object_id"] for r in rows)
-        assert any(r["timeframe"] == "M15" and "SRC_H1" in r["object_id"] for r in rows)
-        assert any(r["timeframe"] == "M15" and "SRC_M15" in r["object_id"] for r in rows)
+        assert any(r["timeframe"] == "H4" and r["object_id"].startswith("SRC_D1_DST_H4_") for r in rows)
+        assert any(r["timeframe"] == "H4" and r["object_id"].startswith("SRC_H4_DST_H4_") for r in rows)
+        assert any(r["timeframe"] == "M15" and r["object_id"].startswith("SRC_H1_DST_M15_") for r in rows)
+        assert any(r["timeframe"] == "M15" and r["object_id"].startswith("SRC_M15_DST_M15_") for r in rows)
+        assert audit["object_name_policy"]["max_full_object_name_length"] <= 63
+        assert all(len("NVT9_TFMAP__" + r["object_id"]) <= 63 for r in rows)
 
     print("NVT9 TF DISPLAY MAP SELFTEST PASS")
     return 0
