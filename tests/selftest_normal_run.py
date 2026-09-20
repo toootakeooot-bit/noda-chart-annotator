@@ -67,10 +67,11 @@ def main() -> None:
     old_ab_validation = validate_rebuilt_state(old_ab_state, 'USDJPY#')
     new_ab_validation = validate_rebuilt_state(new_ab_state, 'USDJPY#')
     assert old_ab_audit['selection_mode'] == 'OLD_0919_TURN_SPAN_CONTACT_DISTANCE_PIPELINE'
-    assert new_ab_audit['selection_mode'] == 'DIRECTION_SWITCH_ACTIVE_N_V0_1'
+    assert new_ab_audit['selection_mode'] == 'DIRECTION_SWITCH_ACTIVE_N_V0_2_REGIME_GATED'
     assert new_ab_audit['candidate_geometry_changed'] is False
     assert new_ab_audit['plan_b_changed'] is False
     assert new_ab_audit['color_policy_changed'] is False
+    assert 'rejected_pre_regime_candidate_count' in new_ab_audit
     assert old_ab_validation['current_count'] >= 1
     assert new_ab_validation['current_count'] == 1
 
