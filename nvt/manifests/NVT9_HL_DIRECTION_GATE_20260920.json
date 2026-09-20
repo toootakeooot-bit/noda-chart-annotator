@@ -1,29 +1,46 @@
 {
-  "schema": "nvt9-hl-direction-gate/1.0",
+  "schema": "nvt9-hl-direction-gate/1.1",
   "audit_id": "ID10IQ200",
-  "status": "USER_CONFIRMED_RULE_LOCKED_NOT_YET_AUTOMATED",
+  "status": "RESEARCH_HL_PREVIEW_IMPLEMENTED_PENDING_VIDEO_VALIDATION",
   "date": "2026-09-20",
   "purpose": "Direction gate for deciding which-side TL is eligible to draw on each source timeframe.",
   "terms": {
     "HL": "The timeframe-local decision line used to determine whether price has completed/confirmed the N-shaped structural transition.",
-    "TL": "Trendline candidate drawn in the direction allowed by the HL decision gate."
+    "TL": "Trendline candidate drawn in the direction allowed by the HL decision gate.",
+    "retracement_38": "Minimum retracement used to recognize/confirm a reaction Turn/Pivot. It is NOT the HL price."
   },
   "rule": {
     "before_hl_break": "Keep the trend-following TL direction that was valid before the HL break.",
     "after_hl_break": "When price breaks the timeframe-local HL, switch eligibility to the TL on the breakout side.",
     "scope": "Evaluate independently on each source timeframe before Plan-B display copying.",
-    "display_copy": "After a source timeframe selects its TL, copy the exact selected geometry to its Plan-B display timeframe(s); do not re-decide direction on the destination chart."
+    "display_copy": "After a source timeframe selects its TL, copy the exact selected geometry to its Plan-B display timeframe(s); do not re-decide direction on the destination chart.",
+    "hl_display": "Always draw the timeframe-local HL whether price has broken it or not."
   },
   "important": [
+    "HL is always drawn, before and after any break.",
+    "38% is reaction/Turn confirmation only; 38% is not the HL line.",
     "HL is a direction gate, not merely a display line.",
-    "Distance-to-current-price must not override the HL direction gate.",
-    "A destination chart must not reinterpret the source timeframe's HL decision.",
-    "Exact breakout confirmation semantics (wick vs close, one-bar vs confirmed close, tolerance) are intentionally NOT frozen by this contract yet."
+    "Current research candidate must be compared with teacher/video examples before it can be treated as validated.",
+    "Exact breakout confirmation semantics (wick vs close, one-bar vs confirmed close, tolerance) are intentionally NOT frozen yet.",
+    "Plan-B destination charts do not reinterpret source-timeframe HL decisions."
   ],
   "implementation_status": {
-    "hl_line_detection": false,
+    "hl_line_detection_research_preview": true,
+    "hl_candidate_video_validated": false,
+    "hl_always_drawn": true,
     "hl_break_detection": false,
     "direction_gate_in_selection": false,
+    "retracement_38_separated_from_hl": true,
     "plan_b_exact_geometry_copy": true
+  },
+  "research_candidate": {
+    "video_validation_required": true,
+    "candidate_rule": {
+      "RISING": "latest confirmed LOW pivot on that source timeframe",
+      "FALLING": "latest confirmed HIGH pivot on that source timeframe"
+    },
+    "display_scope": "source timeframe chart only during validation",
+    "break_status_used_for_visibility": false,
+    "direction_switch_automation": false
   }
 }
