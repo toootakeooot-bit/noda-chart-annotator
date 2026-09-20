@@ -15,6 +15,8 @@ input color H1TLColor = clrLime;
 input color H1CHColor = clrGreen;
 input color M15TLColor = clrMagenta;
 input color M15CHColor = clrViolet;
+input color HLColor = clrMagenta;
+input int HLWidth = 2;
 input int PreviewCurrentWidth = 2;
 input int PreviewPreviousWidth = 1;
 input bool AuditDeleteAllChartObjects = true;
@@ -100,7 +102,7 @@ int CountRenderableRows(string path, string symbol, string tf)
       double p1 = StrToDouble(p1s);
       double p2 = StrToDouble(p2s);
       if(t1 <= 0 || t2 <= t1 || p1 <= 0 || p2 <= 0) continue;
-      if(role != "TL" && role != "CH" && role != "TL_ZONE_EDGE" && role != "CH_ZONE_EDGE") continue;
+      if(role != "TL" && role != "CH" && role != "TL_ZONE_EDGE" && role != "CH_ZONE_EDGE" && role != "HL") continue;
       count++;
    }
    FileClose(h);
@@ -195,7 +197,13 @@ int RenderRows(string path, string symbol, string tf)
       color c = tlColor;
       int style = STYLE_SOLID;
       int width = PreviewCurrentWidth;
-      if(previous)
+      if(role == "HL")
+      {
+         c = HLColor;
+         style = STYLE_SOLID;
+         width = HLWidth;
+      }
+      else if(previous)
       {
          // Keep source-timeframe color so the user can still identify H4/H1/M15.
          // PREVIOUS is distinguished only by dotted style and thinner width.
