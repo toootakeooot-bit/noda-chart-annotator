@@ -44,6 +44,7 @@ def main() -> int:
         input_dir = root / "input"
         for tf in ("D1", "H4", "H1", "M15"):
             write_input(input_dir / f"NVT_USDJPY#_{tf}.csv", 156.8)
+            write_input(input_dir / f"NORMAL_USDJPY#_{tf}.csv", 156.8)
 
         slots = {
             "USDJPY#|D1|LARGE_DOW": {
@@ -120,6 +121,7 @@ def main() -> int:
         assert audit["display_sources"]["M15"] == ["M15"]
         assert audit["selection_policy"]["near_price_family_per_source_tf"] == 1
         assert audit["selection_policy"]["far_direction_context_max_families"] == 0
+        assert audit["selection_policy"]["generation_scope"] == "CURRENT_ONLY"
         assert audit["production_changed"] is False
         assert audit["production_renderer_changed"] is False
         assert audit["nca_draw_writeback"] is False
@@ -146,6 +148,7 @@ def main() -> int:
         assert len(h4_copies) == 2
         assert {tuple(x["geometry_signature"]) for x in h4_copies} == {tuple(h4_source_sig)}
         assert all(x["copied_without_reselection"] is True for x in h4_copies)
+        assert all(x["generation_role"] == "CURRENT" for x in audit["selected_families"])
         d1_sources = {x["source_tf"] for x in selected if x["display_tf"] == "D1"}
         assert "D1" in d1_sources
         assert "H4" in d1_sources
@@ -179,6 +182,33 @@ def main() -> int:
         assert any(r["timeframe"] == "M15" and r["object_id"].startswith("SRC_M15_DST_M15_") for r in rows)
         assert audit["object_name_policy"]["max_full_object_name_length"] <= 63
         assert all(len("NVT9_TFMAP__" + r["object_id"]) <= 63 for r in rows)
+
+        # Actual NormalRun live-state mode used by the local runner.
+        normal_state = dict(state)
+        normal_state.pop("research_status", None)
+        normal_state_path = root / "normal_state.json"
+        normal_state_path.write_text(json.dumps(normal_state), encoding="utf-8")
+        normal_out = root / "normal_out"
+        proc = subprocess.run(
+            [
+                sys.executable, str(tool),
+                "--state", str(normal_state_path),
+                "--policy", str(policy),
+                "--input-dir", str(input_dir),
+                "--input-prefix", "NORMAL",
+                "--output-dir", str(normal_out),
+            ],
+            capture_output=True, text=True,
+        )
+        assert proc.returncode == 0, proc.stderr + proc.stdout
+        normal_audit = json.loads(
+            (normal_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json").read_text(encoding="utf-8")
+        )
+        assert normal_audit["source_state_mode"] == "NORMAL_RUN_LIVE_STATE"
+        assert normal_audit["input_prefix"] == "NORMAL"
+        assert normal_audit["selection_policy"]["generation_scope"] == "CURRENT_ONLY"
+        assert normal_audit["selected_source_counts"]["D1"] == {"D1": 1, "H4": 1}
+        assert normal_audit["source_presence_problems"] == []
 
     print("NVT9 TF DISPLAY MAP SELFTEST PASS")
     return 0
