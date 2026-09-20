@@ -91,6 +91,7 @@ def main() -> int:
 
     for tf in TFS:
         src = input_dir / f"NVT_{safe}_{tf}.csv"
+        print(f"[deep-lifecycle] {tf}: start {src.name}", flush=True)
         if not src.exists():
             missing.append(str(src))
             continue
@@ -98,12 +99,26 @@ def main() -> int:
         state, audit = rebuild_timeframe_from_csv(src, symbol, tf)
         rebuilt_states.append(state)
         tf_audits[tf] = audit
+        print(
+            f"[deep-lifecycle] {tf}: lifecycle PASS "
+            f"bars={audit.get('closed_bars')} "
+            f"events={audit.get('structural_event_count')} "
+            f"prefixes={audit.get('evaluated_prefixes')} "
+            f"transitions={audit.get('transition_count')}",
+            flush=True,
+        )
 
+        print(f"[deep-lifecycle] {tf}: direct full-history verification start", flush=True)
         bars = load_ohlc_csv(src)
         turns = detect_turns(bars)
         candidates = build_channel_candidates(bars, turns.pivots)
         large, mid, classifier = select_large_mid(symbol, tf, candidates)
         direct = {"LARGE_DOW": large, "MID_DOW": mid}
+        print(
+            f"[deep-lifecycle] {tf}: direct verification "
+            f"turns={len(turns.pivots)} candidates={len(candidates)}",
+            flush=True,
+        )
 
         for level in LEVELS:
             slot = state.get("slots", {}).get(f"{symbol}|{tf}|{level}", {})
