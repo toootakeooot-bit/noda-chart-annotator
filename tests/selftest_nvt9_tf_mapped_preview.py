@@ -134,6 +134,18 @@ def main() -> int:
         assert audit["selected_source_counts"]["H1"] == {"H1": 1, "M15": 1}
         assert audit["selected_source_counts"]["M15"] == {"M15": 1}
         assert audit["source_presence_problems"] == []
+        assert audit["source_to_display_tfs"]["H4"] == ["H4", "D1"]
+        assert audit["source_to_display_tfs"]["H1"] == ["H1", "H4"]
+        assert audit["source_to_display_tfs"]["M15"] == ["M15", "H1"]
+
+        h4_source_sig = audit["source_selection"]["H4"][0]["geometry_signature"]
+        h4_copies = [
+            x for x in audit["selected_families"]
+            if x["source_tf"] == "H4" and x["display_tf"] in {"H4", "D1"}
+        ]
+        assert len(h4_copies) == 2
+        assert {tuple(x["geometry_signature"]) for x in h4_copies} == {tuple(h4_source_sig)}
+        assert all(x["copied_without_reselection"] is True for x in h4_copies)
         d1_sources = {x["source_tf"] for x in selected if x["display_tf"] == "D1"}
         assert "D1" in d1_sources
         assert "H4" in d1_sources
@@ -141,7 +153,7 @@ def main() -> int:
         assert "H4" in h4_sources
         assert "H1" in h4_sources
         assert all(
-            x["display_reason"] == "NEAREST_FAMILY_FOR_SOURCE_TF"
+            x["display_reason"] == "SOURCE_TF_NEAREST_FAMILY"
             for x in selected
         )
         h1_sources = {x["source_tf"] for x in selected if x["display_tf"] == "H1"}
@@ -150,7 +162,7 @@ def main() -> int:
         m15_sources = {x["source_tf"] for x in selected if x["display_tf"] == "M15"}
         assert m15_sources == {"M15"}
         assert any(
-            x["display_tf"] == "M15" and x["display_reason"] == "NEAREST_FAMILY_FOR_SOURCE_TF"
+            x["display_tf"] == "M15" and x["display_reason"] == "SOURCE_TF_NEAREST_FAMILY"
             for x in selected
         )
 
