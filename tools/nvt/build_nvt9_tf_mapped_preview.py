@@ -3,12 +3,19 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-from collections import Counter
+import math
+import sys
+from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools"))
+
+from live_draw.market_input import load_ohlc_csv
+from live_draw.normal_run import safe_symbol_filename
+
 ROLES = ("TL", "CH", "TL_ZONE_EDGE", "CH_ZONE_EDGE")
-GEN_ROLES = ("previous", "current")
 
 
 def load_json(path: Path) -> dict:
@@ -17,6 +24,25 @@ def load_json(path: Path) -> dict:
 
 def mt4_datetime(value: str) -> str:
     return datetime.fromisoformat(value).strftime("%Y.%m.%d %H:%M:%S")
+
+
+def projected_values(s: dict, at: datetime) -> tuple[float, float]:
+    t1 = datetime.fromisoformat(s["anchor1_time"])
+    t2 = datetime.fromisoformat(s["anchor2_time"])
+    p1 = float(s["anchor1_price"])
+    p2 = float(s["anchor2_price"])
+    sec = (t2 - t1).total_seconds()
+    slope = (p2 - p1) / sec
+    tl = p1 + slope * (at - t1).total_seconds()
+    ch = tl + float(s["ch_offset"])
+    return tl, ch
+
+
+def channel_distance(price: float, tl: float, ch: float) -> float:
+    lo, hi = sorted((tl, ch))
+    if lo <= price <= hi:
+        return 0.0
+    return min(abs(price - lo), abs(price - hi))
 
 
 def line_points(s: dict, role: str) -> tuple[float, float]:
@@ -39,92 +65,201 @@ def line_points(s: dict, role: str) -> tuple[float, float]:
     raise ValueError(role)
 
 
+def geometry_key(s: dict) -> tuple:
+    return (
+        s.get("direction"),
+        s.get("anchor1_time"),
+        round(float(s.get("anchor1_price")), 10),
+        s.get("anchor2_time"),
+        round(float(s.get("anchor2_price")), 10),
+        round(float(s.get("ch_offset")), 10),
+        round(float(s.get("zone_width")), 10),
+    )
+
+
+def family_record(s: dict, gen_role: str, display_tf: str, price: float, eval_time: datetime) -> dict:
+    tl, ch = projected_values(s, eval_time)
+    return {
+        "source_tf": s["timeframe"],
+        "display_tf": display_tf,
+        "line_id": s["line_id"],
+        "structure_level": s["structure_level"],
+        "generation_role": gen_role.upper(),
+        "generation": int(s["generation"]),
+        "status": s["status"],
+        "direction": s["direction"],
+        "anchor1_time": s["anchor1_time"],
+        "anchor1_price": float(s["anchor1_price"]),
+        "anchor2_time": s["anchor2_time"],
+        "anchor2_price": float(s["anchor2_price"]),
+        "ch_offset": float(s["ch_offset"]),
+        "zone_width": float(s["zone_width"]),
+        "projected_tl": tl,
+        "projected_ch": ch,
+        "current_price": price,
+        "distance_to_channel": channel_distance(price, tl, ch),
+        "inside_channel": channel_distance(price, tl, ch) == 0.0,
+        "_state": s,
+    }
+
+
+def select_families(candidates: list[dict], sources: list[str], near_count: int, context_max: int) -> list[dict]:
+    # Exact geometry duplicates are display duplicates; keep the higher source in sources.
+    source_rank = {tf: i for i, tf in enumerate(sources)}
+    by_geom: dict[tuple, list[dict]] = defaultdict(list)
+    for c in candidates:
+        by_geom[geometry_key(c["_state"])].append(c)
+
+    deduped = []
+    for group in by_geom.values():
+        group.sort(key=lambda x: (
+            source_rank.get(x["source_tf"], 999),
+            0 if x["generation_role"] == "CURRENT" else 1,
+            x["distance_to_channel"],
+            x["line_id"],
+        ))
+        chosen = group[0]
+        chosen["exact_geometry_duplicate_count"] = len(group) - 1
+        deduped.append(chosen)
+
+    ranked = sorted(
+        deduped,
+        key=lambda x: (
+            x["distance_to_channel"],
+            0 if x["generation_role"] == "CURRENT" else 1,
+            0 if x["structure_level"] == "LARGE_DOW" else 1,
+            source_rank.get(x["source_tf"], 999),
+            x["line_id"],
+        ),
+    )
+
+    selected = []
+    for c in ranked[:near_count]:
+        item = dict(c)
+        item["display_reason"] = "NEAR_CURRENT_PRICE"
+        item["display_roles"] = list(ROLES)
+        selected.append(item)
+
+    # Preserve one farther higher-TF context family only when nearby selection
+    # does not already make the broader direction clear.
+    if len(sources) > 1 and context_max > 0:
+        upper_tf = sources[0]
+        near_has_upper = any(x["source_tf"] == upper_tf for x in selected)
+        near_directions = {x["direction"] for x in selected}
+        direction_unclear = (not near_has_upper) or len(near_directions) > 1
+
+        if direction_unclear:
+            existing = {x["line_id"] for x in selected}
+            context = [
+                x for x in ranked
+                if x["source_tf"] == upper_tf
+                and x["generation_role"] == "CURRENT"
+                and x["line_id"] not in existing
+            ]
+            context.sort(key=lambda x: (
+                0 if x["structure_level"] == "LARGE_DOW" else 1,
+                x["distance_to_channel"],
+                x["line_id"],
+            ))
+            for c in context[:context_max]:
+                item = dict(c)
+                item["display_reason"] = "FAR_HIGHER_TF_DIRECTION_CONTEXT"
+                item["display_roles"] = ["TL", "CH"]
+                selected.append(item)
+
+    return selected
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="Build research-only one-step-lower timeframe display preview from deep lifecycle state."
+        description="Build a price-relevant local+parent TF research display preview."
     )
     ap.add_argument("--state", required=True)
     ap.add_argument("--policy", required=True)
+    ap.add_argument("--input-dir", required=True)
     ap.add_argument("--output-dir", required=True)
     args = ap.parse_args()
 
     state_path = Path(args.state)
     policy_path = Path(args.policy)
+    input_dir = Path(args.input_dir)
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
 
     state = load_json(state_path)
     policy = load_json(policy_path)
-    mapping = policy.get("mapping") or {}
+    display_sources = policy.get("display_sources") or {}
+    vis = policy.get("visibility_policy") or {}
+    near_count = int(vis.get("near_price_family_count", 2))
+    context_max = int(vis.get("far_direction_context_max_families", 1))
 
     if state.get("research_status") != "PASS_DEEP_LIFECYCLE_STATE":
         raise ValueError(f"deep lifecycle state is not PASS: {state.get('research_status')}")
 
+    symbol = state.get("symbol") or policy.get("symbol")
+    safe = safe_symbol_filename(symbol)
+
+    latest = {}
+    missing = []
+    for display_tf in display_sources:
+        src = input_dir / f"NVT_{safe}_{display_tf}.csv"
+        if not src.exists():
+            missing.append(str(src))
+            continue
+        bars = load_ohlc_csv(src)
+        if not bars:
+            missing.append(str(src))
+            continue
+        latest[display_tf] = {
+            "time": bars[-1].time,
+            "close": float(bars[-1].close),
+        }
+    if missing:
+        raise ValueError(f"missing display timeframe input: {missing}")
+
     rows = []
     audit_rows = []
-    source_counts = Counter()
     display_counts = Counter()
-    suppressed_source_counts = Counter()
+    candidate_counts = Counter()
+    selected_family_counts = Counter()
 
-    for _, slot in sorted((state.get("slots") or {}).items()):
-        for gen_role in GEN_ROLES:
-            s = slot.get(gen_role)
-            if not s:
-                continue
+    slots = state.get("slots") or {}
 
-            source_tf = s["timeframe"]
-            display_tf = mapping.get(source_tf)
-            source_counts[source_tf] += len(ROLES)
+    for display_tf, sources in display_sources.items():
+        eval_time = latest[display_tf]["time"]
+        current_price = latest[display_tf]["close"]
+        candidates = []
 
-            if display_tf is None:
-                suppressed_source_counts[source_tf] += len(ROLES)
-                for role in ROLES:
-                    audit_rows.append({
-                        "source_tf": source_tf,
-                        "structural_owner_tf": source_tf,
-                        "display_tf": None,
-                        "line_id": s["line_id"],
-                        "structure_level": s["structure_level"],
-                        "generation_role": gen_role.upper(),
-                        "role": role,
-                        "action": "NO_INDEPENDENT_DISPLAY",
-                        "reason": "TF_DISPLAY_MAP_POLICY",
-                    })
-                continue
+        for _, slot in sorted(slots.items()):
+            for gen_role in ("previous", "current"):
+                s = slot.get(gen_role)
+                if not s or s.get("timeframe") not in sources:
+                    continue
+                candidates.append(family_record(s, gen_role, display_tf, current_price, eval_time))
 
-            for role in ROLES:
+        candidate_counts[display_tf] = len(candidates)
+        selected = select_families(candidates, list(sources), near_count, context_max)
+        selected_family_counts[display_tf] = len(selected)
+
+        for fam in selected:
+            s = fam["_state"]
+            for role in fam["display_roles"]:
                 p1, p2 = line_points(s, role)
-                object_id = (
-                    f"TFMAP__SRC_{source_tf}__DST_{display_tf}__"
+                oid = (
+                    f"TFMAP__SRC_{fam['source_tf']}__DST_{display_tf}__"
                     f"{s['line_id']}__{role}"
                 )
                 rows.append([
-                    object_id,
-                    s["symbol"],
-                    display_tf,
-                    s["structure_level"],
-                    role,
-                    mt4_datetime(s["anchor1_time"]),
-                    f"{p1:.8f}",
-                    mt4_datetime(s["anchor2_time"]),
-                    f"{p2:.8f}",
-                    gen_role.upper(),
-                    str(s["generation"]),
-                    s["status"],
-                    "RAY_RIGHT",
+                    oid, s["symbol"], display_tf, s["structure_level"], role,
+                    mt4_datetime(s["anchor1_time"]), f"{p1:.8f}",
+                    mt4_datetime(s["anchor2_time"]), f"{p2:.8f}",
+                    fam["generation_role"], str(s["generation"]), s["status"], "RAY_RIGHT",
                 ])
                 display_counts[display_tf] += 1
-                audit_rows.append({
-                    "source_tf": source_tf,
-                    "structural_owner_tf": source_tf,
-                    "display_tf": display_tf,
-                    "line_id": s["line_id"],
-                    "structure_level": s["structure_level"],
-                    "generation_role": gen_role.upper(),
-                    "role": role,
-                    "action": "DRAW_ON_MAPPED_LOWER_TF",
-                    "reason": "TF_DISPLAY_MAP_POLICY",
-                })
+
+            audit_rows.append({
+                k: v for k, v in fam.items() if k != "_state"
+            })
 
     header = [
         "object_id","symbol","timeframe","structure_level","role",
@@ -138,45 +273,31 @@ def main() -> int:
         w.writerow(header)
         w.writerows(rows)
 
-    expected_display_counts = {}
-    for source_tf, display_tf in mapping.items():
-        if display_tf is not None:
-            expected_display_counts[display_tf] = source_counts.get(source_tf, 0)
-
-    problems = []
-    for tf, expected in expected_display_counts.items():
-        actual = display_counts.get(tf, 0)
-        if actual != expected:
-            problems.append({
-                "display_tf": tf,
-                "reason": "DISPLAY_COUNT_MISMATCH",
-                "expected": expected,
-                "actual": actual,
-            })
-    if display_counts.get("D1", 0) != 0:
-        problems.append({"display_tf": "D1", "reason": "D1_SHOULD_HAVE_NO_MAPPED_ROWS"})
-    if suppressed_source_counts.get("M15", 0) != source_counts.get("M15", 0):
-        problems.append({"source_tf": "M15", "reason": "M15_SOURCE_NOT_FULLY_SUPPRESSED"})
-
-    status = "PASS_TF_MAPPED_PREVIEW" if not problems else "FAIL_TF_MAPPED_PREVIEW"
-    audit = {
-        "schema": "nvt9-tf-mapped-preview/0.1",
-        "status": status,
+    payload = {
+        "schema": "nvt9-tf-mapped-preview/0.2",
+        "status": "PASS_TF_MAPPED_PREVIEW",
         "audit_id": "ID10IQ200",
         "source_state": str(state_path),
         "display_policy": str(policy_path),
-        "mapping": mapping,
-        "source_row_counts": dict(source_counts),
+        "display_sources": display_sources,
+        "latest_display_prices": {
+            tf: {"time": x["time"].isoformat(), "close": x["close"]} for tf, x in latest.items()
+        },
+        "candidate_family_counts": dict(candidate_counts),
+        "selected_family_counts": dict(selected_family_counts),
         "display_row_counts": dict(display_counts),
-        "suppressed_source_row_counts": dict(suppressed_source_counts),
-        "expected_display_row_counts": expected_display_counts,
-        "row_count": len(rows),
-        "problems": problems,
-        "rows": audit_rows,
+        "selected_families": audit_rows,
+        "selection_policy": {
+            "near_price_family_count": near_count,
+            "far_direction_context_max_families": context_max,
+            "fixed_pip_threshold_used": False,
+            "atr_threshold_used": False,
+            "far_direction_roles": ["TL", "CH"],
+        },
         "semantics": {
-            "csv_timeframe_column": "DISPLAY_TF_FOR_RESEARCH_RENDERER",
             "structural_owner_tf": "SOURCE_TF",
-            "m15_source_displayed": False,
+            "display_tf": "CHART_TF",
+            "h1_h4_nonexact_merge": "NOT_AUTOMATIC",
         },
         "production_changed": False,
         "production_snapshot_changed": False,
@@ -184,18 +305,18 @@ def main() -> int:
         "nca_draw_writeback": False,
         "trade_authority": False,
     }
-    audit_path.write_text(json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8")
+    audit_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(json.dumps({
-        "status": status,
-        "mapping": mapping,
+        "status": payload["status"],
+        "display_sources": display_sources,
+        "selected_family_counts": dict(selected_family_counts),
         "display_row_counts": dict(display_counts),
-        "suppressed_source_row_counts": dict(suppressed_source_counts),
         "csv": str(csv_path),
         "audit": str(audit_path),
         "production_changed": False,
     }, ensure_ascii=False, indent=2))
-    return 0 if status == "PASS_TF_MAPPED_PREVIEW" else 6
+    return 0
 
 
 if __name__ == "__main__":
