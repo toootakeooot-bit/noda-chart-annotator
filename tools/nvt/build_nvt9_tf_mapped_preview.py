@@ -78,117 +78,38 @@ def geometry_key(s: dict) -> tuple:
     )
 
 
-def provisional_hl_pair(bars: list, target_direction: str | None = None) -> list[dict]:
-    """Return the HL pair that established the selected source-TF direction.
+def selected_line_hl_evidence(s: dict) -> dict:
+    """Return the decision HL persisted with the selected source-TF TL.
 
-    The Turn detector's 38% rule confirms reaction pivots. 38% itself is NOT
-    an HL price.
-
-    Structural reversal hypothesis for video validation:
-      RISING switch:
-        a confirmed HIGH breaks the previous confirmed HIGH.
-        HL_HIGH = the previous HIGH that was broken.
-        HL_LOW  = the confirmed LOW immediately before the breakout HIGH.
-
-      FALLING switch:
-        a confirmed LOW breaks the previous confirmed LOW.
-        HL_LOW  = the previous LOW that was broken.
-        HL_HIGH = the confirmed HIGH immediately before the breakout LOW.
-
-    Once a direction has switched, continuation HH/LL breaks do NOT move the
-    pair. The pair changes only on the next opposite structural switch.
+    This keeps HL tied to the exact TL anchors that were activated by the
+    structural N rule. No independent HL re-selection is allowed here.
     """
-    turns = detect_turns(bars)
-    pivots = sorted(turns.pivots, key=lambda p: (p.bar_index, p.confirmed_by_index))
-    if len(pivots) < 3:
-        return []
-
-    events = []
-    structure_direction = None
-
-    for i in range(2, len(pivots)):
-        prev_same = pivots[i - 2]
-        middle = pivots[i - 1]
-        current = pivots[i]
-        signal = None
-        broken = None
-        origin = None
-
-        if (
-            current.kind == "HIGH"
-            and prev_same.kind == "HIGH"
-            and middle.kind == "LOW"
-            and float(current.price) > float(prev_same.price)
-        ):
-            signal = "RISING"
-            broken = prev_same
-            origin = middle
-        elif (
-            current.kind == "LOW"
-            and prev_same.kind == "LOW"
-            and middle.kind == "HIGH"
-            and float(current.price) < float(prev_same.price)
-        ):
-            signal = "FALLING"
-            broken = prev_same
-            origin = middle
-
-        if signal is None:
-            continue
-
-        if signal != structure_direction:
-            structure_direction = signal
-            events.append({
-                "direction": signal,
-                "broken": broken,
-                "origin": origin,
-                "breakout": current,
-            })
-
-    if not events:
-        return []
-
-    if target_direction in ("RISING", "FALLING"):
-        matching = [e for e in events if e["direction"] == target_direction]
-        if not matching:
-            return []
-        event = matching[-1]
-    else:
-        event = events[-1]
-
-    if event["direction"] == "RISING":
-        pair = [
-            ("HIGH", event["broken"], "BROKEN_LEVEL"),
-            ("LOW", event["origin"], "REVERSAL_ORIGIN"),
-        ]
-    else:
-        pair = [
-            ("HIGH", event["origin"], "REVERSAL_ORIGIN"),
-            ("LOW", event["broken"], "BROKEN_LEVEL"),
-        ]
-
-    out = []
-    for kind, p, event_role in pair:
-        out.append({
-            "structure_direction": event["direction"],
-            "target_direction": target_direction,
-            "pivot_kind": kind,
-            "pivot_time": p.time.isoformat(),
-            "pivot_price": float(p.price),
-            "confirmed_by_time": p.confirmed_by_time.isoformat(),
-            "confirmed_by_index": int(p.confirmed_by_index),
-            "detector_version": turns.detector_version,
-            "selection_rule": "STRUCTURAL_SWITCH_BREAKOUT_PAIR",
-            "pair_role": "UPPER_HL" if kind == "HIGH" else "LOWER_HL",
-            "event_role": event_role,
-            "breakout_pivot_kind": event["breakout"].kind,
-            "breakout_pivot_time": event["breakout"].time.isoformat(),
-            "breakout_pivot_price": float(event["breakout"].price),
-            "always_draw": True,
-            "break_logic_applied": False,
-            "retracement_38_role": "PIVOT_CONFIRMATION_ONLY_NOT_HL",
-        })
-    return out
+    required = (
+        "decision_hl_time",
+        "decision_hl_price",
+        "decision_hl_kind",
+        "hl_break_time",
+        "hl_break_mode",
+    )
+    missing = [k for k in required if s.get(k) in (None, "")]
+    if missing:
+        raise ValueError(
+            f"selected TL missing decision-HL evidence: line_id={s.get('line_id')} missing={missing}"
+        )
+    return {
+        "pivot_kind": s["decision_hl_kind"],
+        "pivot_time": s["decision_hl_time"],
+        "pivot_price": float(s["decision_hl_price"]),
+        "selection_rule": "SELECTED_TL_DECISION_HL",
+        "line_id": s["line_id"],
+        "direction": s["direction"],
+        "anchor1_time": s["anchor1_time"],
+        "anchor2_time": s["anchor2_time"],
+        "hl_break_time": s["hl_break_time"],
+        "hl_break_mode": s["hl_break_mode"],
+        "always_draw": True,
+        "retracement_38_role": "PIVOT_CONFIRMATION_ONLY_NOT_HL",
+    }
 
 def family_record(s: dict, gen_role: str, display_tf: str, price: float, eval_time: datetime) -> dict:
     tl, ch = projected_values(s, eval_time)
@@ -321,7 +242,7 @@ def main() -> int:
     selected_family_counts = Counter()
     selected_source_counts: dict[str, Counter] = {}
     source_selection: dict[str, list[dict]] = {}
-    hl_candidates: dict[str, list[dict]] = {}
+    hl_candidates: dict[str, dict] = {}
 
     slots = state.get("slots") or {}
     source_to_display = policy.get("source_to_display_tfs") or {}
@@ -352,17 +273,8 @@ def main() -> int:
             )
         source_selection[source_tf] = selected
 
-        selected_direction = selected[0]["direction"]
-        hl_pair = provisional_hl_pair(
-            bars_by_tf[source_tf],
-            target_direction=selected_direction,
-        )
-        if len(hl_pair) != 2:
-            raise ValueError(
-                f"HL reversal pair unavailable for source timeframe {source_tf} "
-                f"direction={selected_direction}"
-            )
-        hl_candidates[source_tf] = hl_pair
+        selected_state = selected[0]["_state"]
+        hl_candidates[source_tf] = selected_line_hl_evidence(selected_state)
 
     # 2) Copy the EXACT selected source geometry to every Plan-B display TF.
     for source_tf, display_tfs in source_to_display.items():
@@ -398,26 +310,25 @@ def main() -> int:
                     "copied_without_reselection": True,
                 })
 
-    # 3) Draw BOTH timeframe-local HL lines on EACH SOURCE chart only.
-    # The pair is the latest two confirmed alternating pivots. HL is not copied
-    # upward yet; video comparison comes first.
-    for source_tf, hl_pair in hl_candidates.items():
-        for hl in hl_pair:
-            t1 = datetime.fromisoformat(hl["pivot_time"])
-            t2 = latest[source_tf]["time"]
-            if t2 <= t1:
-                from datetime import timedelta
-                t2 = t1 + timedelta(seconds=1)
-            price = float(hl["pivot_price"])
-            side = "HIGH" if hl["pivot_kind"] == "HIGH" else "LOW"
-            oid = f"HL_{side}_SRC_{source_tf}_DST_{source_tf}"
-            rows.append([
-                oid, symbol, source_tf, f"HL_{side}", "HL",
-                mt4_datetime(t1.isoformat()), f"{price:.8f}",
-                mt4_datetime(t2.isoformat()), f"{price:.8f}",
-                "CURRENT", "0", "ACTIVE", "RAY_RIGHT",
-            ])
-            display_counts[source_tf] += 1
+    # 3) Draw the single decision HL tied to the selected source-TF TL.
+    # FALLING TL => LOW HL between the two HIGH anchors.
+    # RISING TL  => HIGH HL between the two LOW anchors.
+    for source_tf, hl in hl_candidates.items():
+        t1 = datetime.fromisoformat(hl["pivot_time"])
+        t2 = latest[source_tf]["time"]
+        if t2 <= t1:
+            from datetime import timedelta
+            t2 = t1 + timedelta(seconds=1)
+        price = float(hl["pivot_price"])
+        side = "HIGH" if hl["pivot_kind"] == "HIGH" else "LOW"
+        oid = f"HL_{side}_SRC_{source_tf}_DST_{source_tf}"
+        rows.append([
+            oid, symbol, source_tf, f"HL_{side}", "HL",
+            mt4_datetime(t1.isoformat()), f"{price:.8f}",
+            mt4_datetime(t2.isoformat()), f"{price:.8f}",
+            "CURRENT", "0", "ACTIVE", "RAY_RIGHT",
+        ])
+        display_counts[source_tf] += 1
 
     header = [
         "object_id","symbol","timeframe","structure_level","role",
@@ -454,12 +365,13 @@ def main() -> int:
             "display_scope": "SOURCE_CHART_ONLY",
             "break_logic_applied": False,
             "retracement_38_role": "PIVOT_CONFIRMATION_ONLY_NOT_HL",
-            "candidate_rule": "STRUCTURAL_SWITCH_BREAKOUT_PAIR",
-            "pair_semantics": {
-                "RISING": "broken previous HIGH + reversal-origin LOW",
-                "FALLING": "reversal-origin HIGH + broken previous LOW"
+            "candidate_rule": "SELECTED_TL_DECISION_HL",
+            "semantics": {
+                "RISING": "highest confirmed HIGH between LOW1 and LOW2; TL eligible only after close above it",
+                "FALLING": "lowest confirmed LOW between HIGH1 and HIGH2; TL eligible only after close below it"
             },
-            "continuation_breaks_move_pair": False
+            "hl_is_tied_to_selected_tl": True,
+            "break_mode": "CLOSED_BAR_CLOSE_PROVISIONAL"
         },
         "source_selection": {
             tf: [
