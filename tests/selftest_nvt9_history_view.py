@@ -19,6 +19,11 @@ assert "CASE_20260822" in history
 assert "CASE_20260829" in history
 assert "CASE_20260905" in history
 assert "CASE_20260912" in history
+assert 'OBJ_VLINE' in history
+assert 'NVT9_CASE_CUTOFF__' in history
+assert 'CaseMarkerColor = clrWhite' in history
+assert 'CaseMarkerWidth = 2' in history
+assert 'DrawCaseMarker(chartId, cutoff)' in history
 
 # Return-live must restore latest position + autoscroll and render the current live preview.
 assert "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv" in live
