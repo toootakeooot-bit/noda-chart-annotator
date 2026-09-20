@@ -103,7 +103,7 @@ def family_record(s: dict, gen_role: str, display_tf: str, price: float, eval_ti
     }
 
 
-def select_families(candidates: list[dict], sources: list[str], near_count: int, context_max: int) -> list[dict]:
+def select_families(candidates: list[dict], sources: list[str], per_source: int, context_max: int) -> list[dict]:
     # Exact geometry duplicates are display duplicates; keep the higher source in sources.
     source_rank = {tf: i for i, tf in enumerate(sources)}
     by_geom: dict[tuple, list[dict]] = defaultdict(list)
@@ -122,36 +122,42 @@ def select_families(candidates: list[dict], sources: list[str], near_count: int,
         chosen["exact_geometry_duplicate_count"] = len(group) - 1
         deduped.append(chosen)
 
-    ranked = sorted(
-        deduped,
-        key=lambda x: (
+    def rank_key(x: dict) -> tuple:
+        return (
             x["distance_to_channel"],
             0 if x["generation_role"] == "CURRENT" else 1,
             0 if x["structure_level"] == "LARGE_DOW" else 1,
-            source_rank.get(x["source_tf"], 999),
             x["line_id"],
-        ),
-    )
+        )
 
     selected = []
-    for c in ranked[:near_count]:
-        item = dict(c)
-        item["display_reason"] = "NEAR_CURRENT_PRICE"
-        item["display_roles"] = list(ROLES)
-        selected.append(item)
 
-    # Preserve one farther higher-TF context family only when nearby selection
-    # does not already make the broader direction clear.
+    # Core display rule: each chart keeps the nearest family from every source
+    # timeframe assigned to that chart (e.g. H4 = D1 + H4, M15 = H1 + M15).
+    for source_tf in sources:
+        pool = sorted([x for x in deduped if x["source_tf"] == source_tf], key=rank_key)
+        for c in pool[:per_source]:
+            item = dict(c)
+            item["display_reason"] = "NEAREST_FAMILY_FOR_SOURCE_TF"
+            item["display_roles"] = list(ROLES)
+            selected.append(item)
+
+    # Direction safeguard: if local/upper selected directions conflict, or the
+    # higher-TF nearest family is only PREVIOUS, retain one higher-TF CURRENT
+    # family as a farther TL+CH directional reference.
     if len(sources) > 1 and context_max > 0:
         upper_tf = sources[0]
-        near_has_upper = any(x["source_tf"] == upper_tf for x in selected)
-        near_directions = {x["direction"] for x in selected}
-        direction_unclear = (not near_has_upper) or len(near_directions) > 1
+        selected_upper = [x for x in selected if x["source_tf"] == upper_tf]
+        selected_directions = {x["direction"] for x in selected}
+        upper_is_previous_only = bool(selected_upper) and all(
+            x["generation_role"] == "PREVIOUS" for x in selected_upper
+        )
+        direction_unclear = len(selected_directions) > 1 or upper_is_previous_only
 
         if direction_unclear:
             existing = {x["line_id"] for x in selected}
             context = [
-                x for x in ranked
+                x for x in deduped
                 if x["source_tf"] == upper_tf
                 and x["generation_role"] == "CURRENT"
                 and x["line_id"] not in existing
@@ -168,7 +174,6 @@ def select_families(candidates: list[dict], sources: list[str], near_count: int,
                 selected.append(item)
 
     return selected
-
 
 def main() -> int:
     ap = argparse.ArgumentParser(
@@ -190,7 +195,7 @@ def main() -> int:
     policy = load_json(policy_path)
     display_sources = policy.get("display_sources") or {}
     vis = policy.get("visibility_policy") or {}
-    near_count = int(vis.get("near_price_family_count", 2))
+    per_source = int(vis.get("near_price_family_per_source_tf", 1))
     context_max = int(vis.get("far_direction_context_max_families", 1))
 
     if state.get("research_status") != "PASS_DEEP_LIFECYCLE_STATE":
@@ -238,7 +243,7 @@ def main() -> int:
                 candidates.append(family_record(s, gen_role, display_tf, current_price, eval_time))
 
         candidate_counts[display_tf] = len(candidates)
-        selected = select_families(candidates, list(sources), near_count, context_max)
+        selected = select_families(candidates, list(sources), per_source, context_max)
         selected_family_counts[display_tf] = len(selected)
 
         for fam in selected:
@@ -288,7 +293,7 @@ def main() -> int:
         "display_row_counts": dict(display_counts),
         "selected_families": audit_rows,
         "selection_policy": {
-            "near_price_family_count": near_count,
+            "near_price_family_per_source_tf": per_source,
             "far_direction_context_max_families": context_max,
             "fixed_pip_threshold_used": False,
             "atr_threshold_used": False,
