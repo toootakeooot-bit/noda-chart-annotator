@@ -1,11 +1,11 @@
 {
-  "schema": "nvt9-hl-direction-gate/1.2",
+  "schema": "nvt9-hl-direction-gate/1.3",
   "audit_id": "ID10IQ200",
-  "status": "RESEARCH_HL_PREVIEW_IMPLEMENTED_PENDING_VIDEO_VALIDATION",
+  "status": "RESEARCH_BREAKOUT_PAIR_PREVIEW_PENDING_VIDEO_VALIDATION",
   "date": "2026-09-20",
   "purpose": "Direction gate for deciding which-side TL is eligible to draw on each source timeframe.",
   "terms": {
-    "HL": "A timeframe-local pair of horizontal decision lines derived from the two most recent 38%-confirmed alternating pivots: one HIGH-side HL and one LOW-side HL.",
+    "HL": "A timeframe-local upper/lower pair tied to the structural reversal that established the selected TL direction.",
     "TL": "Trendline candidate drawn in the direction allowed by the HL decision gate.",
     "retracement_38": "Minimum retracement used to recognize/confirm a reaction Turn/Pivot. It is NOT the HL price."
   },
@@ -14,17 +14,29 @@
     "after_hl_break": "When price breaks the timeframe-local HL, switch eligibility to the TL on the breakout side.",
     "scope": "Evaluate independently on each source timeframe before Plan-B display copying.",
     "display_copy": "After a source timeframe selects its TL, copy the exact selected geometry to its Plan-B display timeframe(s); do not re-decide direction on the destination chart.",
-    "hl_display": "Always draw both HIGH-side and LOW-side HL lines whether price has broken either line or not."
+    "hl_display": "Always draw both HL lines whether price has broken either line or not.",
+    "breakout_pair": {
+      "RISING": {
+        "lower_hl": "confirmed LOW immediately before the breakout HIGH",
+        "upper_hl": "previous confirmed HIGH that was first broken to establish the rising structural switch"
+      },
+      "FALLING": {
+        "upper_hl": "confirmed HIGH immediately before the breakout LOW",
+        "lower_hl": "previous confirmed LOW that was first broken to establish the falling structural switch"
+      }
+    },
+    "continuation": "After the switch, later continuation HH/LL breaks do not move the HL pair; change the pair only on the next opposite structural switch."
   },
   "important": [
-    "There are two HL sides: one above and one below the current structure.",
-    "For a falling example, the working pair is the recent confirmed LOW and the previous confirmed HIGH.",
-    "For a rising example, the working pair is the recent confirmed HIGH and the previous confirmed LOW.",
-    "Both HL lines are always drawn, before and after any break.",
-    "Each HL anchor must already be a Turn/Pivot confirmed by the existing 38% reaction rule.",
-    "38% is reaction/Turn confirmation only; 38% itself is not an HL price.",
-    "HL break-to-TL switching is still not automated until video comparison confirms the pair selection and breakout semantics.",
-    "Plan-B destination charts do not reinterpret source-timeframe HL decisions."
+    "HL color must match the source timeframe TL color.",
+    "Both upper and lower HL lines remain visible regardless of break status.",
+    "HL anchors must be 38%-confirmed pivots, but 38% itself is not an HL price.",
+    "The HL pair is tied to the first structural breakout that established the selected TL direction, not simply the latest two pivots.",
+    "RISING: broken previous HIGH + reversal-origin LOW.",
+    "FALLING: reversal-origin HIGH + broken previous LOW.",
+    "Continuation breaks do not move the pair.",
+    "Video comparison is still required before this research rule is promoted.",
+    "HL break-to-TL switching remains disabled until video validation."
   ],
   "implementation_status": {
     "hl_line_detection_research_preview": true,
@@ -34,16 +46,16 @@
     "direction_gate_in_selection": false,
     "retracement_38_separated_from_hl": true,
     "plan_b_exact_geometry_copy": true,
-    "hl_pair_preview": true
+    "hl_pair_preview": true,
+    "hl_breakout_pair_detection_research": true,
+    "hl_color_matches_source_tl": true
   },
   "research_candidate": {
     "video_validation_required": true,
-    "candidate_rule": {
-      "pair": "latest two confirmed alternating pivots",
-      "falling_example": "recent confirmed LOW + one previous confirmed HIGH",
-      "rising_example": "recent confirmed HIGH + one previous confirmed LOW"
-    },
+    "candidate_rule": "STRUCTURAL_SWITCH_BREAKOUT_PAIR",
     "display_scope": "source timeframe chart only during validation",
+    "color_rule": "SAME_AS_SOURCE_TF_TL",
+    "always_draw_both": true,
     "break_status_used_for_visibility": false,
     "direction_switch_automation": false
   }
