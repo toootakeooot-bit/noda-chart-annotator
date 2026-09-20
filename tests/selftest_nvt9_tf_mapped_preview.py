@@ -136,7 +136,7 @@ def main() -> int:
         assert audit["selection_policy"]["generation_scope"] == "CURRENT_ONLY"
         assert audit["hl_preview_policy"]["always_draw"] is True
         assert audit["hl_preview_policy"]["break_logic_applied"] is False
-        assert audit["hl_preview_policy"]["retracement_38_role"] == "TURN_CONFIRMATION_ONLY_NOT_HL"
+        assert audit["hl_preview_policy"]["retracement_38_role"] == "PIVOT_CONFIRMATION_ONLY_NOT_HL"
         assert set(audit["hl_candidates"]) == {"D1", "H4", "H1", "M15"}
         assert all(len(v) == 2 for v in audit["hl_candidates"].values())
         assert all(
@@ -152,6 +152,20 @@ def main() -> int:
         assert all(
             {x["pivot_kind"] for x in pair} == {"HIGH", "LOW"}
             for pair in audit["hl_candidates"].values()
+        )
+        assert all(
+            {x["event_role"] for x in pair} == {"BROKEN_LEVEL", "REVERSAL_ORIGIN"}
+            for pair in audit["hl_candidates"].values()
+        )
+        assert all(
+            x["selection_rule"] == "STRUCTURAL_SWITCH_BREAKOUT_PAIR"
+            for pair in audit["hl_candidates"].values()
+            for x in pair
+        )
+        assert all(
+            x["retracement_38_role"] == "PIVOT_CONFIRMATION_ONLY_NOT_HL"
+            for pair in audit["hl_candidates"].values()
+            for x in pair
         )
         assert audit["production_changed"] is False
         assert audit["production_renderer_changed"] is False
