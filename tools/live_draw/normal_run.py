@@ -346,18 +346,23 @@ def rebuild_timeframe_direction_switch_experiment(
     symbol: str,
     timeframe: str,
 ) -> tuple[dict, dict]:
-    """Experimental NEW selector for the yellow-line A/B audit.
+    """Experimental NEW selector for the manual-line A/B audit (V0.2).
 
-    Candidate geometry is unchanged. The only research change is ownership of
-    the ACTIVE main TL/CH/HL set:
+    Candidate geometry is unchanged. ACTIVE ownership follows one structural
+    regime at a time:
 
       1) An N becomes eligible only after its decision-HL break and all three
          pivots are confirmed.
-      2) The first eligible N becomes ACTIVE.
-      3) Later eligible Ns in the SAME direction do not replace it.
-      4) The ACTIVE set changes only when an eligible N in the OPPOSITE
-         direction appears.
-      5) TL, CH and decision HL remain one candidate family.
+      2) The first eligible N seeds the historical state.
+      3) Same-direction continuation Ns do NOT replace the active main TL.
+      4) An opposite-direction N can switch the regime only when that entire
+         reversal N was formed *after* the current active TL's anchor2.
+         This prevents old overlapping candidates from flipping the state long
+         after their structure belonged to a previous regime.
+      5) The earliest valid opposite HL activation switches direction. Within
+         that one activation bar, deterministic structural evidence chooses the
+         candidate.
+      6) TL, CH and decision HL always remain one candidate family.
 
     The state uses one LARGE_DOW-compatible slot solely so the existing preview
     renderer can display it without changing 09/19 colors or Plan-B mapping.
@@ -381,22 +386,42 @@ def rebuild_timeframe_direction_switch_experiment(
         by_activation.setdefault(idx, []).append(candidate)
 
     state = empty_state()
-    active_direction = None
+    active_candidate = None
     transitions: list[dict] = []
     ignored_same_direction = 0
+    rejected_pre_regime = 0
     ambiguous_switch_bars: list[dict] = []
 
     for end_index in sorted(by_activation):
         group = by_activation[end_index]
-        if active_direction is None:
+
+        if active_candidate is None:
+            # Historical seed only. Prefer the structurally strongest candidate
+            # at the first activation event; later switches are regime-gated.
             pool = group
             reason = 'INITIAL_ACTIVE_N'
         else:
-            pool = [x for x in group if x.direction != active_direction]
+            opposite = [x for x in group if x.direction != active_candidate.direction]
+            ignored_same_direction += len(group) - len(opposite)
+
+            # A genuine reversal must be built inside the current regime. Old
+            # candidates whose first anchor predates/equal the current active
+            # anchor2 are stale overlap evidence and may not switch ownership.
+            pool = []
+            for x in opposite:
+                if x.anchor1.time <= active_candidate.anchor2.time:
+                    rejected_pre_regime += 1
+                    continue
+                if x.decision_hl is None:
+                    continue
+                if x.decision_hl.time <= active_candidate.anchor2.time:
+                    rejected_pre_regime += 1
+                    continue
+                pool.append(x)
+
             if not pool:
-                ignored_same_direction += len(group)
                 continue
-            reason = 'OPPOSITE_DIRECTION_HL_SWITCH'
+            reason = 'OPPOSITE_DIRECTION_HL_SWITCH_IN_CURRENT_REGIME'
 
         directions = sorted({x.direction for x in pool})
         if len(directions) > 1:
@@ -409,21 +434,17 @@ def rebuild_timeframe_direction_switch_experiment(
 
         chosen = max(pool, key=_direction_switch_candidate_key)
 
-        # Do not allow another candidate of the same direction to replace the
-        # active geometry, even if another candidate in the same bar ranks
-        # differently.
-        if active_direction is not None and chosen.direction == active_direction:
+        if active_candidate is not None and chosen.direction == active_candidate.direction:
             ignored_same_direction += len(pool)
             continue
 
         from .model import SelectedStructure
         selected = SelectedStructure(symbol, timeframe, 'LARGE_DOW', chosen)
         state, did_change = promote_selection(state, selected)
+        active_candidate = chosen
         if not did_change:
-            active_direction = chosen.direction
             continue
 
-        active_direction = chosen.direction
         key = f'{symbol}|{timeframe}|LARGE_DOW'
         slot = state['slots'][key]
         transitions.append({
@@ -448,7 +469,7 @@ def rebuild_timeframe_direction_switch_experiment(
     return state, {
         'status': 'PASS',
         'mode': 'NVT9_AB_NEW_DIRECTION_SWITCH_ACTIVE_N',
-        'selection_mode': 'DIRECTION_SWITCH_ACTIVE_N_V0_1',
+        'selection_mode': 'DIRECTION_SWITCH_ACTIVE_N_V0_2_REGIME_GATED',
         'symbol': symbol,
         'timeframe': timeframe,
         'closed_bars': len(bars),
@@ -457,13 +478,17 @@ def rebuild_timeframe_direction_switch_experiment(
         'activation_event_count': len(by_activation),
         'transition_count': len(transitions),
         'ignored_same_direction_candidate_count': ignored_same_direction,
+        'rejected_pre_regime_candidate_count': rejected_pre_regime,
         'ambiguous_switch_bars': ambiguous_switch_bars,
         'transitions': transitions,
-        'main_rule': 'KEEP_ACTIVE_N_UNTIL_OPPOSITE_DIRECTION_HL_ACTIVATION',
+        'main_rule': (
+            'KEEP_ACTIVE_N_UNTIL_OPPOSITE_HL_ACTIVATION_FROM_N_FORMED_AFTER_ACTIVE_ANCHOR2'
+        ),
         'candidate_geometry_changed': False,
         'plan_b_changed': False,
         'color_policy_changed': False,
     }
+
 
 def rebuild_timeframe_from_csv(
     input_csv: str | Path,
