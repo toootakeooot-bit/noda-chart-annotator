@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 from live_draw.market_input import load_ohlc_csv
 from live_draw.normal_run import safe_symbol_filename
+from live_draw.turn_detector import detect_turns
 
 ROLES = ("TL", "CH", "TL_ZONE_EDGE", "CH_ZONE_EDGE")
 
@@ -75,6 +76,50 @@ def geometry_key(s: dict) -> tuple:
         round(float(s.get("ch_offset")), 10),
         round(float(s.get("zone_width")), 10),
     )
+
+
+def provisional_hl_candidate(bars: list) -> dict | None:
+    """Return one research-only HL candidate for the source timeframe.
+
+    38% remains ONLY the Turn/Pivot confirmation rule inside detect_turns().
+    It is not used as an HL price.
+
+    Provisional HL candidate rule for video comparison:
+      active RISING leg  -> latest confirmed LOW pivot
+      active FALLING leg -> latest confirmed HIGH pivot
+
+    The HL line is always drawn regardless of whether price has broken it.
+    Break semantics are intentionally not implemented yet.
+    """
+    turns = detect_turns(bars)
+    if turns.active_leg == "RISING":
+        wanted_kind = "LOW"
+    elif turns.active_leg == "FALLING":
+        wanted_kind = "HIGH"
+    else:
+        return None
+
+    pivots = [p for p in turns.pivots if p.kind == wanted_kind]
+    if not pivots:
+        return None
+    p = max(pivots, key=lambda x: (x.bar_index, x.confirmed_by_index))
+    return {
+        "active_leg": turns.active_leg,
+        "pivot_kind": p.kind,
+        "pivot_time": p.time.isoformat(),
+        "pivot_price": float(p.price),
+        "confirmed_by_time": p.confirmed_by_time.isoformat(),
+        "confirmed_by_index": int(p.confirmed_by_index),
+        "detector_version": turns.detector_version,
+        "selection_rule": (
+            "LATEST_CONFIRMED_LOW_FOR_RISING_LEG"
+            if turns.active_leg == "RISING"
+            else "LATEST_CONFIRMED_HIGH_FOR_FALLING_LEG"
+        ),
+        "always_draw": True,
+        "break_logic_applied": False,
+        "retracement_38_role": "TURN_CONFIRMATION_ONLY_NOT_HL",
+    }
 
 
 def family_record(s: dict, gen_role: str, display_tf: str, price: float, eval_time: datetime) -> dict:
@@ -182,6 +227,7 @@ def main() -> int:
     safe = safe_symbol_filename(symbol)
 
     latest = {}
+    bars_by_tf = {}
     missing = []
     for display_tf in display_sources:
         src = input_dir / f"{args.input_prefix}_{safe}_{display_tf}.csv"
@@ -192,6 +238,7 @@ def main() -> int:
         if not bars:
             missing.append(str(src))
             continue
+        bars_by_tf[display_tf] = bars
         latest[display_tf] = {
             "time": bars[-1].time,
             "close": float(bars[-1].close),
@@ -206,6 +253,7 @@ def main() -> int:
     selected_family_counts = Counter()
     selected_source_counts: dict[str, Counter] = {}
     source_selection: dict[str, list[dict]] = {}
+    hl_candidates: dict[str, dict] = {}
 
     slots = state.get("slots") or {}
     source_to_display = policy.get("source_to_display_tfs") or {}
@@ -235,6 +283,11 @@ def main() -> int:
                 f"source selection missing: {source_tf} selected={len(selected)} expected={per_source}"
             )
         source_selection[source_tf] = selected
+
+        hl = provisional_hl_candidate(bars_by_tf[source_tf])
+        if hl is None:
+            raise ValueError(f"HL candidate unavailable for source timeframe {source_tf}")
+        hl_candidates[source_tf] = hl
 
     # 2) Copy the EXACT selected source geometry to every Plan-B display TF.
     for source_tf, display_tfs in source_to_display.items():
@@ -270,6 +323,26 @@ def main() -> int:
                     "copied_without_reselection": True,
                 })
 
+    # 3) Draw one timeframe-local HL line on EACH SOURCE chart only.
+    # HL is not copied upward yet; video comparison comes first.
+    for source_tf, hl in hl_candidates.items():
+        t1 = datetime.fromisoformat(hl["pivot_time"])
+        t2 = latest[source_tf]["time"]
+        if t2 <= t1:
+            # Closed-bar exports should normally make t2 later than the pivot.
+            # Keep the row valid even in a minimal synthetic test.
+            from datetime import timedelta
+            t2 = t1 + timedelta(seconds=1)
+        price = float(hl["pivot_price"])
+        oid = f"HL_SRC_{source_tf}_DST_{source_tf}"
+        rows.append([
+            oid, symbol, source_tf, "HL_GATE", "HL",
+            mt4_datetime(t1.isoformat()), f"{price:.8f}",
+            mt4_datetime(t2.isoformat()), f"{price:.8f}",
+            "CURRENT", "0", "ACTIVE", "RAY_RIGHT",
+        ])
+        display_counts[source_tf] += 1
+
     header = [
         "object_id","symbol","timeframe","structure_level","role",
         "t1","p1","t2","p2","generation_role","generation","status","extent",
@@ -298,6 +371,15 @@ def main() -> int:
         "display_policy": str(policy_path),
         "display_sources": display_sources,
         "source_to_display_tfs": source_to_display,
+        "hl_candidates": hl_candidates,
+        "hl_preview_policy": {
+            "status": "PROVISIONAL_VIDEO_COMPARE",
+            "always_draw": True,
+            "display_scope": "SOURCE_CHART_ONLY",
+            "break_logic_applied": False,
+            "retracement_38_role": "TURN_CONFIRMATION_ONLY_NOT_HL",
+            "candidate_rule": "RISING=>LATEST_CONFIRMED_LOW; FALLING=>LATEST_CONFIRMED_HIGH"
+        },
         "source_selection": {
             tf: [
                 {
