@@ -32,6 +32,7 @@ jobs:
             tools/nvt/build_nvt9_ownership_adjudication.py \
             tools/nvt/apply_nvt9_ownership_overrides.py \
             tools/nvt/evaluate_nvt9_ownership_gate.py \
+            tools/nvt/build_nvt9_tf_mapped_preview.py \
             tools/nvt/build_nvt9_v4_visibility_decision.py \
             tools/nvt/build_nvt9_v4_display_template.py \
             tools/nvt/build_nvt9_v6_visibility_preview.py \
@@ -42,6 +43,8 @@ jobs:
             tests/selftest_nvt9_deep_lifecycle_state.py \
             tests/selftest_nvt9_owner_evidence_review.py \
             tests/selftest_nvt9_ownership_adjudication.py \
+            tests/selftest_nvt9_tf_mapped_preview.py \
+            tests/selftest_nvt9_tfmap_renderer_safety.py \
             tests/selftest_nvt9_v4_visibility_decision.py \
             tests/selftest_nvt9_v4_v6_preview.py \
             tests/selftest_nvt9_visibility_invariants.py \
@@ -62,6 +65,12 @@ jobs:
 
       - name: Ownership adjudication self-test
         run: python tests/selftest_nvt9_ownership_adjudication.py
+
+      - name: Timeframe display map preview self-test
+        run: python tests/selftest_nvt9_tf_mapped_preview.py
+
+      - name: Timeframe display map renderer safety self-test
+        run: python tests/selftest_nvt9_tfmap_renderer_safety.py
 
       - name: V4 visibility decision self-test
         run: python tests/selftest_nvt9_v4_visibility_decision.py
