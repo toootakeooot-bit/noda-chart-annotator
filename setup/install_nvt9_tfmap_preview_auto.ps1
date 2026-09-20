@@ -3,6 +3,7 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 $TerminalRoot = Join-Path $env:APPDATA 'MetaQuotes\Terminal'
 
 $Sources = @(
+  'NCA_NVT_HistoryExporter.mq4',
   'NCA_NVT9_TFMap_Preview_Renderer.mq4',
   'NCA_NVT9_History_View.mq4',
   'NCA_NVT9_Return_Live.mq4'
@@ -99,6 +100,7 @@ if ($compileMissing.Count -gt 0) {
 Write-Host ''
 Write-Host 'AUTO INSTALL COMPLETE'
 Write-Host 'Installed scripts:'
+Write-Host '  NCA_NVT_HistoryExporter'
 Write-Host '  NCA_NVT9_TFMap_Preview_Renderer'
 Write-Host '  NCA_NVT9_History_View'
 Write-Host '  NCA_NVT9_Return_Live'
