@@ -1,22 +1,26 @@
 {
-  "schema": "nvt9-tf-display-map/0.3",
-  "status": "RESEARCH_CANDIDATE_LOCAL_PLUS_PARENT_PRICE_RELEVANCE",
+  "schema": "nvt9-tf-display-map/0.4",
+  "status": "RESEARCH_CANDIDATE_PLAN_B_SOURCE_TO_SELF_PLUS_HIGHER",
   "audit_id": "ID10IQ200",
   "date": "2026-09-20",
   "symbol": "USDJPY#",
   "semantics": {
-    "source_tf": "timeframe whose deep-history bars produce the structural line",
-    "structural_owner_tf": "same as source_tf for this experiment",
-    "display_tf": "chart timeframe; each chart can show its own structure plus one higher-timeframe context",
-    "decision_owner_tf": "not changed by this experiment"
+    "source_tf": "timeframe that creates/owns the structure",
+    "structural_owner_tf": "same as source_tf unless a separate merge/family rule is explicitly confirmed",
+    "display_tf": "source structure is displayed on its own chart and one higher-timeframe chart",
+    "plan_b_examples": [
+      "H4 structure -> H4 chart + D1 chart",
+      "H1 structure -> H1 chart + H4 chart",
+      "M15 structure -> M15 chart + H1 chart"
+    ]
   },
   "m15_policy": {
     "independent_m15_structure_display": true,
-    "m15_chart_uses": [
-      "H1",
-      "M15"
+    "m15_structure_displays_on": [
+      "M15",
+      "H1"
     ],
-    "reason": "User clarified that the M15 chart can use both M15-local and H1 structure; M15 is not globally suppressed."
+    "reason": "User explicitly clarified Plan B: M15 structure is used on both M15 and H1."
   },
   "scope": {
     "include_structure_levels": [
@@ -35,10 +39,10 @@
     ]
   },
   "important": [
-    "This is a display policy, not a structural-owner promotion rule.",
-    "H4 chart may show D1 + H4; H1 chart may show H4 + H1; M15 chart may show H1 + M15.",
-    "H1 and H4 may collapse into one family when teacher/manual structural review supports it.",
-    "Far redundant families should be hidden; one farther higher-TF family may remain for directional context.",
+    "PLAN B direction is source -> self + one higher chart. Do not invert it.",
+    "H4 structure must be visible on H4 and D1; H1 structure on H1 and H4; M15 structure on M15 and H1.",
+    "This is a display mapping only; structural ownership does not change.",
+    "H1 and H4 may later be merged as one structural family when broad turns/long adjustments/long ranges make them non-separable.",
     "No Production Normal Run, Production snapshot, Production Renderer, NCA_DRAW__, or trade authority writeback is allowed."
   ],
   "production_changed": false,
@@ -47,18 +51,18 @@
   "nca_draw_writeback": false,
   "display_sources": {
     "D1": [
-      "D1"
-    ],
-    "H4": [
       "D1",
       "H4"
     ],
-    "H1": [
+    "H4": [
       "H4",
       "H1"
     ],
-    "M15": [
+    "H1": [
       "H1",
+      "M15"
+    ],
+    "M15": [
       "M15"
     ]
   },
@@ -69,7 +73,7 @@
     "nonexact_merge_requires_manual_or_teacher_confirmation": true
   },
   "visibility_policy": {
-    "objective": "Show structures most relevant to current price; retain a farther line only when needed to preserve higher-timeframe directional context.",
+    "objective": "On each chart, prioritize structures nearest current price from the source TFs assigned by Plan B; keep at most one farther higher-chart context family only when direction would otherwise be unclear.",
     "family_unit": "TL+CH family, not individual role",
     "current_price_metric": "Project TL/CH to the latest closed bar of the display timeframe. Distance is zero when price lies inside the channel; otherwise use distance to the nearest channel boundary.",
     "near_price_roles": [
@@ -87,5 +91,23 @@
     "atr_threshold_used": false,
     "note": "Research preview: keep the nearest family from each displayed source TF. Add at most one higher-TF CURRENT context family only when the selected directions conflict or the higher-TF nearest family is PREVIOUS.",
     "near_price_family_per_source_tf": 1
+  },
+  "plan": "B",
+  "source_to_display_tfs": {
+    "D1": [
+      "D1"
+    ],
+    "H4": [
+      "H4",
+      "D1"
+    ],
+    "H1": [
+      "H1",
+      "H4"
+    ],
+    "M15": [
+      "M15",
+      "H1"
+    ]
   }
 }
