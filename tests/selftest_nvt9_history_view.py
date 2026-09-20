@@ -26,15 +26,19 @@ assert "ChartNavigate(chartId, CHART_END, 0)" in live
 assert "ChartSetInteger(chartId, CHART_AUTOSCROLL, true)" in live
 assert "ChartFirst()" in live and "ChartNext(chartId)" in live
 
-# Installer must deploy all three audit scripts.
+# Installer must deploy deep-history exporter plus the three audit scripts.
 for name in (
+    "NCA_NVT_HistoryExporter.mq4",
     "NCA_NVT9_TFMap_Preview_Renderer.mq4",
     "NCA_NVT9_History_View.mq4",
     "NCA_NVT9_Return_Live.mq4",
 ):
     assert name in installer
 
-# Historical builder must hard-filter bars before the case cutoff.
+# Historical builder must source NVT deep history and hard-filter before cutoff.
+assert 'default="NVT"' in builder
+assert 'input_name(args.symbol, tf, args.input_prefix)' in builder
+assert "STOP_DEEP_HISTORY_REQUIRED" in builder
 assert "bars = [b for b in all_bars if b.time < cutoff]" in builder
 assert '"future_data_used": False' in builder
 assert "PASS_4W_NO_FUTURE_LEAK" in builder
