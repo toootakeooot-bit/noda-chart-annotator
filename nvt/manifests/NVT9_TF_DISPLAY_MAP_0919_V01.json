@@ -1,38 +1,91 @@
 {
-  "schema": "nvt9-tf-display-map/0.1",
-  "status": "RESEARCH_CANDIDATE_FROM_USER_MT4_VISUAL_REVIEW",
+  "schema": "nvt9-tf-display-map/0.2",
+  "status": "RESEARCH_CANDIDATE_LOCAL_PLUS_PARENT_PRICE_RELEVANCE",
   "audit_id": "ID10IQ200",
   "date": "2026-09-20",
   "symbol": "USDJPY#",
-  "mapping": {
-    "D1": "H4",
-    "H4": "H1",
-    "H1": "M15",
-    "M15": null
-  },
   "semantics": {
     "source_tf": "timeframe whose deep-history bars produce the structural line",
     "structural_owner_tf": "same as source_tf for this experiment",
-    "display_tf": "chart timeframe on which that source structure is rendered",
+    "display_tf": "chart timeframe; each chart can show its own structure plus one higher-timeframe context",
     "decision_owner_tf": "not changed by this experiment"
   },
   "m15_policy": {
-    "independent_m15_structure_display": false,
-    "m15_chart_uses": "H1 structural lines",
-    "reason": "User visual review indicates the historical M15 chart used H1 aqua structural lines and did not require independent M15 structure lines."
+    "independent_m15_structure_display": true,
+    "m15_chart_uses": [
+      "H1",
+      "M15"
+    ],
+    "reason": "User clarified that the M15 chart can use both M15-local and H1 structure; M15 is not globally suppressed."
   },
   "scope": {
-    "include_structure_levels": ["LARGE_DOW", "MID_DOW"],
-    "include_generation_roles": ["CURRENT", "PREVIOUS"],
-    "include_roles": ["TL", "CH", "TL_ZONE_EDGE", "CH_ZONE_EDGE"]
+    "include_structure_levels": [
+      "LARGE_DOW",
+      "MID_DOW"
+    ],
+    "include_generation_roles": [
+      "CURRENT",
+      "PREVIOUS"
+    ],
+    "include_roles": [
+      "TL",
+      "CH",
+      "TL_ZONE_EDGE",
+      "CH_ZONE_EDGE"
+    ]
   },
   "important": [
-    "This is a display-timeframe hypothesis, not a cross-timeframe ownership promotion rule.",
-    "D1 remains D1-owned when displayed on H4; H4 remains H4-owned when displayed on H1; H1 remains H1-owned when displayed on M15.",
+    "This is a display policy, not a structural-owner promotion rule.",
+    "H4 chart may show D1 + H4; H1 chart may show H4 + H1; M15 chart may show H1 + M15.",
+    "H1 and H4 may collapse into one family when teacher/manual structural review supports it.",
+    "Far redundant families should be hidden; one farther higher-TF family may remain for directional context.",
     "No Production Normal Run, Production snapshot, Production Renderer, NCA_DRAW__, or trade authority writeback is allowed."
   ],
   "production_changed": false,
   "renderer_changed": false,
   "snapshot_changed": false,
-  "nca_draw_writeback": false
+  "nca_draw_writeback": false,
+  "display_sources": {
+    "D1": [
+      "D1"
+    ],
+    "H4": [
+      "D1",
+      "H4"
+    ],
+    "H1": [
+      "H4",
+      "H1"
+    ],
+    "M15": [
+      "H1",
+      "M15"
+    ]
+  },
+  "h1_h4_merge_policy": {
+    "allowed": true,
+    "reason": "When turns/adjustments/ranges are broad, H1 and H4 may represent one structural family instead of two separable structures.",
+    "automatic_exact_geometry_dedupe": true,
+    "nonexact_merge_requires_manual_or_teacher_confirmation": true
+  },
+  "visibility_policy": {
+    "objective": "Show structures most relevant to current price; retain a farther line only when needed to preserve higher-timeframe directional context.",
+    "family_unit": "TL+CH family, not individual role",
+    "current_price_metric": "Project TL/CH to the latest closed bar of the display timeframe. Distance is zero when price lies inside the channel; otherwise use distance to the nearest channel boundary.",
+    "near_price_family_count": 2,
+    "near_price_roles": [
+      "TL",
+      "CH",
+      "TL_ZONE_EDGE",
+      "CH_ZONE_EDGE"
+    ],
+    "far_direction_context_max_families": 1,
+    "far_direction_context_roles": [
+      "TL",
+      "CH"
+    ],
+    "fixed_pip_threshold_used": false,
+    "atr_threshold_used": false,
+    "note": "Counts are a research preview control, not a frozen Production rule."
+  }
 }
