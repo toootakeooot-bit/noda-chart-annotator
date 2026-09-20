@@ -9,7 +9,9 @@
 // One run can operate all open charts of the current symbol for
 // D1/H4/H1/M15. It disables autoscroll, draws the historical preview,
 // and moves each chart so the last bar before the case cutoff is at the
-// right edge. Future bars remain in terminal history but are off-screen.
+// right edge. A clearly visible vertical cut-off marker is drawn at the
+// selected validation date on every target chart. Future bars remain in
+// terminal history but are off-screen.
 
 enum NVT9_HISTORY_CASE
 {
@@ -34,6 +36,9 @@ input color M15CHColor = clrViolet;
 input int HLWidth = 2;
 input int PreviewCurrentWidth = 2;
 input int PreviewPreviousWidth = 1;
+input color CaseMarkerColor = clrWhite;
+input int CaseMarkerWidth = 2;
+input ENUM_LINE_STYLE CaseMarkerStyle = STYLE_DASH;
 
 string PREFIX = "NVT9_TFMAP__";
 string BASE_DIR = "noda_draw\\live_output\\nvt9_history_4w_0919";
@@ -131,6 +136,35 @@ int DeleteAllChartObjects(long chartId)
       if(ObjectDelete(chartId, n)) deleted++;
    }
    return deleted;
+}
+
+
+bool DrawCaseMarker(long chartId, datetime cutoff)
+{
+   string name = "NVT9_CASE_CUTOFF__" + CaseKey();
+   if(ObjectFind(chartId, name) >= 0)
+      ObjectDelete(chartId, name);
+
+   ResetLastError();
+   if(!ObjectCreate(chartId, name, OBJ_VLINE, 0, cutoff, 0))
+   {
+      Print("NVT9 HISTORY VIEW: case marker create failed chart=", chartId,
+            " cutoff=", TimeToString(cutoff, TIME_DATE|TIME_MINUTES),
+            " err=", GetLastError());
+      ResetLastError();
+      return false;
+   }
+
+   ObjectSetInteger(chartId, name, OBJPROP_COLOR, CaseMarkerColor);
+   ObjectSetInteger(chartId, name, OBJPROP_STYLE, CaseMarkerStyle);
+   ObjectSetInteger(chartId, name, OBJPROP_WIDTH, CaseMarkerWidth);
+   ObjectSetInteger(chartId, name, OBJPROP_BACK, false);
+   ObjectSetInteger(chartId, name, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(chartId, name, OBJPROP_SELECTED, false);
+   ObjectSetString(chartId, name, OBJPROP_TOOLTIP,
+      "NVT9 CASE CUT-OFF " + TimeToString(cutoff, TIME_DATE|TIME_MINUTES));
+
+   return true;
 }
 
 void SourceColors(string objectId, color &tlColor, color &chColor)
@@ -266,7 +300,16 @@ bool ApplyHistoryToChart(long chartId, string symbol, string path, datetime cuto
       return false;
    }
 
-   Print("NVT9 HISTORY VIEW PASS chart=", chartId, " tf=", tf, " case=", CaseKey(), " objects=", rendered);
+   if(!DrawCaseMarker(chartId, cutoff))
+   {
+      Print("NVT9 HISTORY VIEW: case marker failed chart=", chartId, " tf=", tf);
+      return false;
+   }
+   ChartRedraw(chartId);
+
+   Print("NVT9 HISTORY VIEW PASS chart=", chartId, " tf=", tf, " case=", CaseKey(),
+         " cutoff=", TimeToString(cutoff, TIME_DATE|TIME_MINUTES),
+         " objects=", rendered, " marker=YES");
    return true;
 }
 
