@@ -6,10 +6,10 @@ param(
 $ErrorActionPreference = 'Stop'
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $Common = Join-Path $env:APPDATA 'MetaQuotes\Terminal\Common\Files\noda_draw'
-$InputDir = Join-Path $Common 'nvt_input'
+$InputDir = Join-Path $Common 'live_input'
 $OutDir = Join-Path $Common 'live_output'
 $Safe = ($Symbol -replace '[<>:"/\\|?*]', '_')
-$State = Join-Path $OutDir 'NVT9_USDJPY_DEEP_LIFECYCLE_STATE_0919.json'
+$State = Join-Path $OutDir ("NORMAL_{0}_live_state.json" -f $Safe)
 $Policy = Join-Path $RepoRoot 'nvt\manifests\NVT9_TF_DISPLAY_MAP_0919_V01.json'
 $Contract = Join-Path $RepoRoot 'nvt\manifests\NVT9_PLAN_B_DISPLAY_CONTRACT_20260920.json'
 $ContractAudit = Join-Path $OutDir 'NVT9_PLAN_B_DISPLAY_CONTRACT_AUDIT_0919.json'
@@ -19,6 +19,7 @@ $Audit = Join-Path $OutDir 'NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json'
 Write-Host 'NVT9 09/19 TF DISPLAY MAP PREVIEW'
 Write-Host '================================='
 Write-Host 'Research only.'
+Write-Host 'SOURCE GEOMETRY = ACTUAL NORMAL RUN LIVE STATE (same lines already shown on source charts).'
 Write-Host 'PLAN B display direction: SOURCE TF -> SELF + ONE HIGHER CHART.'
 Write-Host 'H4 structure -> H4 + D1; H1 structure -> H1 + H4; M15 structure -> M15 + H1.'
 Write-Host 'Equivalent chart view: D1=D1+H4, H4=H4+H1, H1=H1+M15, M15=M15.'
@@ -49,45 +50,34 @@ if ($LASTEXITCODE -ne 0) { Write-Host "TF MAP PREVIEW SELFTEST FAILED - exit=$LA
 if ($LASTEXITCODE -ne 0) { Write-Host "TF MAP RENDERER SAFETY SELFTEST FAILED - exit=$LASTEXITCODE"; exit $LASTEXITCODE }
 
 Write-Host ''
-Write-Host '[2/4] Confirm deep NVT history exists'
-$Required=@('D1','H4','H1','M15') | ForEach-Object { Join-Path $InputDir ("NVT_{0}_{1}.csv" -f $Safe,$_) }
+Write-Host '[2/4] Confirm actual NormalRun source state'
+$Required=@('D1','H4','H1','M15') | ForEach-Object { Join-Path $InputDir ("NORMAL_{0}_{1}.csv" -f $Safe,$_) }
 $Missing=@($Required | Where-Object { !(Test-Path $_) })
 if ($Missing.Count -gt 0) {
-  Write-Host 'STOP: deep NVT history files are missing.'
-  Write-Host 'Run NCA_NVT_HistoryExporter in MT4 with BarsToExport=6000 first.'
+  Write-Host 'STOP: NormalRun input files are missing.'
   $Missing | ForEach-Object { Write-Host ("  missing: {0}" -f $_) }
   exit 2
 }
-
+if (!(Test-Path $State)) {
+  Write-Host 'STOP: NormalRun live state not found.'
+  Write-Host ("Missing: {0}" -f $State)
+  Write-Host 'Run the existing NormalRun process once before this preview.'
+  exit 3
+}
+$StatePayload = Get-Content -Raw -Encoding UTF8 $State | ConvertFrom-Json
+if ($StatePayload.schema -ne 'nca-live-state/1.0') {
+  Write-Host 'STOP: NormalRun live state schema is invalid.'
+  exit 4
+}
+Write-Host 'NORMAL RUN SOURCE STATE PASS'
+Write-Host ("Source: {0}" -f $State)
 Write-Host ''
-Write-Host '[3/4] Deep lifecycle state'
-$ReuseState = $false
-if (Test-Path $State) {
-  try {
-    $StatePayload = Get-Content -Raw -Encoding UTF8 $State | ConvertFrom-Json
-    $StateTime = (Get-Item $State).LastWriteTimeUtc
-    $NewestInput = ($Required | ForEach-Object { (Get-Item $_).LastWriteTimeUtc } | Sort-Object -Descending | Select-Object -First 1)
-    if (($StatePayload.research_status -eq 'PASS_DEEP_LIFECYCLE_STATE') -and ($StateTime -ge $NewestInput)) {
-      $ReuseState = $true
-    }
-  } catch {
-    $ReuseState = $false
-  }
-}
-
-if ($ReuseState) {
-  Write-Host 'CACHE PASS: existing deep lifecycle state is valid and newer than all NVT history inputs.'
-  Write-Host ("Reuse: {0}" -f $State)
-} else {
-  Write-Host 'Cache miss/stale: rebuilding deep lifecycle state. This is the expensive step.'
-  Write-Host 'Progress will be printed for D1 -> H4 -> H1 -> M15.'
-  & $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_deep_lifecycle_state.py') --symbol $Symbol --input-dir $InputDir --output-dir $OutDir
-  if ($LASTEXITCODE -ne 0) { Write-Host "DEEP LIFECYCLE BUILD FAILED - exit=$LASTEXITCODE"; exit $LASTEXITCODE }
-}
-
+Write-Host '[3/4] Source policy'
+Write-Host 'The preview now reuses the ACTUAL NormalRun line geometry already used on each source chart.'
+Write-Host 'No deep-history H4/H1 replacement geometry is used for this display-map test.'
 Write-Host ''
 Write-Host '[4/4] Build mapped preview snapshot'
-& $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_tf_mapped_preview.py') --state $State --policy $Policy --input-dir $InputDir --output-dir $OutDir
+& $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_tf_mapped_preview.py') --state $State --policy $Policy --input-dir $InputDir --input-prefix NORMAL --output-dir $OutDir
 if ($LASTEXITCODE -ne 0) { Write-Host "TF MAP PREVIEW BUILD FAILED - exit=$LASTEXITCODE"; exit $LASTEXITCODE }
 
 $AuditPayload = Get-Content -Raw -Encoding UTF8 $Audit | ConvertFrom-Json
