@@ -121,6 +121,7 @@ int RenderRows(string path, string symbol, string tf)
    }
 
    int rendered = 0;
+   int createFailures = 0;
    while(!FileIsEnding(h))
    {
       string objectId,rowSymbol,rowTf,structure,role,t1s,p1s,t2s,p2s,genRole,generation,status,extent;
@@ -134,7 +135,21 @@ int RenderRows(string path, string symbol, string tf)
       if(t1 <= 0 || t2 <= t1 || p1 <= 0 || p2 <= 0) continue;
 
       string name = PREFIX + objectId;
-      if(!ObjectCreate(name, OBJ_TREND, 0, t1, p1, t2, p2)) continue;
+      ResetLastError();
+      if(StringLen(name) > 63)
+      {
+         Print("NVT9 TFMap Renderer: object name too long len=", StringLen(name), " name=", name);
+         createFailures++;
+         continue;
+      }
+      if(!ObjectCreate(name, OBJ_TREND, 0, t1, p1, t2, p2))
+      {
+         int err = GetLastError();
+         Print("NVT9 TFMap Renderer: ObjectCreate failed error=", err, " len=", StringLen(name), " name=", name);
+         createFailures++;
+         ResetLastError();
+         continue;
+      }
       ObjectSet(name, OBJPROP_RAY, true);
       ObjectSet(name, OBJPROP_BACK, false);
 
@@ -164,6 +179,7 @@ int RenderRows(string path, string symbol, string tf)
       rendered++;
    }
    FileClose(h);
+   if(rendered == 0 && createFailures > 0) return -3;
    return rendered;
 }
 
@@ -193,11 +209,17 @@ void OnStart()
       return;
    }
 
+   Print("NVT9 TFMap Renderer: ready rows=", ready, " symbol=", symbol, " tf=", tf);
    DeleteOwnedObjects();
    int rendered = RenderRows(path, symbol, tf);
    if(rendered < 0)
    {
       Print("NVT9 TFMap Renderer: render failure. code=", rendered);
+      return;
+   }
+   if(rendered == 0)
+   {
+      Print("NVT9 TFMap Renderer: zero objects rendered despite ready rows=", ready);
       return;
    }
 
