@@ -243,6 +243,228 @@ def rebuild_timeframe_from_bars(
     return state, audit
 
 
+
+
+def rebuild_timeframe_baseline_0919_from_bars(
+    bars: list[Bar],
+    symbol: str,
+    timeframe: str,
+) -> tuple[dict, dict]:
+    """Emulate the frozen 2026-09-19 selector/lifecycle for A/B audit only.
+
+    This deliberately preserves the approved baseline behavior:
+      * replay only confirmed-Turn event prefixes;
+      * classify/select with select_large_mid();
+      * allow lifecycle promotion whenever that selector changes geometry.
+
+    It is isolated from rebuild_timeframe_from_bars() so later research changes
+    cannot silently redefine the OLD side of the A/B comparison.
+    """
+    if timeframe not in TFS:
+        raise ValueError(f'unsupported timeframe: {timeframe}')
+    if not symbol.strip():
+        raise ValueError('symbol must be non-empty')
+    if len(bars) < 3:
+        raise ValueError('at least 3 closed bars are required')
+
+    state = empty_state()
+    transitions: list[dict] = []
+    event_indices = structural_event_end_indices(bars)
+
+    for end_index in event_indices:
+        prefix = bars[:end_index + 1]
+        turns = detect_turns(prefix)
+        candidates = build_channel_candidates(prefix, turns.pivots)
+        large, mid, class_audit = select_large_mid(symbol, timeframe, candidates)
+
+        for selected in (large, mid):
+            if selected is None:
+                continue
+            state, did_change = promote_selection(state, selected)
+            if not did_change:
+                continue
+            key = f'{selected.symbol}|{selected.timeframe}|{selected.level}'
+            slot = state['slots'][key]
+            transitions.append({
+                'closed_bar_time': prefix[-1].time.isoformat(),
+                'closed_bar_index': end_index,
+                'level': selected.level,
+                'generation': slot['current']['generation'],
+                'line_id': slot['current']['line_id'],
+                'candidate_id': selected.candidate.id_key,
+                'direction': selected.candidate.direction,
+            })
+
+    return state, {
+        'status': 'PASS',
+        'mode': 'NVT9_AB_OLD_0919_BASELINE_EMULATION',
+        'selection_mode': 'OLD_0919_TURN_SPAN_CONTACT_DISTANCE_PIPELINE',
+        'replay_strategy': 'CONFIRMED_TURN_EVENTS_ONLY',
+        'symbol': symbol,
+        'timeframe': timeframe,
+        'closed_bars': len(bars),
+        'event_indices': event_indices,
+        'transition_count': len(transitions),
+        'transitions': transitions,
+    }
+
+
+def _direction_switch_candidate_key(candidate) -> tuple:
+    """Deterministic tie-break inside one direction-switch activation bar.
+
+    Prefer the most recent second anchor. If several N candidates share that
+    anchor, prefer the broader structural span, then direct contact evidence.
+    This tie-break chooses *within the switch event* only; later same-direction
+    continuation events never replace the active N.
+    """
+    return (
+        candidate.anchor2.time,
+        int(candidate.turn_span),
+        int(candidate.ch_contacts),
+        int(candidate.tl_contacts),
+        -abs(float(candidate.slope_per_second)),
+        candidate.anchor1.time,
+    )
+
+
+def _candidate_effective_activation_index(candidate, bars: list[Bar], time_to_index: dict) -> int | None:
+    if candidate.hl_break_time is None or candidate.decision_hl is None:
+        return None
+    break_idx = time_to_index.get(candidate.hl_break_time)
+    if break_idx is None:
+        return None
+    return max(
+        int(break_idx),
+        int(candidate.anchor1.confirmed_by_index),
+        int(candidate.anchor2.confirmed_by_index),
+        int(candidate.decision_hl.confirmed_by_index),
+    )
+
+
+def rebuild_timeframe_direction_switch_experiment(
+    bars: list[Bar],
+    symbol: str,
+    timeframe: str,
+) -> tuple[dict, dict]:
+    """Experimental NEW selector for the yellow-line A/B audit.
+
+    Candidate geometry is unchanged. The only research change is ownership of
+    the ACTIVE main TL/CH/HL set:
+
+      1) An N becomes eligible only after its decision-HL break and all three
+         pivots are confirmed.
+      2) The first eligible N becomes ACTIVE.
+      3) Later eligible Ns in the SAME direction do not replace it.
+      4) The ACTIVE set changes only when an eligible N in the OPPOSITE
+         direction appears.
+      5) TL, CH and decision HL remain one candidate family.
+
+    The state uses one LARGE_DOW-compatible slot solely so the existing preview
+    renderer can display it without changing 09/19 colors or Plan-B mapping.
+    """
+    if timeframe not in TFS:
+        raise ValueError(f'unsupported timeframe: {timeframe}')
+    if not symbol.strip():
+        raise ValueError('symbol must be non-empty')
+    if len(bars) < 3:
+        raise ValueError('at least 3 closed bars are required')
+
+    turns = detect_turns(bars)
+    candidates = build_channel_candidates(bars, turns.pivots)
+    time_to_index = {bar.time: i for i, bar in enumerate(bars)}
+
+    by_activation: dict[int, list] = {}
+    for candidate in candidates:
+        idx = _candidate_effective_activation_index(candidate, bars, time_to_index)
+        if idx is None or idx < 2 or idx >= len(bars):
+            continue
+        by_activation.setdefault(idx, []).append(candidate)
+
+    state = empty_state()
+    active_direction = None
+    transitions: list[dict] = []
+    ignored_same_direction = 0
+    ambiguous_switch_bars: list[dict] = []
+
+    for end_index in sorted(by_activation):
+        group = by_activation[end_index]
+        if active_direction is None:
+            pool = group
+            reason = 'INITIAL_ACTIVE_N'
+        else:
+            pool = [x for x in group if x.direction != active_direction]
+            if not pool:
+                ignored_same_direction += len(group)
+                continue
+            reason = 'OPPOSITE_DIRECTION_HL_SWITCH'
+
+        directions = sorted({x.direction for x in pool})
+        if len(directions) > 1:
+            ambiguous_switch_bars.append({
+                'closed_bar_index': end_index,
+                'closed_bar_time': bars[end_index].time.isoformat(),
+                'directions': directions,
+                'candidate_count': len(pool),
+            })
+
+        chosen = max(pool, key=_direction_switch_candidate_key)
+
+        # Do not allow another candidate of the same direction to replace the
+        # active geometry, even if another candidate in the same bar ranks
+        # differently.
+        if active_direction is not None and chosen.direction == active_direction:
+            ignored_same_direction += len(pool)
+            continue
+
+        from .model import SelectedStructure
+        selected = SelectedStructure(symbol, timeframe, 'LARGE_DOW', chosen)
+        state, did_change = promote_selection(state, selected)
+        if not did_change:
+            active_direction = chosen.direction
+            continue
+
+        active_direction = chosen.direction
+        key = f'{symbol}|{timeframe}|LARGE_DOW'
+        slot = state['slots'][key]
+        transitions.append({
+            'closed_bar_index': end_index,
+            'closed_bar_time': bars[end_index].time.isoformat(),
+            'reason': reason,
+            'direction': chosen.direction,
+            'candidate_id': chosen.id_key,
+            'line_id': slot['current']['line_id'],
+            'anchor1_time': chosen.anchor1.time.isoformat(),
+            'anchor1_price': float(chosen.anchor1.price),
+            'anchor2_time': chosen.anchor2.time.isoformat(),
+            'anchor2_price': float(chosen.anchor2.price),
+            'decision_hl_time': chosen.decision_hl.time.isoformat(),
+            'decision_hl_price': float(chosen.decision_hl.price),
+            'hl_break_time': chosen.hl_break_time.isoformat(),
+            'turn_span': int(chosen.turn_span),
+            'ch_contacts': int(chosen.ch_contacts),
+            'tl_contacts': int(chosen.tl_contacts),
+        })
+
+    return state, {
+        'status': 'PASS',
+        'mode': 'NVT9_AB_NEW_DIRECTION_SWITCH_ACTIVE_N',
+        'selection_mode': 'DIRECTION_SWITCH_ACTIVE_N_V0_1',
+        'symbol': symbol,
+        'timeframe': timeframe,
+        'closed_bars': len(bars),
+        'confirmed_turns': len(turns.pivots),
+        'candidate_count': len(candidates),
+        'activation_event_count': len(by_activation),
+        'transition_count': len(transitions),
+        'ignored_same_direction_candidate_count': ignored_same_direction,
+        'ambiguous_switch_bars': ambiguous_switch_bars,
+        'transitions': transitions,
+        'main_rule': 'KEEP_ACTIVE_N_UNTIL_OPPOSITE_DIRECTION_HL_ACTIVATION',
+        'candidate_geometry_changed': False,
+        'plan_b_changed': False,
+        'color_policy_changed': False,
+    }
+
 def rebuild_timeframe_from_csv(
     input_csv: str | Path,
     symbol: str,
