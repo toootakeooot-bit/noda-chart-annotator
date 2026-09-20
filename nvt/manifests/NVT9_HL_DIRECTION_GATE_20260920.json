@@ -1,0 +1,29 @@
+{
+  "schema": "nvt9-hl-direction-gate/1.0",
+  "audit_id": "ID10IQ200",
+  "status": "USER_CONFIRMED_RULE_LOCKED_NOT_YET_AUTOMATED",
+  "date": "2026-09-20",
+  "purpose": "Direction gate for deciding which-side TL is eligible to draw on each source timeframe.",
+  "terms": {
+    "HL": "The timeframe-local decision line used to determine whether price has completed/confirmed the N-shaped structural transition.",
+    "TL": "Trendline candidate drawn in the direction allowed by the HL decision gate."
+  },
+  "rule": {
+    "before_hl_break": "Keep the trend-following TL direction that was valid before the HL break.",
+    "after_hl_break": "When price breaks the timeframe-local HL, switch eligibility to the TL on the breakout side.",
+    "scope": "Evaluate independently on each source timeframe before Plan-B display copying.",
+    "display_copy": "After a source timeframe selects its TL, copy the exact selected geometry to its Plan-B display timeframe(s); do not re-decide direction on the destination chart."
+  },
+  "important": [
+    "HL is a direction gate, not merely a display line.",
+    "Distance-to-current-price must not override the HL direction gate.",
+    "A destination chart must not reinterpret the source timeframe's HL decision.",
+    "Exact breakout confirmation semantics (wick vs close, one-bar vs confirmed close, tolerance) are intentionally NOT frozen by this contract yet."
+  ],
+  "implementation_status": {
+    "hl_line_detection": false,
+    "hl_break_detection": false,
+    "direction_gate_in_selection": false,
+    "plan_b_exact_geometry_copy": true
+  }
+}
