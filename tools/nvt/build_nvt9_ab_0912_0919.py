@@ -174,7 +174,7 @@ def build_case(*, symbol: str, case_date: str, input_dir: Path, policy: Path, ou
         "cutoff_exclusive": cutoff.isoformat(),
         "symbol": symbol,
         "old_mode": "FROZEN_0919_BASELINE_EMULATION",
-        "new_mode": "DIRECTION_SWITCH_ACTIVE_N_V0_1",
+        "new_mode": "DIRECTION_SWITCH_ACTIVE_N_V0_2_REGIME_GATED",
         "candidate_geometry_changed": False,
         "plan_b_changed": False,
         "color_policy_changed": False,
@@ -216,7 +216,7 @@ def main() -> int:
         "status": "PASS_AB_BUILD",
         "baseline_branch": "baseline/nvt9-0919-approved",
         "baseline_commit": "436a17a74919353351675921c11e3bf080ea07a3",
-        "new_mode": "DIRECTION_SWITCH_ACTIVE_N_V0_1",
+        "new_mode": "DIRECTION_SWITCH_ACTIVE_N_V0_2_REGIME_GATED",
         "color_policy": "UNCHANGED_FROM_0919",
         "plan_b": "UNCHANGED",
         "cases": {
