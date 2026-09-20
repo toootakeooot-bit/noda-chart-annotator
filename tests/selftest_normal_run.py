@@ -12,6 +12,8 @@ sys.path.insert(0, str(ROOT / 'tools'))
 from live_draw.model import Bar
 from live_draw.normal_run import (
     rebuild_timeframe_from_bars,
+    rebuild_timeframe_baseline_0919_from_bars,
+    rebuild_timeframe_direction_switch_experiment,
     safe_symbol_filename,
     structural_event_end_indices,
     hl_activation_event_end_indices,
@@ -55,6 +57,22 @@ def main() -> None:
     assert event_indices == sorted(set(pivot_event_indices) | set(hl_event_indices))
     state, audit = rebuild_timeframe_from_bars(bars, 'USDJPY#', 'M15')
     validation = validate_rebuilt_state(state, 'USDJPY#')
+
+    old_ab_state, old_ab_audit = rebuild_timeframe_baseline_0919_from_bars(
+        bars, 'USDJPY#', 'M15'
+    )
+    new_ab_state, new_ab_audit = rebuild_timeframe_direction_switch_experiment(
+        bars, 'USDJPY#', 'M15'
+    )
+    old_ab_validation = validate_rebuilt_state(old_ab_state, 'USDJPY#')
+    new_ab_validation = validate_rebuilt_state(new_ab_state, 'USDJPY#')
+    assert old_ab_audit['selection_mode'] == 'OLD_0919_TURN_SPAN_CONTACT_DISTANCE_PIPELINE'
+    assert new_ab_audit['selection_mode'] == 'DIRECTION_SWITCH_ACTIVE_N_V0_1'
+    assert new_ab_audit['candidate_geometry_changed'] is False
+    assert new_ab_audit['plan_b_changed'] is False
+    assert new_ab_audit['color_policy_changed'] is False
+    assert old_ab_validation['current_count'] >= 1
+    assert new_ab_validation['current_count'] == 1
 
     assert audit['status'] == 'PASS'
     assert audit['replay_strategy'] == 'PIVOT_CONFIRMATION_PLUS_HL_ACTIVATION'
