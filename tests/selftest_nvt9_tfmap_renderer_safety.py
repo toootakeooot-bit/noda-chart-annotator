@@ -18,12 +18,12 @@ def main() -> int:
     assert "StringLen(name) > 63" in src
     assert "ObjectCreate failed" in src
     assert "ready rows=" in src
-    assert 'DeleteObjectsByPrefix("NCA_DRAW__")' in src
-    assert "IsolatePreviewFromNormalRun = true" in src
-    assert "AuditCleanAllTrendObjects = true" in src
-    assert "DeleteAuditTrendObjects" in src
-    assert "OBJ_TREND" in src
-    assert "OBJ_CHANNEL" in src
+    assert "AuditDeleteAllChartObjects = true" in src
+    assert "DeleteAllChartObjects" in src
+    assert "ObjectDelete(n)" in src
+    assert "audit clean removed ALL chart objects=" in src
+    assert "AuditCleanAllTrendObjects" not in src
+    assert "IsolatePreviewFromNormalRun" not in src
     assert "PreviewPreviousColor" not in src
     assert 'StringFind(objectId, "SRC_H4_", 0) == 0' in src
     assert 'StringFind(objectId, "SRC_H1_", 0) == 0' in src
