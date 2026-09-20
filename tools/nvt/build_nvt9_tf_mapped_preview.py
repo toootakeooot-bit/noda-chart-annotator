@@ -104,11 +104,13 @@ def family_record(s: dict, gen_role: str, display_tf: str, price: float, eval_ti
 
 
 def select_families(candidates: list[dict], sources: list[str], per_source: int, context_max: int) -> list[dict]:
-    # Exact geometry duplicates are display duplicates; keep the higher source in sources.
+    # Preserve Plan-B source identity. Exact geometry may be deduped only
+    # within the same source timeframe; never let D1 suppress H4, H4 suppress
+    # H1, etc. The user must be able to verify one family per assigned source.
     source_rank = {tf: i for i, tf in enumerate(sources)}
     by_geom: dict[tuple, list[dict]] = defaultdict(list)
     for c in candidates:
-        by_geom[geometry_key(c["_state"])].append(c)
+        by_geom[(c["source_tf"], geometry_key(c["_state"]))].append(c)
 
     deduped = []
     for group in by_geom.values():
@@ -227,6 +229,7 @@ def main() -> int:
     display_counts = Counter()
     candidate_counts = Counter()
     selected_family_counts = Counter()
+    selected_source_counts: dict[str, Counter] = {}
 
     slots = state.get("slots") or {}
 
@@ -245,6 +248,7 @@ def main() -> int:
         candidate_counts[display_tf] = len(candidates)
         selected = select_families(candidates, list(sources), per_source, context_max)
         selected_family_counts[display_tf] = len(selected)
+        selected_source_counts[display_tf] = Counter(x["source_tf"] for x in selected)
 
         for fam in selected:
             s = fam["_state"]
@@ -295,6 +299,9 @@ def main() -> int:
         },
         "candidate_family_counts": dict(candidate_counts),
         "selected_family_counts": dict(selected_family_counts),
+        "selected_source_counts": {
+            tf: dict(counts) for tf, counts in selected_source_counts.items()
+        },
         "display_row_counts": dict(display_counts),
         "selected_families": audit_rows,
         "object_name_policy": {
@@ -322,7 +329,24 @@ def main() -> int:
         "nca_draw_writeback": False,
         "trade_authority": False,
     }
+    source_presence_problems = []
+    for display_tf, sources in display_sources.items():
+        counts = selected_source_counts.get(display_tf, Counter())
+        for source_tf in sources:
+            if counts.get(source_tf, 0) < 1:
+                source_presence_problems.append({
+                    "display_tf": display_tf,
+                    "missing_source_tf": source_tf,
+                    "reason": "PLAN_B_ASSIGNED_SOURCE_NOT_SELECTED",
+                })
+    payload["source_presence_problems"] = source_presence_problems
+    if source_presence_problems:
+        payload["status"] = "FAIL_PLAN_B_SOURCE_PRESENCE"
+
     audit_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    if source_presence_problems:
+        raise ValueError(f"Plan B source presence failure: {source_presence_problems}")
 
     if payload["object_name_policy"]["max_full_object_name_length"] > payload["object_name_policy"]["mt4_name_limit_guard"]:
         raise ValueError(
@@ -334,6 +358,9 @@ def main() -> int:
         "status": payload["status"],
         "display_sources": display_sources,
         "selected_family_counts": dict(selected_family_counts),
+        "selected_source_counts": {
+            tf: dict(counts) for tf, counts in selected_source_counts.items()
+        },
         "display_row_counts": dict(display_counts),
         "csv": str(csv_path),
         "audit": str(audit_path),
