@@ -57,23 +57,12 @@ def structural_event_end_indices(bars: list[Bar]) -> list[int]:
     return sorted(indices)
 
 
-def hl_activation_event_end_indices(bars: list[Bar]) -> list[int]:
-    """Return closed-bar indices where an N-structure decision HL is crossed.
-
-    A TL candidate can become eligible *after* its anchor2 pivot was already
-    confirmed.  Such an HL-break bar may not confirm a new Pivot, so replaying
-    Pivot-confirmation events alone can leave an obsolete TL active until the
-    next Turn.  Build the full-history candidate set once, then schedule each
-    candidate's first recorded HL-break close as an additional lifecycle event.
-
-    This function does not promote anything by itself.  The prefix rebuild at
-    the returned index re-runs Turn detection + candidate selection using only
-    bars available through that closed bar, preserving no-lookahead behavior.
-    """
-    if len(bars) < 3:
-        return []
-    turns = detect_turns(bars)
-    candidates = build_channel_candidates(bars, turns.pivots)
+def hl_activation_event_end_indices_from_pivots(
+    bars: list[Bar],
+    pivots: list,
+) -> list[int]:
+    """Return lifecycle event indices for candidate decision-HL crossings."""
+    candidates = build_channel_candidates(bars, pivots)
     time_to_index = {bar.time: i for i, bar in enumerate(bars)}
     indices = set()
     for candidate in candidates:
@@ -83,9 +72,8 @@ def hl_activation_event_end_indices(bars: list[Bar]) -> list[int]:
         idx = time_to_index.get(t)
         if idx is None or idx < 2 or idx >= len(bars):
             continue
-        # If full-history geometry recorded a break before anchor2 itself was
-        # confirmed, that break could not have activated this candidate at the
-        # time. The later Pivot-confirmation event remains authoritative.
+        # The candidate cannot become actionable before all three structural
+        # pivots used by the N are confirmed.
         confirmed_idx = max(
             int(candidate.anchor1.confirmed_by_index),
             int(candidate.anchor2.confirmed_by_index),
@@ -95,6 +83,24 @@ def hl_activation_event_end_indices(bars: list[Bar]) -> list[int]:
             continue
         indices.add(idx)
     return sorted(indices)
+
+
+def hl_activation_event_end_indices(bars: list[Bar]) -> list[int]:
+    """Return closed-bar indices where an N-structure decision HL is crossed.
+
+    A TL candidate can become eligible *after* its anchor2 pivot was already
+    confirmed. Such an HL-break bar may not confirm a new Pivot, so replaying
+    Pivot-confirmation events alone can leave an obsolete TL active until the
+    next Turn.
+
+    This function schedules those first HL-break closes as lifecycle events.
+    The later prefix rebuild still uses only bars available through each event,
+    preserving no-lookahead behavior.
+    """
+    if len(bars) < 3:
+        return []
+    turns = detect_turns(bars)
+    return hl_activation_event_end_indices_from_pivots(bars, turns.pivots)
 
 
 def lifecycle_event_end_indices(bars: list[Bar]) -> tuple[list[int], list[int], list[int]]:
