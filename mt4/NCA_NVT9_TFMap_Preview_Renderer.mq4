@@ -17,6 +17,7 @@ input color M15CHColor = clrViolet;
 input int PreviewCurrentWidth = 2;
 input int PreviewPreviousWidth = 1;
 input bool IsolatePreviewFromNormalRun = true;
+input bool AuditCleanAllTrendObjects = true;
 
 string PREFIX = "NVT9_TFMAP__";
 string BASE_DIR = "noda_draw\\live_output";
@@ -113,6 +114,22 @@ int DeleteObjectsByPrefix(string prefix)
    {
       string n = ObjectName(i);
       if(StringFind(n, prefix, 0) == 0)
+      {
+         if(ObjectDelete(n)) deleted++;
+      }
+   }
+   return deleted;
+}
+
+int DeleteAuditTrendObjects()
+{
+   int deleted = 0;
+   for(int i=ObjectsTotal()-1; i>=0; i--)
+   {
+      string n = ObjectName(i);
+      if(StringFind(n, PREFIX, 0) == 0) continue;
+      int t = ObjectType(n);
+      if(t == OBJ_TREND || t == OBJ_TRENDBYANGLE || t == OBJ_CHANNEL)
       {
          if(ObjectDelete(n)) deleted++;
       }
@@ -234,10 +251,17 @@ void OnStart()
    int removedNormal = 0;
    if(IsolatePreviewFromNormalRun)
    {
-      // Remove only generated NormalRun drawing objects from THIS chart.
-      // Manual objects are not touched. Re-running NCA_NormalRun_Renderer restores them.
       removedNormal = DeleteObjectsByPrefix("NCA_DRAW__");
       Print("NVT9 TFMap Renderer: isolated preview removed NCA_DRAW__ objects=", removedNormal);
+   }
+   int removedAuditLines = 0;
+   if(AuditCleanAllTrendObjects)
+   {
+      // AUDIT-ONLY clean chart mode: remove other trend/channel objects on
+      // THIS chart so obsolete/manual line objects cannot contaminate review.
+      // Indicators (MA/RSI/etc.) are not removed.
+      removedAuditLines = DeleteAuditTrendObjects();
+      Print("NVT9 TFMap Renderer: audit clean removed other trend/channel objects=", removedAuditLines);
    }
    DeleteOwnedObjects();
    int rendered = RenderRows(path, symbol, tf);
