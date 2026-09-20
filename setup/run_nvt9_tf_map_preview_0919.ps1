@@ -42,9 +42,30 @@ if ($Missing.Count -gt 0) {
 }
 
 Write-Host ''
-Write-Host '[3/4] Rebuild deep lifecycle state'
-& $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_deep_lifecycle_state.py') --symbol $Symbol --input-dir $InputDir --output-dir $OutDir
-if ($LASTEXITCODE -ne 0) { Write-Host "DEEP LIFECYCLE BUILD FAILED - exit=$LASTEXITCODE"; exit $LASTEXITCODE }
+Write-Host '[3/4] Deep lifecycle state'
+$ReuseState = $false
+if (Test-Path $State) {
+  try {
+    $StatePayload = Get-Content -Raw -Encoding UTF8 $State | ConvertFrom-Json
+    $StateTime = (Get-Item $State).LastWriteTimeUtc
+    $NewestInput = ($Required | ForEach-Object { (Get-Item $_).LastWriteTimeUtc } | Sort-Object -Descending | Select-Object -First 1)
+    if (($StatePayload.research_status -eq 'PASS_DEEP_LIFECYCLE_STATE') -and ($StateTime -ge $NewestInput)) {
+      $ReuseState = $true
+    }
+  } catch {
+    $ReuseState = $false
+  }
+}
+
+if ($ReuseState) {
+  Write-Host 'CACHE PASS: existing deep lifecycle state is valid and newer than all NVT history inputs.'
+  Write-Host ("Reuse: {0}" -f $State)
+} else {
+  Write-Host 'Cache miss/stale: rebuilding deep lifecycle state. This is the expensive step.'
+  Write-Host 'Progress will be printed for D1 -> H4 -> H1 -> M15.'
+  & $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_deep_lifecycle_state.py') --symbol $Symbol --input-dir $InputDir --output-dir $OutDir
+  if ($LASTEXITCODE -ne 0) { Write-Host "DEEP LIFECYCLE BUILD FAILED - exit=$LASTEXITCODE"; exit $LASTEXITCODE }
+}
 
 Write-Host ''
 Write-Host '[4/4] Build mapped preview snapshot'
