@@ -103,78 +103,47 @@ def family_record(s: dict, gen_role: str, display_tf: str, price: float, eval_ti
     }
 
 
-def select_families(candidates: list[dict], sources: list[str], per_source: int, context_max: int) -> list[dict]:
-    # Preserve Plan-B source identity. Exact geometry may be deduped only
-    # within the same source timeframe; never let D1 suppress H4, H4 suppress
-    # H1, etc. The user must be able to verify one family per assigned source.
-    source_rank = {tf: i for i, tf in enumerate(sources)}
+def select_source_families(
+    candidates: list[dict],
+    source_tf: str,
+    per_source: int,
+) -> list[dict]:
+    # Selection is made ONCE on the SOURCE timeframe using the source
+    # timeframe's own latest closed bar / current price. The chosen geometry
+    # is then copied unchanged to every display chart in Plan B.
     by_geom: dict[tuple, list[dict]] = defaultdict(list)
     for c in candidates:
-        by_geom[(c["source_tf"], geometry_key(c["_state"]))].append(c)
+        if c["source_tf"] != source_tf:
+            continue
+        by_geom[geometry_key(c["_state"])].append(c)
 
     deduped = []
     for group in by_geom.values():
         group.sort(key=lambda x: (
-            source_rank.get(x["source_tf"], 999),
-            0 if x["generation_role"] == "CURRENT" else 1,
             x["distance_to_channel"],
+            0 if x["generation_role"] == "CURRENT" else 1,
+            0 if x["structure_level"] == "LARGE_DOW" else 1,
             x["line_id"],
         ))
         chosen = group[0]
         chosen["exact_geometry_duplicate_count"] = len(group) - 1
         deduped.append(chosen)
 
-    def rank_key(x: dict) -> tuple:
-        return (
+    ranked = sorted(
+        deduped,
+        key=lambda x: (
             x["distance_to_channel"],
             0 if x["generation_role"] == "CURRENT" else 1,
             0 if x["structure_level"] == "LARGE_DOW" else 1,
             x["line_id"],
-        )
-
+        ),
+    )
     selected = []
-
-    # Core display rule: each chart keeps the nearest family from every source
-    # timeframe assigned to that chart (e.g. H4 = D1 + H4, M15 = H1 + M15).
-    for source_tf in sources:
-        pool = sorted([x for x in deduped if x["source_tf"] == source_tf], key=rank_key)
-        for c in pool[:per_source]:
-            item = dict(c)
-            item["display_reason"] = "NEAREST_FAMILY_FOR_SOURCE_TF"
-            item["display_roles"] = list(ROLES)
-            selected.append(item)
-
-    # Direction safeguard: if local/upper selected directions conflict, or the
-    # higher-TF nearest family is only PREVIOUS, retain one higher-TF CURRENT
-    # family as a farther TL+CH directional reference.
-    if len(sources) > 1 and context_max > 0:
-        upper_tf = sources[0]
-        selected_upper = [x for x in selected if x["source_tf"] == upper_tf]
-        selected_directions = {x["direction"] for x in selected}
-        upper_is_previous_only = bool(selected_upper) and all(
-            x["generation_role"] == "PREVIOUS" for x in selected_upper
-        )
-        direction_unclear = len(selected_directions) > 1 or upper_is_previous_only
-
-        if direction_unclear:
-            existing = {x["line_id"] for x in selected}
-            context = [
-                x for x in deduped
-                if x["source_tf"] == upper_tf
-                and x["generation_role"] == "CURRENT"
-                and x["line_id"] not in existing
-            ]
-            context.sort(key=lambda x: (
-                0 if x["structure_level"] == "LARGE_DOW" else 1,
-                x["distance_to_channel"],
-                x["line_id"],
-            ))
-            for c in context[:context_max]:
-                item = dict(c)
-                item["display_reason"] = "FAR_HIGHER_TF_DIRECTION_CONTEXT"
-                item["display_roles"] = ["TL", "CH"]
-                selected.append(item)
-
+    for c in ranked[:per_source]:
+        item = dict(c)
+        item["display_reason"] = "SOURCE_TF_NEAREST_FAMILY"
+        item["display_roles"] = list(ROLES)
+        selected.append(item)
     return selected
 
 def main() -> int:
@@ -199,7 +168,7 @@ def main() -> int:
     display_sources = policy.get("display_sources") or {}
     vis = policy.get("visibility_policy") or {}
     per_source = int(vis.get("near_price_family_per_source_tf", 1))
-    context_max = int(vis.get("far_direction_context_max_families", 1))
+    context_max = int(vis.get("far_direction_context_max_families", 0))
 
     if state.get("schema") != "nca-live-state/1.0":
         raise ValueError(f"unexpected state schema: {state.get('schema')}")
@@ -231,50 +200,69 @@ def main() -> int:
     rows = []
     audit_rows = []
     display_counts = Counter()
-    candidate_counts = Counter()
     selected_family_counts = Counter()
     selected_source_counts: dict[str, Counter] = {}
+    source_selection: dict[str, list[dict]] = {}
 
     slots = state.get("slots") or {}
+    source_to_display = policy.get("source_to_display_tfs") or {}
+    if not source_to_display:
+        raise ValueError("policy missing source_to_display_tfs")
 
-    for display_tf, sources in display_sources.items():
-        eval_time = latest[display_tf]["time"]
-        current_price = latest[display_tf]["close"]
+    # 1) Select the source family on its OWN timeframe.
+    for source_tf, display_tfs in source_to_display.items():
+        if source_tf not in latest:
+            raise ValueError(f"missing latest source market data for {source_tf}")
+        eval_time = latest[source_tf]["time"]
+        current_price = latest[source_tf]["close"]
         candidates = []
-
         for _, slot in sorted(slots.items()):
             for gen_role in ("previous", "current"):
                 s = slot.get(gen_role)
-                if not s or s.get("timeframe") not in sources:
+                if not s or s.get("timeframe") != source_tf:
                     continue
-                candidates.append(family_record(s, gen_role, display_tf, current_price, eval_time))
+                candidates.append(family_record(s, gen_role, source_tf, current_price, eval_time))
 
-        candidate_counts[display_tf] = len(candidates)
-        selected = select_families(candidates, list(sources), per_source, context_max)
-        selected_family_counts[display_tf] = len(selected)
-        selected_source_counts[display_tf] = Counter(x["source_tf"] for x in selected)
+        selected = select_source_families(candidates, source_tf, per_source)
+        if len(selected) < per_source:
+            raise ValueError(
+                f"source selection missing: {source_tf} selected={len(selected)} expected={per_source}"
+            )
+        source_selection[source_tf] = selected
 
-        for fam in selected:
+    # 2) Copy the EXACT selected source geometry to every Plan-B display TF.
+    for source_tf, display_tfs in source_to_display.items():
+        for fam in source_selection[source_tf]:
             s = fam["_state"]
-            for role in fam["display_roles"]:
-                p1, p2 = line_points(s, role)
-                level_code = "L" if s["structure_level"] == "LARGE_DOW" else "M"
-                gen_role_code = "C" if fam["generation_role"] == "CURRENT" else "P"
-                oid = (
-                    f"SRC_{fam['source_tf']}_DST_{display_tf}_"
-                    f"{level_code}_G{s['generation']}_{gen_role_code}_{role}"
-                )
-                rows.append([
-                    oid, s["symbol"], display_tf, s["structure_level"], role,
-                    mt4_datetime(s["anchor1_time"]), f"{p1:.8f}",
-                    mt4_datetime(s["anchor2_time"]), f"{p2:.8f}",
-                    fam["generation_role"], str(s["generation"]), s["status"], "RAY_RIGHT",
-                ])
-                display_counts[display_tf] += 1
+            geometry_signature = geometry_key(s)
+            for display_tf in display_tfs:
+                selected_source_counts.setdefault(display_tf, Counter())
+                selected_source_counts[display_tf][source_tf] += 1
+                selected_family_counts[display_tf] += 1
 
-            audit_rows.append({
-                k: v for k, v in fam.items() if k != "_state"
-            })
+                for role in fam["display_roles"]:
+                    p1, p2 = line_points(s, role)
+                    level_code = "L" if s["structure_level"] == "LARGE_DOW" else "M"
+                    gen_role_code = "C" if fam["generation_role"] == "CURRENT" else "P"
+                    oid = (
+                        f"SRC_{source_tf}_DST_{display_tf}_"
+                        f"{level_code}_G{s['generation']}_{gen_role_code}_{role}"
+                    )
+                    rows.append([
+                        oid, s["symbol"], display_tf, s["structure_level"], role,
+                        mt4_datetime(s["anchor1_time"]), f"{p1:.8f}",
+                        mt4_datetime(s["anchor2_time"]), f"{p2:.8f}",
+                        fam["generation_role"], str(s["generation"]), s["status"], "RAY_RIGHT",
+                    ])
+                    display_counts[display_tf] += 1
+
+                audit_rows.append({
+                    **{k: v for k, v in fam.items() if k != "_state"},
+                    "source_selection_tf": source_tf,
+                    "display_tf": display_tf,
+                    "geometry_signature": list(geometry_signature),
+                    "copied_without_reselection": True,
+                })
 
     header = [
         "object_id","symbol","timeframe","structure_level","role",
@@ -303,6 +291,17 @@ def main() -> int:
         "input_prefix": args.input_prefix,
         "display_policy": str(policy_path),
         "display_sources": display_sources,
+        "source_to_display_tfs": source_to_display,
+        "source_selection": {
+            tf: [
+                {
+                    **{k: v for k, v in fam.items() if k != "_state"},
+                    "geometry_signature": list(geometry_key(fam["_state"])),
+                }
+                for fam in fams
+            ]
+            for tf, fams in source_selection.items()
+        },
         "latest_display_prices": {
             tf: {"time": x["time"].isoformat(), "close": x["close"]} for tf, x in latest.items()
         },
@@ -339,14 +338,14 @@ def main() -> int:
         "trade_authority": False,
     }
     source_presence_problems = []
-    for display_tf, sources in display_sources.items():
-        counts = selected_source_counts.get(display_tf, Counter())
-        for source_tf in sources:
-            if counts.get(source_tf, 0) < 1:
+    for source_tf, display_tfs in source_to_display.items():
+        for display_tf in display_tfs:
+            counts = selected_source_counts.get(display_tf, Counter())
+            if counts.get(source_tf, 0) < per_source:
                 source_presence_problems.append({
                     "display_tf": display_tf,
                     "missing_source_tf": source_tf,
-                    "reason": "PLAN_B_ASSIGNED_SOURCE_NOT_SELECTED",
+                    "reason": "PLAN_B_ASSIGNED_SOURCE_NOT_COPIED",
                 })
     payload["source_presence_problems"] = source_presence_problems
     if source_presence_problems:
