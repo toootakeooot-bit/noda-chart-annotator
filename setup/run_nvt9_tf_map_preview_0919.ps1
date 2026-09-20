@@ -101,8 +101,14 @@ Write-Host ("  H4 : {0}" -f $AuditPayload.selected_family_counts.H4)
 Write-Host ("  H1 : {0}" -f $AuditPayload.selected_family_counts.H1)
 Write-Host ("  M15: {0}" -f $AuditPayload.selected_family_counts.M15)
 Write-Host ''
-Write-Host 'The preview prioritizes families nearest current price.'
-Write-Host 'A farther higher-TF family is retained only as directional context when the nearby set does not make direction clear.'
+Write-Host 'Plan B source presence:'
+Write-Host ("  D1 chart <- D1:{0} H4:{1}" -f $AuditPayload.selected_source_counts.D1.D1,$AuditPayload.selected_source_counts.D1.H4)
+Write-Host ("  H4 chart <- H4:{0} H1:{1}" -f $AuditPayload.selected_source_counts.H4.H4,$AuditPayload.selected_source_counts.H4.H1)
+Write-Host ("  H1 chart <- H1:{0} M15:{1}" -f $AuditPayload.selected_source_counts.H1.H1,$AuditPayload.selected_source_counts.H1.M15)
+Write-Host ("  M15 chart <- M15:{0}" -f $AuditPayload.selected_source_counts.M15.M15)
+Write-Host ''
+Write-Host 'Current audit preview: nearest family only from each assigned source TF.'
+Write-Host 'Far context families are disabled for now.'
 Write-Host ''
 Write-Host 'Next MT4 step: install/compile NCA_NVT9_TFMap_Preview_Renderer.mq4 and run it on the charts you want to compare (especially H4 and M15).'
 Write-Host 'Research objects use NVT9_TFMAP__ only.'
