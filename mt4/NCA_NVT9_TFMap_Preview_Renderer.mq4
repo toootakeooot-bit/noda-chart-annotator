@@ -196,13 +196,6 @@ void OnStart()
    string path = BASE_DIR + "\\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv";
    int ready = CountRenderableRows(path, symbol, tf);
 
-   // D1 intentionally has no rows in this experiment. Do not erase anything there.
-   if(tf == "D1" && ready <= 0)
-   {
-      Print("NVT9 TFMap Renderer: D1 intentionally has no mapped preview rows.");
-      return;
-   }
-
    if(ready <= 0)
    {
       Print("NVT9 TFMap Renderer: no valid mapped rows; keeping existing TFMap preview. code=", ready);
