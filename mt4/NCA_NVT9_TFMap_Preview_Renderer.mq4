@@ -15,7 +15,6 @@ input color H1TLColor = clrLime;
 input color H1CHColor = clrGreen;
 input color M15TLColor = clrMagenta;
 input color M15CHColor = clrViolet;
-input color HLColor = clrMagenta;
 input int HLWidth = 2;
 input int PreviewCurrentWidth = 2;
 input int PreviewPreviousWidth = 1;
@@ -183,10 +182,10 @@ int RenderRows(string path, string symbol, string tf)
       ObjectSet(name, OBJPROP_BACK, false);
 
       bool previous = (genRole == "PREVIOUS");
-      bool isD1 = (StringFind(objectId, "SRC_D1_", 0) == 0);
-      bool isH4 = (StringFind(objectId, "SRC_H4_", 0) == 0);
-      bool isH1 = (StringFind(objectId, "SRC_H1_", 0) == 0);
-      bool isM15 = (StringFind(objectId, "SRC_M15_", 0) == 0);
+      bool isD1 = (StringFind(objectId, "SRC_D1_") >= 0);
+      bool isH4 = (StringFind(objectId, "SRC_H4_") >= 0);
+      bool isH1 = (StringFind(objectId, "SRC_H1_") >= 0);
+      bool isM15 = (StringFind(objectId, "SRC_M15_") >= 0);
 
       color tlColor = D1TLColor;
       color chColor = D1CHColor;
@@ -199,7 +198,9 @@ int RenderRows(string path, string symbol, string tf)
       int width = PreviewCurrentWidth;
       if(role == "HL")
       {
-         c = HLColor;
+         // HL belongs to the same source timeframe as the TL, so use the
+         // source timeframe TL color instead of a fixed magenta color.
+         c = tlColor;
          style = STYLE_SOLID;
          width = HLWidth;
       }
