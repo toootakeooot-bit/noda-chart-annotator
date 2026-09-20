@@ -11,6 +11,8 @@ $OutDir = Join-Path $Common 'live_output'
 $Safe = ($Symbol -replace '[<>:"/\\|?*]', '_')
 $State = Join-Path $OutDir 'NVT9_USDJPY_DEEP_LIFECYCLE_STATE_0919.json'
 $Policy = Join-Path $RepoRoot 'nvt\manifests\NVT9_TF_DISPLAY_MAP_0919_V01.json'
+$Contract = Join-Path $RepoRoot 'nvt\manifests\NVT9_PLAN_B_DISPLAY_CONTRACT_20260920.json'
+$ContractAudit = Join-Path $OutDir 'NVT9_PLAN_B_DISPLAY_CONTRACT_AUDIT_0919.json'
 $Preview = Join-Path $OutDir 'NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv'
 $Audit = Join-Path $OutDir 'NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json'
 
@@ -22,6 +24,19 @@ Write-Host 'H4 structure -> H4 + D1; H1 structure -> H1 + H4; M15 structure -> M
 Write-Host 'Equivalent chart view: D1=D1+H4, H4=H4+H1, H1=H1+M15, M15=M15.'
 Write-Host 'Structural owner remains the SOURCE timeframe.'
 Write-Host 'Far redundant families are hidden; one farther higher-TF context may remain when direction is unclear.'
+Write-Host ''
+
+Write-Host '[0/4] Independent Plan B contract gate'
+& $Python (Join-Path $RepoRoot 'tools\nvt\validate_nvt9_plan_b_contract.py') --contract $Contract --policy $Policy --output $ContractAudit
+if ($LASTEXITCODE -ne 0) {
+  Write-Host 'STOP: Plan B mapping does not match the frozen user-confirmed contract.'
+  Write-Host ("Audit: {0}" -f $ContractAudit)
+  exit $LASTEXITCODE
+}
+Write-Host 'PLAN B CONTRACT PASS'
+Write-Host '  H4 structure -> H4 + D1'
+Write-Host '  H1 structure -> H1 + H4'
+Write-Host '  M15 structure -> M15 + H1'
 Write-Host ''
 
 Write-Host '[1/4] Self-tests'
