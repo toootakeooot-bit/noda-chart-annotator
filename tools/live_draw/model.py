@@ -44,6 +44,9 @@ class ChannelCandidate:
     ch_anchor: Pivot
     ch_offset: float
     zone_width: float
+    decision_hl: Optional[Pivot] = None
+    hl_break_time: Optional[datetime] = None
+    hl_break_mode: Optional[str] = None
 
     @property
     def id_key(self) -> str:
