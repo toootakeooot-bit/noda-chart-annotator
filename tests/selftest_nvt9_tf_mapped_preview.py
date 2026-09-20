@@ -119,14 +119,21 @@ def main() -> int:
         assert audit["display_sources"]["H1"] == ["H1", "M15"]
         assert audit["display_sources"]["M15"] == ["M15"]
         assert audit["selection_policy"]["near_price_family_per_source_tf"] == 1
-        assert audit["selection_policy"]["far_direction_context_max_families"] == 1
+        assert audit["selection_policy"]["far_direction_context_max_families"] == 0
         assert audit["production_changed"] is False
         assert audit["production_renderer_changed"] is False
         assert audit["nca_draw_writeback"] is False
 
         selected = audit["selected_families"]
-        for chart_tf in ("D1","H4","H1","M15"):
-            assert 1 <= audit["selected_family_counts"][chart_tf] <= 3
+        assert audit["selected_family_counts"]["D1"] == 2
+        assert audit["selected_family_counts"]["H4"] == 2
+        assert audit["selected_family_counts"]["H1"] == 2
+        assert audit["selected_family_counts"]["M15"] == 1
+        assert audit["selected_source_counts"]["D1"] == {"D1": 1, "H4": 1}
+        assert audit["selected_source_counts"]["H4"] == {"H4": 1, "H1": 1}
+        assert audit["selected_source_counts"]["H1"] == {"H1": 1, "M15": 1}
+        assert audit["selected_source_counts"]["M15"] == {"M15": 1}
+        assert audit["source_presence_problems"] == []
         d1_sources = {x["source_tf"] for x in selected if x["display_tf"] == "D1"}
         assert "D1" in d1_sources
         assert "H4" in d1_sources
@@ -134,8 +141,8 @@ def main() -> int:
         assert "H4" in h4_sources
         assert "H1" in h4_sources
         assert all(
-            x["display_reason"] in {"NEAREST_FAMILY_FOR_SOURCE_TF", "FAR_HIGHER_TF_DIRECTION_CONTEXT"}
-            for x in selected if x["display_tf"] == "H4"
+            x["display_reason"] == "NEAREST_FAMILY_FOR_SOURCE_TF"
+            for x in selected
         )
         h1_sources = {x["source_tf"] for x in selected if x["display_tf"] == "H1"}
         assert "H1" in h1_sources
