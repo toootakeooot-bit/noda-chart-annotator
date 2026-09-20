@@ -1,5 +1,5 @@
 {
-  "schema": "nvt9-tf-display-map/0.5",
+  "schema": "nvt9-tf-display-map/0.6",
   "status": "RESEARCH_CANDIDATE_PLAN_B_SOURCE_TO_SELF_PLUS_HIGHER",
   "audit_id": "ID10IQ200",
   "date": "2026-09-20",
@@ -44,7 +44,8 @@
     "Each assigned source TF must contribute one nearest family in this audit preview; cross-source dedupe must not remove a source.",
     "Far redundant families are hidden in the current audit preview. Re-add a far context family only after visual/manual confirmation that direction is unclear.",
     "This is a display mapping only; structural ownership does not change.",
-    "No Production Normal Run, Production snapshot, Production Renderer, NCA_DRAW__, or trade authority writeback is allowed."
+    "No Production Normal Run, Production snapshot, Production Renderer, NCA_DRAW__, or trade authority writeback is allowed.",
+    "Audit preview is isolated from existing NCA_DRAW__ objects on the current chart so obsolete NormalRun lines do not contaminate visual review."
   ],
   "production_changed": false,
   "renderer_changed": false,
@@ -74,7 +75,7 @@
     "nonexact_merge_requires_manual_or_teacher_confirmation": true
   },
   "visibility_policy": {
-    "objective": "On each chart, prioritize structures nearest current price from the source TFs assigned by Plan B; keep at most one farther higher-chart context family only when direction would otherwise be unclear.",
+    "objective": "For the current audit preview, show only the nearest family from each source TF assigned by Plan B. Do not add far context automatically.",
     "family_unit": "TL+CH family, not individual role",
     "current_price_metric": "Project TL/CH to the latest closed bar of the display timeframe. Distance is zero when price lies inside the channel; otherwise use distance to the nearest channel boundary.",
     "near_price_roles": [
@@ -111,5 +112,12 @@
       "M15",
       "H1"
     ]
+  },
+  "preview_isolation": {
+    "enabled_by_default": true,
+    "removes_only_prefix": "NCA_DRAW__",
+    "scope": "CURRENT_CHART_ONLY",
+    "manual_objects_untouched": true,
+    "restore_method": "Run NCA_NormalRun_Renderer again on that chart."
   }
 }
