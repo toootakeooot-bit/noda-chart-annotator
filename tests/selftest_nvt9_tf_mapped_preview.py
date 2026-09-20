@@ -23,6 +23,11 @@ def state_line(tf: str, level: str, gen: int, *, direction: str, p1: float, p2: 
         "anchor2_price": p2,
         "ch_offset": offset,
         "zone_width": 0.1,
+        "decision_hl_time": "2025-06-01T00:00:00",
+        "decision_hl_price": (156.0 if direction == "FALLING" else 158.0),
+        "decision_hl_kind": ("LOW" if direction == "FALLING" else "HIGH"),
+        "hl_break_time": "2026-02-01T00:00:00",
+        "hl_break_mode": "CLOSED_BAR_CLOSE_PROVISIONAL",
     }
 
 
@@ -138,34 +143,18 @@ def main() -> int:
         assert audit["hl_preview_policy"]["break_logic_applied"] is False
         assert audit["hl_preview_policy"]["retracement_38_role"] == "PIVOT_CONFIRMATION_ONLY_NOT_HL"
         assert set(audit["hl_candidates"]) == {"D1", "H4", "H1", "M15"}
-        assert all(len(v) == 2 for v in audit["hl_candidates"].values())
+        assert all(v["always_draw"] is True for v in audit["hl_candidates"].values())
         assert all(
-            x["always_draw"] is True
-            for pair in audit["hl_candidates"].values()
-            for x in pair
+            v["selection_rule"] == "SELECTED_TL_DECISION_HL"
+            for v in audit["hl_candidates"].values()
         )
         assert all(
-            x["break_logic_applied"] is False
-            for pair in audit["hl_candidates"].values()
-            for x in pair
+            v["retracement_38_role"] == "PIVOT_CONFIRMATION_ONLY_NOT_HL"
+            for v in audit["hl_candidates"].values()
         )
         assert all(
-            {x["pivot_kind"] for x in pair} == {"HIGH", "LOW"}
-            for pair in audit["hl_candidates"].values()
-        )
-        assert all(
-            {x["event_role"] for x in pair} == {"BROKEN_LEVEL", "REVERSAL_ORIGIN"}
-            for pair in audit["hl_candidates"].values()
-        )
-        assert all(
-            x["selection_rule"] == "STRUCTURAL_SWITCH_BREAKOUT_PAIR"
-            for pair in audit["hl_candidates"].values()
-            for x in pair
-        )
-        assert all(
-            x["retracement_38_role"] == "PIVOT_CONFIRMATION_ONLY_NOT_HL"
-            for pair in audit["hl_candidates"].values()
-            for x in pair
+            v["hl_break_mode"] == "CLOSED_BAR_CLOSE_PROVISIONAL"
+            for v in audit["hl_candidates"].values()
         )
         assert audit["production_changed"] is False
         assert audit["production_renderer_changed"] is False
@@ -226,18 +215,16 @@ def main() -> int:
         assert any(r["timeframe"] == "H1" and r["object_id"].startswith("SRC_M15_DST_H1_") for r in rows)
         assert any(r["timeframe"] == "M15" and r["object_id"].startswith("SRC_M15_DST_M15_") for r in rows)
         hl_rows = [r for r in rows if r["role"] == "HL"]
-        assert len(hl_rows) == 8
+        assert len(hl_rows) == 4
         assert {r["timeframe"] for r in hl_rows} == {"D1", "H4", "H1", "M15"}
         assert all(r["structure_level"] in {"HL_HIGH", "HL_LOW"} for r in hl_rows)
         assert all(float(r["p1"]) == float(r["p2"]) for r in hl_rows)
         for tf in ("D1", "H4", "H1", "M15"):
             tf_hl = [r for r in hl_rows if r["timeframe"] == tf]
-            assert len(tf_hl) == 2
-            assert {r["structure_level"] for r in tf_hl} == {"HL_HIGH", "HL_LOW"}
-            assert {r["object_id"] for r in tf_hl} == {
-                f"HL_HIGH_SRC_{tf}_DST_{tf}",
-                f"HL_LOW_SRC_{tf}_DST_{tf}",
-            }
+            assert len(tf_hl) == 1
+            expected_side = audit["hl_candidates"][tf]["pivot_kind"]
+            assert tf_hl[0]["structure_level"] == f"HL_{expected_side}"
+            assert tf_hl[0]["object_id"] == f"HL_{expected_side}_SRC_{tf}_DST_{tf}"
         assert audit["object_name_policy"]["max_full_object_name_length"] <= 63
         assert all(len("NVT9_TFMAP__" + r["object_id"]) <= 63 for r in rows)
 
@@ -266,7 +253,7 @@ def main() -> int:
         assert normal_audit["input_prefix"] == "NORMAL"
         assert normal_audit["selection_policy"]["generation_scope"] == "CURRENT_ONLY"
         assert set(normal_audit["hl_candidates"]) == {"D1", "H4", "H1", "M15"}
-        assert all(len(v) == 2 for v in normal_audit["hl_candidates"].values())
+        assert all(v["always_draw"] is True for v in normal_audit["hl_candidates"].values())
         assert normal_audit["hl_preview_policy"]["always_draw"] is True
         assert normal_audit["selected_source_counts"]["D1"] == {"D1": 1, "H4": 1}
         assert normal_audit["source_presence_problems"] == []
