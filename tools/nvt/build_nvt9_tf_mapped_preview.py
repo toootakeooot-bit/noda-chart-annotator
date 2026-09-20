@@ -184,6 +184,7 @@ def main() -> int:
     ap.add_argument("--state", required=True)
     ap.add_argument("--policy", required=True)
     ap.add_argument("--input-dir", required=True)
+    ap.add_argument("--input-prefix", default="NVT", choices=["NVT", "NORMAL"])
     ap.add_argument("--output-dir", required=True)
     args = ap.parse_args()
 
@@ -200,8 +201,11 @@ def main() -> int:
     per_source = int(vis.get("near_price_family_per_source_tf", 1))
     context_max = int(vis.get("far_direction_context_max_families", 1))
 
-    if state.get("research_status") != "PASS_DEEP_LIFECYCLE_STATE":
-        raise ValueError(f"deep lifecycle state is not PASS: {state.get('research_status')}")
+    if state.get("schema") != "nca-live-state/1.0":
+        raise ValueError(f"unexpected state schema: {state.get('schema')}")
+    research_status = state.get("research_status")
+    if research_status is not None and research_status != "PASS_DEEP_LIFECYCLE_STATE":
+        raise ValueError(f"research lifecycle state is not PASS: {research_status}")
 
     symbol = state.get("symbol") or policy.get("symbol")
     safe = safe_symbol_filename(symbol)
@@ -209,7 +213,7 @@ def main() -> int:
     latest = {}
     missing = []
     for display_tf in display_sources:
-        src = input_dir / f"NVT_{safe}_{display_tf}.csv"
+        src = input_dir / f"{args.input_prefix}_{safe}_{display_tf}.csv"
         if not src.exists():
             missing.append(str(src))
             continue
@@ -292,6 +296,11 @@ def main() -> int:
         "status": "PASS_TF_MAPPED_PREVIEW",
         "audit_id": "ID10IQ200",
         "source_state": str(state_path),
+        "source_state_mode": (
+            "NORMAL_RUN_LIVE_STATE" if args.input_prefix == "NORMAL"
+            else "DEEP_NVT_RESEARCH_STATE"
+        ),
+        "input_prefix": args.input_prefix,
         "display_policy": str(policy_path),
         "display_sources": display_sources,
         "latest_display_prices": {
