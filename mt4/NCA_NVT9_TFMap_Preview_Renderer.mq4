@@ -3,8 +3,9 @@
 
 // NVT9 research-only timeframe-mapped preview renderer.
 // Reads NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv.
-// Owns only NVT9_TFMAP__ objects and never touches Production NCA_DRAW__ or manual objects.
-// No timer, no continuous polling, no trading functions.
+// AUDIT MODE: this is a drawing-only review. It clears ALL MT4 chart objects
+// on the current chart, then draws only the NVT9_TFMAP__ preview.
+// Indicators themselves are not removed. No timer or trading functions.
 
 input color D1TLColor = clrYellow;
 input color D1CHColor = clrOrange;
@@ -16,8 +17,7 @@ input color M15TLColor = clrMagenta;
 input color M15CHColor = clrViolet;
 input int PreviewCurrentWidth = 2;
 input int PreviewPreviousWidth = 1;
-input bool IsolatePreviewFromNormalRun = true;
-input bool AuditCleanAllTrendObjects = true;
+input bool AuditDeleteAllChartObjects = true;
 
 string PREFIX = "NVT9_TFMAP__";
 string BASE_DIR = "noda_draw\\live_output";
@@ -121,18 +121,13 @@ int DeleteObjectsByPrefix(string prefix)
    return deleted;
 }
 
-int DeleteAuditTrendObjects()
+int DeleteAllChartObjects()
 {
    int deleted = 0;
    for(int i=ObjectsTotal()-1; i>=0; i--)
    {
       string n = ObjectName(i);
-      if(StringFind(n, PREFIX, 0) == 0) continue;
-      int t = ObjectType(n);
-      if(t == OBJ_TREND || t == OBJ_TRENDBYANGLE || t == OBJ_CHANNEL)
-      {
-         if(ObjectDelete(n)) deleted++;
-      }
+      if(ObjectDelete(n)) deleted++;
    }
    return deleted;
 }
@@ -248,22 +243,17 @@ void OnStart()
    }
 
    Print("NVT9 TFMap Renderer: ready rows=", ready, " symbol=", symbol, " tf=", tf);
-   int removedNormal = 0;
-   if(IsolatePreviewFromNormalRun)
+   if(AuditDeleteAllChartObjects)
    {
-      removedNormal = DeleteObjectsByPrefix("NCA_DRAW__");
-      Print("NVT9 TFMap Renderer: isolated preview removed NCA_DRAW__ objects=", removedNormal);
+      // User-confirmed audit behavior: drawing-only review, so remove every
+      // chart object on THIS chart before rendering the preview.
+      int removedAll = DeleteAllChartObjects();
+      Print("NVT9 TFMap Renderer: audit clean removed ALL chart objects=", removedAll);
    }
-   int removedAuditLines = 0;
-   if(AuditCleanAllTrendObjects)
+   else
    {
-      // AUDIT-ONLY clean chart mode: remove other trend/channel objects on
-      // THIS chart so obsolete/manual line objects cannot contaminate review.
-      // Indicators (MA/RSI/etc.) are not removed.
-      removedAuditLines = DeleteAuditTrendObjects();
-      Print("NVT9 TFMap Renderer: audit clean removed other trend/channel objects=", removedAuditLines);
+      DeleteOwnedObjects();
    }
-   DeleteOwnedObjects();
    int rendered = RenderRows(path, symbol, tf);
    if(rendered < 0)
    {
