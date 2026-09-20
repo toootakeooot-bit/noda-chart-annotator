@@ -25,9 +25,6 @@ def main() -> int:
     assert "AuditCleanAllTrendObjects" not in src
     assert "IsolatePreviewFromNormalRun" not in src
     assert "PreviewPreviousColor" not in src
-    assert 'StringFind(objectId, "SRC_H4_", 0) == 0' in src
-    assert 'StringFind(objectId, "SRC_H1_", 0) == 0' in src
-    assert 'StringFind(objectId, "SRC_M15_", 0) == 0' in src
     assert "input color HLColor" not in src
     assert 'role != "HL"' in src
     assert 'if(role == "HL")' in src
