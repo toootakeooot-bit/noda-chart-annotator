@@ -78,46 +78,115 @@ def geometry_key(s: dict) -> tuple:
     )
 
 
-def provisional_hl_pair(bars: list) -> list[dict]:
-    """Return the two most recent confirmed opposite pivots as HL candidates.
+def provisional_hl_pair(bars: list, target_direction: str | None = None) -> list[dict]:
+    """Return the HL pair that established the selected source-TF direction.
 
-    38% remains ONLY the Turn/Pivot confirmation rule inside detect_turns().
-    It is not the HL price.
+    The Turn detector's 38% rule confirms reaction pivots. 38% itself is NOT
+    an HL price.
 
-    Research rule for video comparison:
-      - always draw BOTH sides of the current N-structure decision pair;
-      - use the latest two confirmed alternating pivots;
-      - therefore, when the latest pivot is LOW, the pair is
-        [one previous confirmed HIGH, latest confirmed LOW];
-      - when the latest pivot is HIGH, the pair is
-        [one previous confirmed LOW, latest confirmed HIGH].
+    Structural reversal hypothesis for video validation:
+      RISING switch:
+        a confirmed HIGH breaks the previous confirmed HIGH.
+        HL_HIGH = the previous HIGH that was broken.
+        HL_LOW  = the confirmed LOW immediately before the breakout HIGH.
 
-    Break semantics are intentionally not implemented yet.
+      FALLING switch:
+        a confirmed LOW breaks the previous confirmed LOW.
+        HL_LOW  = the previous LOW that was broken.
+        HL_HIGH = the confirmed HIGH immediately before the breakout LOW.
+
+    Once a direction has switched, continuation HH/LL breaks do NOT move the
+    pair. The pair changes only on the next opposite structural switch.
     """
     turns = detect_turns(bars)
     pivots = sorted(turns.pivots, key=lambda p: (p.bar_index, p.confirmed_by_index))
-    if len(pivots) < 2:
+    if len(pivots) < 3:
         return []
 
-    pair = pivots[-2:]
-    if pair[0].kind == pair[1].kind:
+    events = []
+    structure_direction = None
+
+    for i in range(2, len(pivots)):
+        prev_same = pivots[i - 2]
+        middle = pivots[i - 1]
+        current = pivots[i]
+        signal = None
+        broken = None
+        origin = None
+
+        if (
+            current.kind == "HIGH"
+            and prev_same.kind == "HIGH"
+            and middle.kind == "LOW"
+            and float(current.price) > float(prev_same.price)
+        ):
+            signal = "RISING"
+            broken = prev_same
+            origin = middle
+        elif (
+            current.kind == "LOW"
+            and prev_same.kind == "LOW"
+            and middle.kind == "HIGH"
+            and float(current.price) < float(prev_same.price)
+        ):
+            signal = "FALLING"
+            broken = prev_same
+            origin = middle
+
+        if signal is None:
+            continue
+
+        if signal != structure_direction:
+            structure_direction = signal
+            events.append({
+                "direction": signal,
+                "broken": broken,
+                "origin": origin,
+                "breakout": current,
+            })
+
+    if not events:
         return []
+
+    if target_direction in ("RISING", "FALLING"):
+        matching = [e for e in events if e["direction"] == target_direction]
+        if not matching:
+            return []
+        event = matching[-1]
+    else:
+        event = events[-1]
+
+    if event["direction"] == "RISING":
+        pair = [
+            ("HIGH", event["broken"], "BROKEN_LEVEL"),
+            ("LOW", event["origin"], "REVERSAL_ORIGIN"),
+        ]
+    else:
+        pair = [
+            ("HIGH", event["origin"], "REVERSAL_ORIGIN"),
+            ("LOW", event["broken"], "BROKEN_LEVEL"),
+        ]
 
     out = []
-    for p in pair:
+    for kind, p, event_role in pair:
         out.append({
-            "active_leg": turns.active_leg,
-            "pivot_kind": p.kind,
+            "structure_direction": event["direction"],
+            "target_direction": target_direction,
+            "pivot_kind": kind,
             "pivot_time": p.time.isoformat(),
             "pivot_price": float(p.price),
             "confirmed_by_time": p.confirmed_by_time.isoformat(),
             "confirmed_by_index": int(p.confirmed_by_index),
             "detector_version": turns.detector_version,
-            "selection_rule": "LATEST_TWO_CONFIRMED_ALTERNATING_PIVOTS",
-            "pair_role": "UPPER_HL" if p.kind == "HIGH" else "LOWER_HL",
+            "selection_rule": "STRUCTURAL_SWITCH_BREAKOUT_PAIR",
+            "pair_role": "UPPER_HL" if kind == "HIGH" else "LOWER_HL",
+            "event_role": event_role,
+            "breakout_pivot_kind": event["breakout"].kind,
+            "breakout_pivot_time": event["breakout"].time.isoformat(),
+            "breakout_pivot_price": float(event["breakout"].price),
             "always_draw": True,
             "break_logic_applied": False,
-            "retracement_38_role": "TURN_CONFIRMATION_ONLY_NOT_HL",
+            "retracement_38_role": "PIVOT_CONFIRMATION_ONLY_NOT_HL",
         })
     return out
 
@@ -283,9 +352,16 @@ def main() -> int:
             )
         source_selection[source_tf] = selected
 
-        hl_pair = provisional_hl_pair(bars_by_tf[source_tf])
+        selected_direction = selected[0]["direction"]
+        hl_pair = provisional_hl_pair(
+            bars_by_tf[source_tf],
+            target_direction=selected_direction,
+        )
         if len(hl_pair) != 2:
-            raise ValueError(f"HL pair unavailable for source timeframe {source_tf}")
+            raise ValueError(
+                f"HL reversal pair unavailable for source timeframe {source_tf} "
+                f"direction={selected_direction}"
+            )
         hl_candidates[source_tf] = hl_pair
 
     # 2) Copy the EXACT selected source geometry to every Plan-B display TF.
@@ -377,8 +453,13 @@ def main() -> int:
             "always_draw": True,
             "display_scope": "SOURCE_CHART_ONLY",
             "break_logic_applied": False,
-            "retracement_38_role": "TURN_CONFIRMATION_ONLY_NOT_HL",
-            "candidate_rule": "LATEST_TWO_CONFIRMED_ALTERNATING_PIVOTS; BOTH HIGH AND LOW ALWAYS DRAWN"
+            "retracement_38_role": "PIVOT_CONFIRMATION_ONLY_NOT_HL",
+            "candidate_rule": "STRUCTURAL_SWITCH_BREAKOUT_PAIR",
+            "pair_semantics": {
+                "RISING": "broken previous HIGH + reversal-origin LOW",
+                "FALLING": "reversal-origin HIGH + broken previous LOW"
+            },
+            "continuation_breaks_move_pair": False
         },
         "source_selection": {
             tf: [
