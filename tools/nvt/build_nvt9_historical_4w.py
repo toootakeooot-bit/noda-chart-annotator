@@ -14,7 +14,6 @@ from live_draw.market_input import load_ohlc_csv, write_ohlc_csv
 from live_draw.normal_run import (
     TFS,
     merge_rebuilt_states,
-    normal_input_name,
     rebuild_timeframe_from_bars,
     safe_symbol_filename,
     validate_rebuilt_state,
@@ -32,7 +31,11 @@ def _write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def build_case(*, symbol: str, case_date: str, input_dir: Path, history_root: Path, policy: Path, preview_builder: Path) -> dict:
+def input_name(symbol: str, tf: str, prefix: str) -> str:
+    return f"{prefix}_{safe_symbol_filename(symbol)}_{tf}.csv"
+
+
+def build_case(*, symbol: str, case_date: str, input_dir: Path, input_prefix: str, history_root: Path, policy: Path, preview_builder: Path) -> dict:
     cutoff = datetime.fromisoformat(case_date)
     safe = safe_symbol_filename(symbol)
     case_key = _case_key(case_date)
@@ -45,7 +48,7 @@ def build_case(*, symbol: str, case_date: str, input_dir: Path, history_root: Pa
     rebuilt_states = []
     tf_meta = {}
     for tf in TFS:
-        src = input_dir / normal_input_name(symbol, tf)
+        src = input_dir / input_name(symbol, tf, input_prefix)
         if not src.exists():
             raise ValueError(f"missing source input for {tf}: {src}")
         all_bars = load_ohlc_csv(src)
@@ -55,7 +58,7 @@ def build_case(*, symbol: str, case_date: str, input_dir: Path, history_root: Pa
         if any(b.time >= cutoff for b in bars):
             raise AssertionError(f"future-leak filter failed for {tf}")
 
-        dst = case_input / normal_input_name(symbol, tf)
+        dst = case_input / input_name(symbol, tf, input_prefix)
         write_ohlc_csv(dst, bars)
         tf_state, tf_audit = rebuild_timeframe_from_bars(bars, symbol, tf)
         rebuilt_states.append(tf_state)
@@ -81,7 +84,7 @@ def build_case(*, symbol: str, case_date: str, input_dir: Path, history_root: Pa
         "--state", str(state_path),
         "--policy", str(policy),
         "--input-dir", str(case_input),
-        "--input-prefix", "NORMAL",
+        "--input-prefix", input_prefix,
         "--output-dir", str(case_output),
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -106,6 +109,7 @@ def build_case(*, symbol: str, case_date: str, input_dir: Path, history_root: Pa
         "audit_id": "ID10IQ200",
         "status": "PASS_NO_FUTURE_LEAK",
         "symbol": symbol,
+        "source_input_prefix": input_prefix,
         "case_label": case_date,
         "cutoff_exclusive": cutoff.isoformat(),
         "effective_market_point": "last available MT4 bar strictly before cutoff",
@@ -127,6 +131,7 @@ def main() -> int:
     ap.add_argument("--input-dir", required=True)
     ap.add_argument("--output-dir", required=True)
     ap.add_argument("--policy", required=True)
+    ap.add_argument("--input-prefix", default="NVT", choices=["NVT", "NORMAL"])
     ap.add_argument("--symbol", default="USDJPY#")
     ap.add_argument("--case-date", action="append", dest="case_dates")
     args = ap.parse_args()
@@ -137,16 +142,64 @@ def main() -> int:
     preview_builder = ROOT / "tools" / "nvt" / "build_nvt9_tf_mapped_preview.py"
     case_dates = tuple(args.case_dates or DEFAULT_CASE_DATES)
 
+    # Preflight: the short NormalRun export is intentionally not suitable for
+    # multi-week replay. NVT deep-history input should reach before the oldest
+    # case cutoff on every timeframe.
+    oldest_cutoff = datetime.fromisoformat(min(case_dates))
+    preflight = []
+    for tf in TFS:
+        src = input_dir / input_name(args.symbol, tf, args.input_prefix)
+        if not src.exists():
+            preflight.append({"timeframe": tf, "problem": "FILE_MISSING", "path": str(src)})
+            continue
+        bars = load_ohlc_csv(src)
+        older = [b for b in bars if b.time < oldest_cutoff]
+        if len(older) < 3:
+            first = bars[0].time.isoformat() if bars else None
+            last = bars[-1].time.isoformat() if bars else None
+            preflight.append({
+                "timeframe": tf,
+                "problem": "INSUFFICIENT_HISTORY_BEFORE_OLDEST_CASE",
+                "path": str(src),
+                "first_bar": first,
+                "last_bar": last,
+                "bars_before_cutoff": len(older),
+                "required_cutoff": oldest_cutoff.isoformat(),
+            })
+    if preflight:
+        print(json.dumps({
+            "status": "STOP_DEEP_HISTORY_REQUIRED",
+            "message": (
+                "Historical replay needs deep NVT history. "
+                "Run NCA_NVT_HistoryExporter in MT4 once (BarsToExport=6000 or more), "
+                "then rerun PREPARE_NVT9_HISTORY_AUDIT.cmd."
+            ),
+            "input_prefix": args.input_prefix,
+            "input_dir": str(input_dir),
+            "problems": preflight,
+        }, ensure_ascii=False, indent=2))
+        return 4
+
     results = []
     for case_date in case_dates:
-        results.append(build_case(
-            symbol=args.symbol,
-            case_date=case_date,
-            input_dir=input_dir,
-            history_root=history_root,
-            policy=policy,
-            preview_builder=preview_builder,
-        ))
+        try:
+            result = build_case(
+                symbol=args.symbol,
+                case_date=case_date,
+                input_dir=input_dir,
+                input_prefix=args.input_prefix,
+                history_root=history_root,
+                policy=policy,
+                preview_builder=preview_builder,
+            )
+        except Exception as exc:
+            print(json.dumps({
+                "status": "HISTORY_CASE_BUILD_FAILED",
+                "case_date": case_date,
+                "error": str(exc),
+            }, ensure_ascii=False, indent=2))
+            return 5
+        results.append(result)
         print(f"HISTORY CASE PASS: {case_date}", flush=True)
 
     summary = {
@@ -154,6 +207,7 @@ def main() -> int:
         "audit_id": "ID10IQ200",
         "status": "PASS_4W_NO_FUTURE_LEAK",
         "symbol": args.symbol,
+        "source_input_prefix": args.input_prefix,
         "cases": [{"case_label": x["case_label"], "cutoff_exclusive": x["cutoff_exclusive"], "status": x["status"], "preview_csv": x["preview_csv"]} for x in results],
         "baseline_branch": "baseline/nvt9-0919-approved",
         "baseline_commit": "436a17a74919353351675921c11e3bf080ea07a3",
