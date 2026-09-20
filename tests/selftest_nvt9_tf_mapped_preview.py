@@ -114,9 +114,10 @@ def main() -> int:
             (out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json").read_text(encoding="utf-8")
         )
         assert audit["status"] == "PASS_TF_MAPPED_PREVIEW"
-        assert audit["display_sources"]["H4"] == ["D1", "H4"]
-        assert audit["display_sources"]["H1"] == ["H4", "H1"]
-        assert audit["display_sources"]["M15"] == ["H1", "M15"]
+        assert audit["display_sources"]["D1"] == ["D1", "H4"]
+        assert audit["display_sources"]["H4"] == ["H4", "H1"]
+        assert audit["display_sources"]["H1"] == ["H1", "M15"]
+        assert audit["display_sources"]["M15"] == ["M15"]
         assert audit["selection_policy"]["near_price_family_per_source_tf"] == 1
         assert audit["selection_policy"]["far_direction_context_max_families"] == 1
         assert audit["production_changed"] is False
@@ -126,16 +127,21 @@ def main() -> int:
         selected = audit["selected_families"]
         for chart_tf in ("D1","H4","H1","M15"):
             assert 1 <= audit["selected_family_counts"][chart_tf] <= 3
+        d1_sources = {x["source_tf"] for x in selected if x["display_tf"] == "D1"}
+        assert "D1" in d1_sources
+        assert "H4" in d1_sources
         h4_sources = {x["source_tf"] for x in selected if x["display_tf"] == "H4"}
-        assert "D1" in h4_sources
         assert "H4" in h4_sources
+        assert "H1" in h4_sources
         assert all(
             x["display_reason"] in {"NEAREST_FAMILY_FOR_SOURCE_TF", "FAR_HIGHER_TF_DIRECTION_CONTEXT"}
             for x in selected if x["display_tf"] == "H4"
         )
+        h1_sources = {x["source_tf"] for x in selected if x["display_tf"] == "H1"}
+        assert "H1" in h1_sources
+        assert "M15" in h1_sources
         m15_sources = {x["source_tf"] for x in selected if x["display_tf"] == "M15"}
-        assert "H1" in m15_sources
-        assert "M15" in m15_sources
+        assert m15_sources == {"M15"}
         assert any(
             x["display_tf"] == "M15" and x["display_reason"] == "NEAREST_FAMILY_FOR_SOURCE_TF"
             for x in selected
@@ -148,9 +154,9 @@ def main() -> int:
         with csv_path.open("r", encoding="utf-8", newline="") as f:
             rows = list(csv.DictReader(f))
         assert {r["timeframe"] for r in rows} == {"D1","H4","H1","M15"}
-        assert any(r["timeframe"] == "H4" and r["object_id"].startswith("SRC_D1_DST_H4_") for r in rows)
-        assert any(r["timeframe"] == "H4" and r["object_id"].startswith("SRC_H4_DST_H4_") for r in rows)
-        assert any(r["timeframe"] == "M15" and r["object_id"].startswith("SRC_H1_DST_M15_") for r in rows)
+        assert any(r["timeframe"] == "D1" and r["object_id"].startswith("SRC_H4_DST_D1_") for r in rows)
+        assert any(r["timeframe"] == "H4" and r["object_id"].startswith("SRC_H1_DST_H4_") for r in rows)
+        assert any(r["timeframe"] == "H1" and r["object_id"].startswith("SRC_M15_DST_H1_") for r in rows)
         assert any(r["timeframe"] == "M15" and r["object_id"].startswith("SRC_M15_DST_M15_") for r in rows)
         assert audit["object_name_policy"]["max_full_object_name_length"] <= 63
         assert all(len("NVT9_TFMAP__" + r["object_id"]) <= 63 for r in rows)
