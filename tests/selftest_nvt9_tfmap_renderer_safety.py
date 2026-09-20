@@ -15,6 +15,9 @@ def main() -> int:
     assert "EventSetTimer" not in src
     assert "OnStart()" in src
     assert "DeleteOwnedObjects" in src
+    assert "StringLen(name) > 63" in src
+    assert "ObjectCreate failed" in src
+    assert "ready rows=" in src
 
     print("NVT9 TFMAP PREVIEW RENDERER SAFETY SELFTEST PASS")
     return 0
