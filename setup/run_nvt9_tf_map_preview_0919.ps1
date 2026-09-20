@@ -26,8 +26,9 @@ Write-Host 'Equivalent chart view: D1=D1+H4, H4=H4+H1, H1=H1+M15, M15=M15.'
 Write-Host 'Structural owner remains the SOURCE timeframe.'
 Write-Host 'Audit preview is CURRENT-only and nearest-only. Far context is disabled.'
 Write-Host 'MT4 audit preview clears ALL chart objects on the current chart, then draws only the selected preview.'
-Write-Host 'HL PREVIEW: draw TWO HL lines (HIGH + LOW) in the same color as the source-TF TL.'
-Write-Host 'HL pair = the 38%-confirmed reversal-origin pivot + the previous pivot level whose break first established that TL direction.'
+Write-Host 'HL PREVIEW: draw the ONE decision HL tied to the selected source-TF TL, using the same TL color.'
+Write-Host 'FALLING: HIGH1 -> LOW(HL) -> HIGH2, then LOW(HL) must break before the falling TL is eligible.'
+Write-Host 'RISING:  LOW1 -> HIGH(HL) -> LOW2, then HIGH(HL) must break before the rising TL is eligible.'
 Write-Host ''
 
 Write-Host '[0/4] Independent Plan B contract gate'
@@ -52,7 +53,14 @@ if ($LASTEXITCODE -ne 0) { Write-Host "TF MAP PREVIEW SELFTEST FAILED - exit=$LA
 if ($LASTEXITCODE -ne 0) { Write-Host "TF MAP RENDERER SAFETY SELFTEST FAILED - exit=$LASTEXITCODE"; exit $LASTEXITCODE }
 
 Write-Host ''
-Write-Host '[2/4] Confirm actual NormalRun source state'
+Write-Host '[2/5] Rebuild NormalRun source state with current HL-activated geometry'
+& (Join-Path $RepoRoot 'setup\run_normal.ps1') -Python $Python -Symbol $Symbol
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "STOP: NormalRun rebuild failed - exit=$LASTEXITCODE"
+  exit $LASTEXITCODE
+}
+Write-Host ''
+Write-Host '[3/5] Confirm actual NormalRun source state'
 $Required=@('D1','H4','H1','M15') | ForEach-Object { Join-Path $InputDir ("NORMAL_{0}_{1}.csv" -f $Safe,$_) }
 $Missing=@($Required | Where-Object { !(Test-Path $_) })
 if ($Missing.Count -gt 0) {
@@ -74,11 +82,11 @@ if ($StatePayload.schema -ne 'nca-live-state/1.0') {
 Write-Host 'NORMAL RUN SOURCE STATE PASS'
 Write-Host ("Source: {0}" -f $State)
 Write-Host ''
-Write-Host '[3/4] Source policy'
+Write-Host '[4/5] Source policy'
 Write-Host 'The preview now reuses the ACTUAL NormalRun line geometry already used on each source chart.'
 Write-Host 'No deep-history H4/H1 replacement geometry is used for this display-map test.'
 Write-Host ''
-Write-Host '[4/4] Build mapped preview snapshot'
+Write-Host '[5/5] Build mapped preview snapshot'
 & $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_tf_mapped_preview.py') --state $State --policy $Policy --input-dir $InputDir --input-prefix NORMAL --output-dir $OutDir
 if ($LASTEXITCODE -ne 0) { Write-Host "TF MAP PREVIEW BUILD FAILED - exit=$LASTEXITCODE"; exit $LASTEXITCODE }
 
@@ -102,9 +110,10 @@ Write-Host ("  M15 chart <- M15:{0}" -f $AuditPayload.selected_source_counts.M15
 Write-Host ''
 Write-Host 'Current audit preview: nearest CURRENT family only from each assigned source TF.'
 Write-Host 'Far context is disabled.'
-Write-Host 'HL preview always shows both upper and lower decision lines; HL break does NOT yet switch TL direction.'
-Write-Host 'HL pair is frozen at the structural reversal breakout that established the selected TL direction; continuation breaks do not move it.'
-Write-Host '38% confirms the pivot/reaction used as an HL anchor; 38% itself is NOT the HL price.'
+Write-Host 'HL preview shows the single decision HL tied to the selected TL and keeps it visible after the break.'
+Write-Host 'The TL itself is eligible only after that decision HL has been crossed.'
+Write-Host 'Current crossing mode is CLOSED-BAR CLOSE provisionally, pending video comparison.'
+Write-Host '38% confirms the pivot/reaction used as the HL anchor; 38% itself is NOT the HL price.'
 Write-Host 'MT4 audit mode clears all existing chart objects on the chart before drawing the preview.'
 Write-Host ''
 Write-Host 'Next MT4 step: install/compile NCA_NVT9_TFMap_Preview_Renderer.mq4 and run it on the charts you want to compare (especially H4 and M15).'
