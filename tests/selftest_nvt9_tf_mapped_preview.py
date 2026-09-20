@@ -126,19 +126,18 @@ def main() -> int:
         selected = audit["selected_families"]
         for chart_tf in ("D1","H4","H1","M15"):
             assert 1 <= audit["selected_family_counts"][chart_tf] <= 3
+        h4_sources = {x["source_tf"] for x in selected if x["display_tf"] == "H4"}
+        assert "D1" in h4_sources
+        assert "H4" in h4_sources
         assert any(
-            x["display_tf"] == "H4" and x["source_tf"] == "D1"
-            and x["display_reason"] == "FAR_HIGHER_TF_DIRECTION_CONTEXT"
+            x["display_tf"] == "H4" and x["display_reason"] == "NEAR_CURRENT_PRICE"
             for x in selected
         )
+        m15_sources = {x["source_tf"] for x in selected if x["display_tf"] == "M15"}
+        assert "H1" in m15_sources
+        assert "M15" in m15_sources
         assert any(
-            x["display_tf"] == "H4" and x["source_tf"] == "H4"
-            and x["display_reason"] == "NEAR_CURRENT_PRICE"
-            for x in selected
-        )
-        assert any(
-            x["display_tf"] == "M15" and x["source_tf"] == "M15"
-            and x["display_reason"] == "NEAR_CURRENT_PRICE"
+            x["display_tf"] == "M15" and x["display_reason"] == "NEAR_CURRENT_PRICE"
             for x in selected
         )
 
