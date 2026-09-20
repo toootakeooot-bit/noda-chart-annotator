@@ -1,0 +1,28 @@
+{
+  "schema": "nvt9-plan-b-display-contract/1.0",
+  "audit_id": "ID10IQ200",
+  "status": "USER_CONFIRMED_20260920",
+  "canonical_direction": "SOURCE_TF_TO_SELF_PLUS_ONE_HIGHER_CHART",
+  "source_to_display_tfs": {
+    "D1": ["D1"],
+    "H4": ["H4", "D1"],
+    "H1": ["H1", "H4"],
+    "M15": ["M15", "H1"]
+  },
+  "equivalent_chart_sources": {
+    "D1": ["D1", "H4"],
+    "H4": ["H4", "H1"],
+    "H1": ["H1", "M15"],
+    "M15": ["M15"]
+  },
+  "forbidden_inverse_example": {
+    "H4": ["D1", "H4"],
+    "H1": ["H4", "H1"],
+    "M15": ["H1", "M15"]
+  },
+  "notes": [
+    "This contract freezes the user's Plan B direction so the implementation cannot silently invert source and display timeframes.",
+    "H4 structure is displayed on H4 and D1; H1 structure on H1 and H4; M15 structure on M15 and H1.",
+    "This is display behavior only and does not change structural ownership."
+  ]
+}
