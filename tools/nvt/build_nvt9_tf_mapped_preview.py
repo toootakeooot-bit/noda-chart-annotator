@@ -275,7 +275,10 @@ def main() -> int:
     csv_path = outdir / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv"
     audit_path = outdir / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json"
 
-    with csv_path.open("w", encoding="utf-8-sig", newline="") as f:
+    # Match Production snapshot encoding: no UTF-8 BOM.
+    # MT4 opens this file with FILE_ANSI; a BOM would prefix the first header
+    # token and make ReadAndValidateHeader() reject "object_id".
+    with csv_path.open("w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(header)
         w.writerows(rows)
