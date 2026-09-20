@@ -17,8 +17,9 @@ $Audit = Join-Path $OutDir 'NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json'
 Write-Host 'NVT9 09/19 TF DISPLAY MAP PREVIEW'
 Write-Host '================================='
 Write-Host 'Research only.'
-Write-Host 'Display policy: D1->H4, H4->H1, H1->M15, M15 independent display=NONE.'
-Write-Host 'Structural owner remains source timeframe.'
+Write-Host 'Display policy: local TF + one higher TF, filtered by current-price relevance.'
+Write-Host 'H4=D1+H4, H1=H4+H1, M15=H1+M15. Structural owner remains source timeframe.'
+Write-Host 'Far redundant families are hidden; one farther higher-TF context may remain when direction is unclear.'
 Write-Host ''
 
 Write-Host '[1/4] Self-tests'
@@ -47,7 +48,7 @@ if ($LASTEXITCODE -ne 0) { Write-Host "DEEP LIFECYCLE BUILD FAILED - exit=$LASTE
 
 Write-Host ''
 Write-Host '[4/4] Build mapped preview snapshot'
-& $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_tf_mapped_preview.py') --state $State --policy $Policy --output-dir $OutDir
+& $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_tf_mapped_preview.py') --state $State --policy $Policy --input-dir $InputDir --output-dir $OutDir
 if ($LASTEXITCODE -ne 0) { Write-Host "TF MAP PREVIEW BUILD FAILED - exit=$LASTEXITCODE"; exit $LASTEXITCODE }
 
 $AuditPayload = Get-Content -Raw -Encoding UTF8 $Audit | ConvertFrom-Json
@@ -56,13 +57,16 @@ Write-Host 'TF DISPLAY MAP PREVIEW PASS'
 Write-Host ("Preview: {0}" -f $Preview)
 Write-Host ("Audit:   {0}" -f $Audit)
 Write-Host ''
-Write-Host 'Expected chart rows:'
-Write-Host ("  H4  <- D1 : {0}" -f $AuditPayload.display_row_counts.H4)
-Write-Host ("  H1  <- H4 : {0}" -f $AuditPayload.display_row_counts.H1)
-Write-Host ("  M15 <- H1 : {0}" -f $AuditPayload.display_row_counts.M15)
-Write-Host ("  M15 source omitted: {0}" -f $AuditPayload.suppressed_source_row_counts.M15)
+Write-Host 'Selected family counts:'
+Write-Host ("  D1 : {0}" -f $AuditPayload.selected_family_counts.D1)
+Write-Host ("  H4 : {0}" -f $AuditPayload.selected_family_counts.H4)
+Write-Host ("  H1 : {0}" -f $AuditPayload.selected_family_counts.H1)
+Write-Host ("  M15: {0}" -f $AuditPayload.selected_family_counts.M15)
 Write-Host ''
-Write-Host 'Next MT4 step: install/compile NCA_NVT9_TFMap_Preview_Renderer.mq4 and run it once on H4, H1, M15.'
+Write-Host 'The preview prioritizes families nearest current price.'
+Write-Host 'A farther higher-TF family is retained only as directional context when the nearby set does not make direction clear.'
+Write-Host ''
+Write-Host 'Next MT4 step: install/compile NCA_NVT9_TFMap_Preview_Renderer.mq4 and run it on the charts you want to compare (especially H4 and M15).'
 Write-Host 'Research objects use NVT9_TFMAP__ only.'
 Write-Host 'Production NCA_DRAW__ and manual objects are untouched.'
 exit 0
