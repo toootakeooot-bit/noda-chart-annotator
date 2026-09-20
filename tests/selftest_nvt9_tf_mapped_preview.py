@@ -141,9 +141,11 @@ def main() -> int:
             for x in selected
         )
 
-        with (out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv").open(
-            "r", encoding="utf-8-sig", newline=""
-        ) as f:
+        csv_path = out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv"
+        raw = csv_path.read_bytes()
+        assert not raw.startswith(b"\xef\xbb\xbf")
+        assert raw.startswith(b"object_id,")
+        with csv_path.open("r", encoding="utf-8", newline="") as f:
             rows = list(csv.DictReader(f))
         assert {r["timeframe"] for r in rows} == {"D1","H4","H1","M15"}
         assert any(r["timeframe"] == "H4" and r["object_id"].startswith("SRC_D1_DST_H4_") for r in rows)
