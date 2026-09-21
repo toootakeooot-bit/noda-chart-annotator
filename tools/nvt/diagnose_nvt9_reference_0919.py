@@ -196,6 +196,28 @@ def replay_stage_snapshot(bars, symbol: str, tf: str, refs: list[dict]) -> dict:
     ))
     display_selected = display_candidates[0] if display_candidates else None
 
+    # Independently reproduce the approved 09/19 display decision from the
+    # frozen CURRENT references themselves. This is the authoritative visual
+    # restoration path even when today's replay code no longer reconstructs
+    # the same lifecycle current.
+    frozen_display_candidates = []
+    if latest_time is not None:
+        for ref in refs:
+            tl, ch = projected_channel(ref, latest_time)
+            frozen_display_candidates.append({
+                "reference_id": ref["reference_id"],
+                "level": ref["structure_level"],
+                "distance_to_channel": channel_distance(latest_close, tl, ch),
+                "projected_tl": tl,
+                "projected_ch": ch,
+            })
+    frozen_display_candidates.sort(key=lambda x: (
+        x["distance_to_channel"],
+        0 if x["level"] == "LARGE_DOW" else 1,
+        x["reference_id"],
+    ))
+    frozen_display_selected = frozen_display_candidates[0] if frozen_display_candidates else None
+
     final_audit = audit.get("final_selector_audit") or {}
     trace = final_audit.get("selector_trace") or {}
     for ref in refs:
@@ -205,7 +227,7 @@ def replay_stage_snapshot(bars, symbol: str, tf: str, refs: list[dict]) -> dict:
         decision = trace.get(level_key) or {}
         row["selector_reason"] = level_reason
         row["selector_trace_decision"] = decision
-        row["display_candidates"] = [
+        row["replay_display_candidates"] = [
             {
                 "level": x["level"],
                 "line_id": x["line_id"],
@@ -215,23 +237,33 @@ def replay_stage_snapshot(bars, symbol: str, tf: str, refs: list[dict]) -> dict:
             }
             for x in display_candidates
         ]
-        row["display_selected_level"] = display_selected["level"] if display_selected else None
-        row["display_selected_line_id"] = display_selected["line_id"] if display_selected else None
-        row["display_selected"] = (
+        row["replay_display_selected_level"] = display_selected["level"] if display_selected else None
+        row["replay_display_selected_line_id"] = display_selected["line_id"] if display_selected else None
+        row["replay_display_selected_matches_reference"] = (
             display_selected is not None
             and display_selected["level"] == ref["structure_level"]
             and state_geometry_match(display_selected["current"], ref)
         )
+        row["frozen_display_candidates"] = frozen_display_candidates
+        row["display_selected"] = (
+            frozen_display_selected is not None
+            and frozen_display_selected["reference_id"] == ref["reference_id"]
+        )
+        row["selector_reason_applies_to_reference"] = bool(row["current_matches_reference"])
+        if not row["selector_reason_applies_to_reference"]:
+            row["selector_reason_status"] = "HISTORICAL_SELECTOR_REASON_NOT_REPRODUCED_BY_CURRENT_600BAR_REPLAY"
+        else:
+            row["selector_reason_status"] = "REPRODUCED_600BAR_SELECTOR_REASON"
         if row["display_selected"]:
-            row["display_reason"] = "SOURCE_TF_NEAREST_CURRENT_FAMILY"
+            row["display_reason"] = "FROZEN_0919_CURRENT_NEAREST_FAMILY"
             row["display_reason_detail"] = {
                 "latest_closed_bar_time": latest_time.isoformat(),
                 "latest_close": latest_close,
-                "distance_to_channel": display_selected["distance_to_channel"],
+                "distance_to_channel": frozen_display_selected["distance_to_channel"],
                 "tie_break": "LARGE_DOW_ONLY_WHEN_DISTANCE_EQUAL",
             }
         else:
-            row["display_reason"] = "NOT_SELECTED_FOR_0919_DISPLAY"
+            row["display_reason"] = "NOT_SELECTED_FOR_FROZEN_0919_DISPLAY"
 
     return out
 
