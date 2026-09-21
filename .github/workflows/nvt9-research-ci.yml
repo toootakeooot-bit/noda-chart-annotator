@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/nvt-validation-v1
+      - audit/nvt9-0919-selector-trace-id10iq200
   workflow_dispatch:
 
 concurrency:
@@ -25,6 +26,8 @@ jobs:
       - name: Compile NVT9 research tools
         run: |
           python -m py_compile \
+            tools/live_draw/geometry.py \
+            tools/live_draw/normal_run.py \
             tools/nvt/build_cross_tf_review.py \
             tools/nvt/audit_nvt9_normal_vs_full_history.py \
             tools/nvt/build_nvt9_deep_lifecycle_state.py \
@@ -42,6 +45,7 @@ jobs:
             tools/nvt/validate_nvt9_visibility_invariants.py \
             tools/nvt/prepare_nvt9_v7_preview_ready.py \
             tests/selftest_normal_run.py \
+            tests/selftest_selector_trace.py \
             tests/selftest_nvt9_cross_tf.py \
             tests/selftest_nvt9_normal_vs_full_history.py \
             tests/selftest_nvt9_deep_lifecycle_state.py \
@@ -57,6 +61,9 @@ jobs:
             tests/selftest_nvt9_visibility_invariants.py \
             tests/selftest_nvt9_preview_renderer_safety.py \
             tests/selftest_nvt9_v7_preview_ready.py
+
+      - name: Selector audit trace self-test
+        run: python tests/selftest_selector_trace.py
 
       - name: NormalRun lifecycle replay self-test
         run: python tests/selftest_normal_run.py
