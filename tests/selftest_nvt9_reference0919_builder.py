@@ -84,6 +84,9 @@ def main() -> None:
         manifest = td / "manifest.json"
         diagnostic = td / "diagnostic.json"
         out = td / "out"
+        for row in lines:
+            if row["reference_id"] == "R0919-06":
+                row["display_override"] = {"status": "SUPPRESSED"}
         manifest.write_text(json.dumps({"symbol": "USDJPY#", "lines": lines}), encoding="utf-8")
         diagnostic.write_text(json.dumps({
             "production_600_display_selected_refs": selected,
@@ -104,9 +107,11 @@ def main() -> None:
         assert proc.returncode == 0, proc.stdout + proc.stderr
 
         index = json.loads((out / "NVT9_0919_REFERENCE_INDEX.json").read_text(encoding="utf-8"))
-        assert index["selected_reference_ids"] == sorted(selected)
-        assert index["reference_count"] == 4
-        assert index["draw_row_count"] == 18  # R0919-08 zero-width suppresses its two duplicate zone edges
+        expected_selected = sorted(set(selected) - {"R0919-06"})
+        assert index["selected_reference_ids"] == expected_selected
+        assert index["suppressed_reference_ids"] == ["R0919-06"]
+        assert index["reference_count"] == 3
+        assert index["draw_row_count"] == 13  # 2 full families + R0919-08 zero-width + 3 recovered HL
 
         csv_text = (out / "NVT9_0919_REFERENCE_DRAW.csv").read_text(encoding="utf-8")
         for rid in selected:
@@ -129,10 +134,10 @@ def main() -> None:
         )
         assert proc2.returncode == 0, proc2.stdout + proc2.stderr
         pending_index = json.loads((pending_out / "NVT9_0919_REFERENCE_INDEX.json").read_text(encoding="utf-8"))
-        assert pending_index["reference_count"] == 4
+        assert pending_index["reference_count"] == 3
         assert pending_index["hl_pending_count"] == 1
         assert pending_index["hl_pending_reference_ids"] == ["R0919-02"]
-        assert pending_index["draw_row_count"] == 17
+        assert pending_index["draw_row_count"] == 12
 
         print("NVT9_REFERENCE0919_BUILDER_SELFTEST_PASS")
 
