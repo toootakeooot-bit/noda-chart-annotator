@@ -25,8 +25,8 @@ enum NVT9_AB_VARIANT
    VARIANT_NEW = 1
 };
 
-input NVT9_AB_CASE HistoryCase = CASE_20260912;
-input NVT9_AB_VARIANT Variant = VARIANT_NEW;
+input NVT9_AB_CASE HistoryCase = CASE_20260919;
+input NVT9_AB_VARIANT Variant = VARIANT_OLD;
 input bool ApplyToAllOpenTargetCharts = true;
 input bool AuditDeleteAllChartObjects = true;
 
