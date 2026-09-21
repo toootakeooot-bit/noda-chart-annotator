@@ -147,12 +147,7 @@ def rebuild_timeframe_from_bars(
         prefix = bars[:end_index + 1]
         turns = detect_turns(prefix)
         candidates = build_channel_candidates(prefix, turns.pivots)
-        large, mid, class_audit = select_large_mid(
-            symbol,
-            timeframe,
-            candidates,
-            include_trace=(include_selector_trace and end_index == event_indices[-1]),
-        )
+        large, mid, class_audit = select_large_mid(symbol, timeframe, candidates)
         evaluated_prefixes += 1
         last_event_end_index = end_index
 
