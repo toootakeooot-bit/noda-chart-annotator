@@ -148,7 +148,10 @@ def rebuild_timeframe_from_bars(
         turns = detect_turns(prefix)
         candidates = build_channel_candidates(prefix, turns.pivots)
         large, mid, class_audit = select_large_mid(
-            symbol, timeframe, candidates, include_trace=(end_index == event_indices[-1])
+            symbol,
+            timeframe,
+            candidates,
+            include_trace=(include_selector_trace and end_index == event_indices[-1]),
         )
         evaluated_prefixes += 1
         last_event_end_index = end_index
@@ -251,6 +254,7 @@ def rebuild_timeframe_baseline_0919_from_bars(
     bars: list[Bar],
     symbol: str,
     timeframe: str,
+    include_selector_trace: bool = False,
 ) -> tuple[dict, dict]:
     """Emulate the frozen 2026-09-19 selector/lifecycle for A/B audit only.
 
@@ -313,6 +317,7 @@ def rebuild_timeframe_baseline_0919_from_bars(
         'event_indices': event_indices,
         'transition_count': len(transitions),
         'transitions': transitions,
+        'selector_trace_enabled': include_selector_trace,
         'final_selector_audit': final_selector_audit,
     }
 
