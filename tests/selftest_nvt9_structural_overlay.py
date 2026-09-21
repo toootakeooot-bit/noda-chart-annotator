@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 from live_draw.model import Bar, Pivot
 from tools.nvt.build_nvt9_structural_overlay_0919 import (
     build_d1_continuation,
+    build_h1_native_continuation,
     choose_updated_ch,
     cluster_reaction_zones,
 )
@@ -80,10 +81,21 @@ def main() -> None:
         base_slope=0.02 / 3600.0,
         max_zones=4,
     )
-    assert 1 <= len(zones) <= 4
+    assert 1 <= len(zones) <= 3
     for i, a in enumerate(zones):
         for b in zones[i + 1:]:
             assert max(a["low_offset"], b["low_offset"]) > min(a["high_offset"], b["high_offset"])
+
+    # H1-native continuation must be constructible independently from any M15 reference.
+    h1_native = build_h1_native_continuation(h1, [
+        Pivot("LOW", 0, start, 154.8, 1, start + timedelta(hours=1), 0.38),
+        Pivot("HIGH", 8, start + timedelta(hours=8), 156.2, 9, start + timedelta(hours=9), 0.38),
+        Pivot("LOW", 18, start + timedelta(hours=18), 155.2, 19, start + timedelta(hours=19), 0.38),
+    ])
+    assert h1_native is not None
+    assert h1_native.anchor1.time == start
+    assert h1_native.anchor2.time == start + timedelta(hours=18)
+    assert h1_native.decision_hl.price == 156.2
 
     # Updated CH requires a confirmed HIGH outside the existing CH by tolerance.
     base_t1 = start
