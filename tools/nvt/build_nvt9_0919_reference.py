@@ -59,10 +59,8 @@ def main() -> int:
     result_by_ref = {
         row["reference_id"]: row for row in diagnostic.get("results", [])
     }
-    if len(selected_refs) != 4:
-        raise ValueError(
-            f"expected exactly 4 selected source families from 09/19 600-bar display policy, got {sorted(selected_refs)}"
-        )
+    if not selected_refs:
+        raise ValueError("no selected 09/19 reference families remain after display overrides")
 
     rows = []
     index_rows = []
