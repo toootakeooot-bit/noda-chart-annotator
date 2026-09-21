@@ -14,6 +14,10 @@ def main() -> None:
         '"NVT9_AB_CUTOFF__"',
         'if(role=="HL")',
         'SourceVisibleOnDestination',
+        '[UPDATED CH]',
+        '[D1 CONT TL]',
+        '[DECISION HL]',
+        '[ZONE]',
     ]
     for token in required:
         assert token in text, token
