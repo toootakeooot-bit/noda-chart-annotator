@@ -147,7 +147,9 @@ def rebuild_timeframe_from_bars(
         prefix = bars[:end_index + 1]
         turns = detect_turns(prefix)
         candidates = build_channel_candidates(prefix, turns.pivots)
-        large, mid, class_audit = select_large_mid(symbol, timeframe, candidates)
+        large, mid, class_audit = select_large_mid(
+            symbol, timeframe, candidates, include_trace=(end_index == event_indices[-1])
+        )
         evaluated_prefixes += 1
         last_event_end_index = end_index
 
@@ -270,12 +272,17 @@ def rebuild_timeframe_baseline_0919_from_bars(
     state = empty_state()
     transitions: list[dict] = []
     event_indices = structural_event_end_indices(bars)
+    final_selector_audit = None
 
     for end_index in event_indices:
         prefix = bars[:end_index + 1]
         turns = detect_turns(prefix)
         candidates = build_channel_candidates(prefix, turns.pivots)
-        large, mid, class_audit = select_large_mid(symbol, timeframe, candidates)
+        large, mid, class_audit = select_large_mid(
+            symbol, timeframe, candidates, include_trace=(end_index == event_indices[-1])
+        )
+        if end_index == event_indices[-1]:
+            final_selector_audit = class_audit
 
         for selected in (large, mid):
             if selected is None:
@@ -306,6 +313,7 @@ def rebuild_timeframe_baseline_0919_from_bars(
         'event_indices': event_indices,
         'transition_count': len(transitions),
         'transitions': transitions,
+        'final_selector_audit': final_selector_audit,
     }
 
 
