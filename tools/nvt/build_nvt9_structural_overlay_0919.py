@@ -144,19 +144,39 @@ def build_d1_continuation(bars, pivots) -> ContinuationCandidate | None:
     if not candidates:
         return None
 
-    # Prefer a still-pending broad support line when available: this is exactly
-    # the case the production "new-direction" gate hides until HL breakout.
+    # Prefer a still-pending support reference when available: this is the
+    # structure hidden by the production new-direction HL gate.
+    #
+    # Visual review rejected the old "longest duration first" policy because
+    # it can select an obsolete shallow line far below the active D1 support.
+    # A continuation-support line must be broad enough to be structural, but
+    # among broad unbroken candidates the tightest valid support at the cutoff
+    # is preferred. This selects the highest line still supporting closes.
     pending = [c for c in candidates if c.hl_break_time is None]
     pool = pending if pending else candidates
-    return max(
-        pool,
-        key=lambda c: (
-            c.duration_days,
+
+    broad = [c for c in pool if c.duration_days >= 120.0]
+    if broad:
+        pool = broad
+
+    cutoff_time = bars[-1].time
+    cutoff_close = float(bars[-1].close)
+
+    def support_rank(c: ContinuationCandidate):
+        projected = line_value(cutoff_time, c.anchor1.time, c.anchor1.price, c.slope)
+        support_gap = cutoff_close - projected
+        # Unbroken-close gating above means a small negative value may only be
+        # within tolerance. Clamp it so tolerance noise cannot win the rank.
+        effective_gap = max(0.0, support_gap)
+        return (
+            -effective_gap,
             c.tl_contacts,
+            c.duration_days,
             c.anchor2.time,
             -abs(c.slope),
-        ),
-    )
+        )
+
+    return max(pool, key=support_rank)
 
 
 @dataclass
@@ -347,7 +367,7 @@ def main() -> int:
             audit["d1_continuation"] = {
                 "status": "BUILT",
                 "object_family": "X0919-D1-CONT-01",
-                "reason_code": "D1_CONTINUATION_SUPPORT_REFERENCE_PRE_BREAK" if cand.hl_break_time is None else "D1_CONTINUATION_SUPPORT_ACTIVE",
+                "reason_code": "D1_CONTINUATION_SUPPORT_TIGHTEST_UNBROKEN_BROAD_PRE_BREAK" if cand.hl_break_time is None else "D1_CONTINUATION_SUPPORT_TIGHTEST_UNBROKEN_BROAD_ACTIVE",
                 "anchor1": {"time": cand.anchor1.time.isoformat(), "price": float(cand.anchor1.price)},
                 "anchor2": {"time": cand.anchor2.time.isoformat(), "price": float(cand.anchor2.price)},
                 "decision_hl": {
@@ -363,6 +383,10 @@ def main() -> int:
                 "visibility_semantics": "REFERENCE_BEFORE_HL_BREAK; ACTIVE_AFTER_HL_BREAK",
                 "new_direction_gate_bypassed": True,
                 "bypass_reason": "Same-direction continuation support is visible as reference and does not claim a new-direction regime switch.",
+                "selector_policy": "TIGHTEST_UNBROKEN_BROAD_SUPPORT",
+                "selector_min_broad_days": 120.0,
+                "rejected_policy": "LONGEST_DURATION_FIRST",
+                "rejected_policy_reason": "Visual audit showed the duration-first selector can choose an obsolete shallow D1 line below the active support structure.",
             }
 
     # ---- H1 parallel reaction zones + updated CH ----
