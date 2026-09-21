@@ -140,15 +140,125 @@ def _gentler(c: ChannelCandidate) -> float:
     return -fabs(c.slope_per_second)
 
 
-def select_large_mid(symbol: str, timeframe: str, candidates: list[ChannelCandidate]) -> tuple[SelectedStructure | None, SelectedStructure | None, dict]:
+def _pivot_key(p: Pivot) -> tuple:
+    return (p.kind, p.time, float(p.price))
+
+
+def _build_selector_trace_index(timeframe: str, candidates: list[ChannelCandidate]) -> tuple[dict, dict, list[dict], list[dict]]:
+    """Build deterministic audit-only Pivot/Candidate numbering.
+
+    The numbering is derived from the already-generated candidate set and never
+    participates in candidate generation, ranking, lifecycle, or rendering.
+    """
+    pivot_values: dict[tuple, Pivot] = {}
+    for c in candidates:
+        for p in (c.anchor1, c.anchor2, c.ch_anchor):
+            pivot_values[_pivot_key(p)] = p
+
+    pivot_ids: dict[tuple, str] = {}
+    pivot_rows: list[dict] = []
+    for kind in ("LOW", "HIGH"):
+        rows = sorted(
+            ((k, p) for k, p in pivot_values.items() if p.kind == kind),
+            key=lambda item: (item[1].time, float(item[1].price)),
+        )
+        kind_code = "L" if kind == "LOW" else "H"
+        for no, (key, p) in enumerate(rows, start=1):
+            audit_id = f"P-{timeframe}-{kind_code}-{no:03d}"
+            pivot_ids[key] = audit_id
+            pivot_rows.append({
+                "pivot_audit_id": audit_id,
+                "pivot_no": no,
+                "kind": p.kind,
+                "time": p.time.isoformat(),
+                "price": float(p.price),
+                "confirmed_by_time": p.confirmed_by_time.isoformat(),
+                "confirmation_threshold": float(p.retracement),
+                "reason_code": "P01_CONFIRMED_BY_RETRACEMENT_THRESHOLD",
+            })
+
+    ordered = sorted(
+        candidates,
+        key=lambda c: (
+            c.direction,
+            c.anchor1.time,
+            c.anchor2.time,
+            c.ch_anchor.time,
+            float(c.ch_offset),
+            float(c.zone_width),
+        ),
+    )
+    candidate_ids: dict[int, str] = {}
+    candidate_rows: list[dict] = []
+    seq = {"RISING": 0, "FALLING": 0}
+    for c in ordered:
+        seq[c.direction] += 1
+        d = "R" if c.direction == "RISING" else "F"
+        audit_id = f"C-{timeframe}-{d}-{seq[c.direction]:04d}"
+        candidate_ids[id(c)] = audit_id
+        candidate_rows.append({
+            "candidate_audit_id": audit_id,
+            "native_candidate_id": c.id_key,
+            "direction": c.direction,
+            "anchor1_pivot_id": pivot_ids[_pivot_key(c.anchor1)],
+            "anchor2_pivot_id": pivot_ids[_pivot_key(c.anchor2)],
+            "channel_anchor_pivot_id": pivot_ids[_pivot_key(c.ch_anchor)],
+            "turn_span": int(c.turn_span),
+            "tl_contacts": int(c.tl_contacts),
+            "ch_contacts": int(c.ch_contacts),
+            "unbroken_close": bool(c.unbroken_close),
+            "slope_per_second": float(c.slope_per_second),
+            "ch_offset": float(c.ch_offset),
+            "zone_width": float(c.zone_width),
+        })
+
+    return pivot_ids, candidate_ids, pivot_rows, candidate_rows
+
+
+def _large_rejection_reason(winner: ChannelCandidate, loser: ChannelCandidate) -> str:
+    if not loser.unbroken_close:
+        return "S06_FILTERED_BROKEN_CLOSE"
+    if loser.turn_span != winner.turn_span:
+        return "S03_LOWER_TURN_SPAN"
+    if loser.ch_contacts != winner.ch_contacts:
+        return "S05_FEWER_CH_CONTACTS"
+    if loser.tl_contacts != winner.tl_contacts:
+        return "S04_FEWER_TL_CONTACTS"
+    if fabs(loser.slope_per_second) != fabs(winner.slope_per_second):
+        return "S07_STEEPER_SLOPE_TIEBREAK"
+    return "S08_EQUAL_RANK_KEY_INPUT_ORDER"
+
+
+def _mid_rejection_reason(large_c: ChannelCandidate, winner: ChannelCandidate | None, loser: ChannelCandidate) -> str:
+    if loser.id_key == large_c.id_key:
+        return "M01_SAME_CANDIDATE_AS_LARGE"
+    if loser.anchor1.time < large_c.anchor1.time:
+        return "M02_OUTSIDE_LARGE_CONTEXT"
+    if loser.turn_span >= large_c.turn_span:
+        return "M03_NOT_SMALLER_THAN_LARGE"
+    if winner is None:
+        return "M00_NO_MID_WINNER"
+    if loser.anchor2.time != winner.anchor2.time:
+        return "M04_OLDER_ANCHOR2"
+    if loser.ch_contacts != winner.ch_contacts:
+        return "M05_FEWER_CH_CONTACTS"
+    if loser.tl_contacts != winner.tl_contacts:
+        return "M06_FEWER_TL_CONTACTS"
+    if fabs(loser.slope_per_second) != fabs(winner.slope_per_second):
+        return "M07_STEEPER_SLOPE_TIEBREAK"
+    return "M08_EQUAL_RANK_KEY_INPUT_ORDER"
+
+
+def select_large_mid(
+    symbol: str,
+    timeframe: str,
+    candidates: list[ChannelCandidate],
+    include_trace: bool = False,
+) -> tuple[SelectedStructure | None, SelectedStructure | None, dict]:
     """Provisional relative structure classifier and in-process TL selector.
 
-    No timeframe->Dow mapping and no weighted score is used.
-    Candidate generation already requires an N-structure decision-HL break.
-    LARGE_DOW: close-unbroken after anchor2, larger relative turn scope, then
-    CH/TL direct-contact evidence, then gentler slope as tie-break only.
-    MID_DOW: structurally smaller/recent candidate inside the active large
-    context; direction may differ.
+    Selection semantics are unchanged. include_trace only adds deterministic
+    audit metadata explaining the already-existing lexicographic selection.
     """
     audit = {
         'classifier_version': 'PROVISIONAL_RELATIVE_STRUCTURE_0.1',
@@ -156,14 +266,44 @@ def select_large_mid(symbol: str, timeframe: str, candidates: list[ChannelCandid
         'large_reason': None,
         'mid_reason': None,
     }
+    pivot_ids = candidate_ids = None
+    if include_trace:
+        pivot_ids, candidate_ids, pivot_rows, candidate_rows = _build_selector_trace_index(timeframe, candidates)
+        audit['selector_trace'] = {
+            'schema': 'nca-selector-trace/1.0',
+            'audit_id': 'ID10IQ200',
+            'audit_only': True,
+            'selection_semantics_changed': False,
+            'timeframe': timeframe,
+            'pivot_count': len(pivot_rows),
+            'candidate_count': len(candidate_rows),
+            'pivots': pivot_rows,
+            'candidate_catalog': candidate_rows,
+            'large': None,
+            'mid': None,
+        }
+
     if not candidates:
         return None, None, audit
 
     large_pool = [c for c in candidates if c.unbroken_close]
     if not large_pool:
         audit['large_reason'] = 'NO_UNBROKEN_CANDIDATE'
+        if include_trace:
+            audit['selector_trace']['large'] = {
+                'selected_candidate_audit_id': None,
+                'priority_order': ['unbroken_close', 'turn_span', 'ch_contacts', 'tl_contacts', 'gentler_slope'],
+                'rejections': [
+                    {
+                        'candidate_audit_id': candidate_ids[id(c)],
+                        'reason_code': 'S06_FILTERED_BROKEN_CLOSE',
+                    }
+                    for c in candidates
+                ],
+            }
         return None, None, audit
 
+    # DO NOT change this key: it is the frozen 09/19 selection semantics.
     large_c = max(large_pool, key=lambda c: (c.turn_span, c.ch_contacts, c.tl_contacts, _gentler(c)))
     large = SelectedStructure(symbol, timeframe, 'LARGE_DOW', large_c)
     audit['large_reason'] = {
@@ -181,7 +321,9 @@ def select_large_mid(symbol: str, timeframe: str, candidates: list[ChannelCandid
         and c.turn_span < large_c.turn_span
     ]
     mid = None
+    mid_c = None
     if mid_pool:
+        # DO NOT change this key: it is the frozen 09/19 selection semantics.
         mid_c = max(mid_pool, key=lambda c: (c.anchor2.time, c.ch_contacts, c.tl_contacts, _gentler(c)))
         mid = SelectedStructure(symbol, timeframe, 'MID_DOW', mid_c)
         audit['mid_reason'] = {
@@ -193,6 +335,55 @@ def select_large_mid(symbol: str, timeframe: str, candidates: list[ChannelCandid
         }
     else:
         audit['mid_reason'] = 'NO_SMALLER_RECENT_CANDIDATE'
+
+    if include_trace:
+        trace = audit['selector_trace']
+        trace['large'] = {
+            'selector_id': f'S-{timeframe}-LARGE',
+            'selected_candidate_audit_id': candidate_ids[id(large_c)],
+            'selected_native_candidate_id': large_c.id_key,
+            'anchor1_pivot_id': pivot_ids[_pivot_key(large_c.anchor1)],
+            'anchor2_pivot_id': pivot_ids[_pivot_key(large_c.anchor2)],
+            'priority_order': ['unbroken_close', 'turn_span', 'ch_contacts', 'tl_contacts', 'gentler_slope'],
+            'selected_metrics': {
+                'turn_span': int(large_c.turn_span),
+                'ch_contacts': int(large_c.ch_contacts),
+                'tl_contacts': int(large_c.tl_contacts),
+                'unbroken_close': bool(large_c.unbroken_close),
+                'absolute_slope_per_second': float(fabs(large_c.slope_per_second)),
+            },
+            'rejections': [
+                {
+                    'candidate_audit_id': candidate_ids[id(c)],
+                    'native_candidate_id': c.id_key,
+                    'reason_code': _large_rejection_reason(large_c, c),
+                }
+                for c in candidates if c is not large_c
+            ],
+        }
+        trace['mid'] = {
+            'selector_id': f'S-{timeframe}-MID',
+            'selected_candidate_audit_id': candidate_ids[id(mid_c)] if mid_c is not None else None,
+            'selected_native_candidate_id': mid_c.id_key if mid_c is not None else None,
+            'anchor1_pivot_id': pivot_ids[_pivot_key(mid_c.anchor1)] if mid_c is not None else None,
+            'anchor2_pivot_id': pivot_ids[_pivot_key(mid_c.anchor2)] if mid_c is not None else None,
+            'priority_order': ['inside_large_context', 'smaller_turn_span', 'anchor2_recency', 'ch_contacts', 'tl_contacts', 'gentler_slope'],
+            'selected_metrics': ({
+                'anchor2_time': mid_c.anchor2.time.isoformat(),
+                'turn_span': int(mid_c.turn_span),
+                'ch_contacts': int(mid_c.ch_contacts),
+                'tl_contacts': int(mid_c.tl_contacts),
+                'absolute_slope_per_second': float(fabs(mid_c.slope_per_second)),
+            } if mid_c is not None else None),
+            'rejections': [
+                {
+                    'candidate_audit_id': candidate_ids[id(c)],
+                    'native_candidate_id': c.id_key,
+                    'reason_code': _mid_rejection_reason(large_c, mid_c, c),
+                }
+                for c in candidates if c is not mid_c
+            ],
+        }
 
     return large, mid, audit
 
