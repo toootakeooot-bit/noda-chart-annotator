@@ -50,6 +50,12 @@ def main() -> int:
     payload = load_json(manifest_path)
     diagnostic = load_json(diagnostic_path)
     selected_refs = set(diagnostic.get("production_600_display_selected_refs") or [])
+    suppressed_refs = {
+        line["reference_id"]
+        for line in payload.get("lines", [])
+        if (line.get("display_override") or {}).get("status") == "SUPPRESSED"
+    }
+    selected_refs = selected_refs - suppressed_refs
     result_by_ref = {
         row["reference_id"]: row for row in diagnostic.get("results", [])
     }
@@ -184,7 +190,9 @@ def main() -> int:
         "manifest": str(manifest_path),
         "diagnostic": str(diagnostic_path),
         "selected_reference_ids": sorted(selected_refs),
+        "suppressed_reference_ids": sorted(suppressed_refs),
         "reference_count": len(index_rows),
+        "suppressed_reference_ids": sorted(suppressed_refs),
         "draw_row_count": len(rows),
         "hl_recovered_count": len(hl_recovered),
         "hl_recovered_reference_ids": hl_recovered,
