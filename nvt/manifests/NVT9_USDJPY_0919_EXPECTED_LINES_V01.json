@@ -1,0 +1,130 @@
+{
+  "schema": "nvt9-0919-expected-lines/1.0",
+  "audit_id": "ID10IQ200",
+  "symbol": "USDJPY#",
+  "cutoff_exclusive": "2026-09-19T00:00:00",
+  "source": "NVT9_USDJPY_CROSS_TF_0919.json",
+  "required_exact_match": true,
+  "expected_current_lines": {
+    "D1": [
+      {
+        "line_id": "NCA_USDJPY#_D1_LARGE_DOW_G036",
+        "structure_level": "LARGE_DOW",
+        "generation": 36,
+        "status": "ACTIVE",
+        "direction": "RISING",
+        "anchor1_time": "2024-09-16T00:00:00",
+        "anchor1_price": 139.574,
+        "anchor2_time": "2026-09-08T00:00:00",
+        "anchor2_price": 152.883,
+        "ch_offset": 1.9689335180055423,
+        "zone_width": 1.0269999999999868,
+        "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+      },
+      {
+        "line_id": "NCA_USDJPY#_D1_MID_DOW_G040",
+        "structure_level": "MID_DOW",
+        "generation": 40,
+        "status": "ACTIVE",
+        "direction": "RISING",
+        "anchor1_time": "2025-04-22T00:00:00",
+        "anchor1_price": 139.88,
+        "anchor2_time": "2026-09-08T00:00:00",
+        "anchor2_price": 152.883,
+        "ch_offset": 5.744448412698404,
+        "zone_width": 0.8940000000000055,
+        "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+      }
+    ],
+    "H4": [
+      {
+        "line_id": "NCA_USDJPY#_H4_LARGE_DOW_G004",
+        "structure_level": "LARGE_DOW",
+        "generation": 4,
+        "status": "ACTIVE",
+        "direction": "FALLING",
+        "anchor1_time": "2026-07-23T16:00:00",
+        "anchor1_price": 163.982,
+        "anchor2_time": "2026-09-02T04:00:00",
+        "anchor2_price": 160.387,
+        "ch_offset": -5.400641975308645,
+        "zone_width": 0.2179999999999893,
+        "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+      },
+      {
+        "line_id": "NCA_USDJPY#_H4_MID_DOW_G003",
+        "structure_level": "MID_DOW",
+        "generation": 3,
+        "status": "ACTIVE",
+        "direction": "FALLING",
+        "anchor1_time": "2026-07-30T16:00:00",
+        "anchor1_price": 162.954,
+        "anchor2_time": "2026-09-02T04:00:00",
+        "anchor2_price": 160.387,
+        "ch_offset": -4.994,
+        "zone_width": 0.0030000000000143245,
+        "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+      }
+    ],
+    "H1": [
+      {
+        "line_id": "NCA_USDJPY#_H1_LARGE_DOW_G013",
+        "structure_level": "LARGE_DOW",
+        "generation": 13,
+        "status": "ACTIVE",
+        "direction": "FALLING",
+        "anchor1_time": "2026-08-18T09:00:00",
+        "anchor1_price": 159.774,
+        "anchor2_time": "2026-09-02T16:00:00",
+        "anchor2_price": 159.611,
+        "ch_offset": -0.033874659400510154,
+        "zone_width": 0.060000000000002274,
+        "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+      },
+      {
+        "line_id": "NCA_USDJPY#_H1_MID_DOW_G022",
+        "structure_level": "MID_DOW",
+        "generation": 22,
+        "status": "ACTIVE",
+        "direction": "FALLING",
+        "anchor1_time": "2026-08-28T13:00:00",
+        "anchor1_price": 159.689,
+        "anchor2_time": "2026-09-02T16:00:00",
+        "anchor2_price": 159.611,
+        "ch_offset": -0.04280487804876998,
+        "zone_width": 0.007000000000005002,
+        "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+      }
+    ],
+    "M15": [
+      {
+        "line_id": "NCA_USDJPY#_M15_LARGE_DOW_G012",
+        "structure_level": "LARGE_DOW",
+        "generation": 12,
+        "status": "ACTIVE",
+        "direction": "RISING",
+        "anchor1_time": "2026-09-10T18:00:00",
+        "anchor1_price": 153.846,
+        "anchor2_time": "2026-09-17T15:15:00",
+        "anchor2_price": 155.324,
+        "ch_offset": 0.30155370650530244,
+        "zone_width": 0.03700000000000614,
+        "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+      },
+      {
+        "line_id": "NCA_USDJPY#_M15_MID_DOW_G011",
+        "structure_level": "MID_DOW",
+        "generation": 11,
+        "status": "ACTIVE",
+        "direction": "RISING",
+        "anchor1_time": "2026-09-14T00:15:00",
+        "anchor1_price": 153.32,
+        "anchor2_time": "2026-09-17T15:15:00",
+        "anchor2_price": 155.324,
+        "ch_offset": 1.2949310344827722,
+        "zone_width": 0,
+        "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+      }
+    ]
+  }
+}
