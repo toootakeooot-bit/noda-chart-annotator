@@ -39,18 +39,31 @@ def points(line: dict, role: str) -> tuple[float, float]:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Build frozen 09/19 reference drawing with stable numbering.")
     ap.add_argument("--manifest", required=True)
+    ap.add_argument("--diagnostic", required=True)
     ap.add_argument("--output-dir", required=True)
     args = ap.parse_args()
 
     manifest_path = Path(args.manifest)
+    diagnostic_path = Path(args.diagnostic)
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
     payload = load_json(manifest_path)
+    diagnostic = load_json(diagnostic_path)
+    selected_refs = set(diagnostic.get("production_600_display_selected_refs") or [])
+    result_by_ref = {
+        row["reference_id"]: row for row in diagnostic.get("results", [])
+    }
+    if len(selected_refs) != 4:
+        raise ValueError(
+            f"expected exactly 4 selected source families from 09/19 600-bar display policy, got {sorted(selected_refs)}"
+        )
 
     rows = []
     index_rows = []
     for line in payload["lines"]:
         rid = line["reference_id"]
+        if rid not in selected_refs:
+            continue
         tf = line["timeframe"]
         level = line["structure_level"]
         level_code = "L" if level == "LARGE_DOW" else "M"
@@ -72,6 +85,37 @@ def main() -> int:
                 line["status"],
                 "RAY_RIGHT",
             ])
+        diag = result_by_ref.get(rid) or {}
+        p600 = diag.get("production_600_replay") or {}
+        current = p600.get("current") or {}
+        selector_decision = p600.get("selector_trace_decision") or {}
+        selector_reason = p600.get("selector_reason")
+        display_detail = p600.get("display_reason_detail") or {}
+
+        hl_id = f"{rid}-HL"
+        hl_kind = current.get("decision_hl_kind")
+        hl_time = current.get("decision_hl_time")
+        hl_price = current.get("decision_hl_price")
+        last_bar = (diagnostic.get("input_coverage", {}).get(tf) or {}).get("last_replay_bar")
+        if not hl_kind or not hl_time or hl_price is None or not last_bar:
+            raise ValueError(f"{rid}: selected 09/19 family missing decision-HL evidence in 600-bar replay")
+
+        rows.append([
+            hl_id,
+            payload["symbol"],
+            tf,
+            f"HL_{hl_kind}",
+            "HL",
+            mt4_time(hl_time),
+            f"{float(hl_price):.8f}",
+            mt4_time(last_bar),
+            f"{float(hl_price):.8f}",
+            "REFERENCE",
+            str(line["generation"]),
+            "ACTIVE",
+            "RAY_RIGHT",
+        ])
+
         index_rows.append({
             "reference_id": rid,
             "reference_no": line["reference_no"],
@@ -87,6 +131,21 @@ def main() -> int:
             "anchor2_price": line["anchor2_price"],
             "ch_offset": line["ch_offset"],
             "zone_width": line["zone_width"],
+            "hl_id": hl_id,
+            "hl_kind": hl_kind,
+            "hl_time": hl_time,
+            "hl_price": float(hl_price),
+            "hl_break_time": current.get("hl_break_time"),
+            "hl_break_mode": current.get("hl_break_mode"),
+            "selector_candidate_audit_id": selector_decision.get("selected_candidate_audit_id"),
+            "selector_native_candidate_id": selector_decision.get("selected_native_candidate_id"),
+            "selector_anchor1_pivot_id": selector_decision.get("anchor1_pivot_id"),
+            "selector_anchor2_pivot_id": selector_decision.get("anchor2_pivot_id"),
+            "selector_priority_order": selector_decision.get("priority_order"),
+            "selector_selected_metrics": selector_decision.get("selected_metrics"),
+            "selector_reason": selector_reason,
+            "display_reason": p600.get("display_reason"),
+            "display_reason_detail": display_detail,
         })
 
     header = [
@@ -103,8 +162,10 @@ def main() -> int:
     index_json.write_text(json.dumps({
         "schema": "nvt9-0919-reference-index/1.0",
         "audit_id": "ID10IQ200",
-        "status": "PASS_REFERENCE_REBUILT_FROM_FROZEN_MANIFEST",
+        "status": "PASS_0919_SELECTED_REFERENCE_WITH_HL_AND_REASON_LINKS",
         "manifest": str(manifest_path),
+        "diagnostic": str(diagnostic_path),
+        "selected_reference_ids": sorted(selected_refs),
         "reference_count": len(index_rows),
         "draw_row_count": len(rows),
         "lines": index_rows,
@@ -122,13 +183,19 @@ def main() -> int:
             f"  A1={x['anchor1_id']} {x['anchor1_time']} {x['anchor1_price']}",
             f"  A2={x['anchor2_id']} {x['anchor2_time']} {x['anchor2_price']}",
             f"  CH offset={x['ch_offset']}  zone={x['zone_width']}",
+            f"  HL={x['hl_id']} {x['hl_kind']} {x['hl_time']} {x['hl_price']} break={x['hl_break_time']}",
+            f"  Candidate={x.get('selector_candidate_audit_id')} native={x.get('selector_native_candidate_id')}",
+            f"  Pivot IDs={x.get('selector_anchor1_pivot_id')} -> {x.get('selector_anchor2_pivot_id')}",
+            f"  Selector priority={x.get('selector_priority_order')}",
+            f"  Selector reason={x.get('selector_reason')}",
+            f"  Display reason={x.get('display_reason')} {x.get('display_reason_detail')}",
             "",
         ]
     txt_path = outdir / "NVT9_0919_REFERENCE_INDEX.txt"
     txt_path.write_text("\n".join(txt), encoding="utf-8")
 
     print(json.dumps({
-        "status": "PASS_REFERENCE_REBUILT_FROM_FROZEN_MANIFEST",
+        "status": "PASS_0919_SELECTED_REFERENCE_WITH_HL_AND_REASON_LINKS",
         "reference_count": len(index_rows),
         "draw_row_count": len(rows),
         "csv": str(csv_path),
