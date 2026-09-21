@@ -87,13 +87,22 @@ string RefIdFromObject(string objectId)
    return objectId;
 }
 
+bool IsNVT9AuditOwnedObject(string name)
+{
+   if(StringFind(name,PREFIX,0)==0) return true;
+   if(StringFind(name,"NVT9_TFMAP__",0)==0) return true;
+   if(StringFind(name,"NVT9_PREVIEW__",0)==0) return true;
+   if(StringFind(name,"NVT9_AB_CUTOFF__",0)==0) return true;
+   return false;
+}
+
 void DeleteOwned(long chartId)
 {
    int total=ObjectsTotal(chartId,-1,-1);
    for(int i=total-1;i>=0;i--)
    {
       string n=ObjectName(chartId,i,-1,-1);
-      if(StringFind(n,PREFIX,0)==0) ObjectDelete(chartId,n);
+      if(IsNVT9AuditOwnedObject(n)) ObjectDelete(chartId,n);
    }
 }
 
