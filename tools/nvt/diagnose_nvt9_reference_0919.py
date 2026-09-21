@@ -153,6 +153,25 @@ def replay_stage_snapshot(bars, symbol: str, tf: str, refs: list[dict]) -> dict:
         geometry_candidates = [c for c in anchor_candidates if candidate_geometry_match(c, ref)]
         slot_key = f"{symbol}|{tf}|{ref['structure_level']}"
         current = (state.get("slots", {}).get(slot_key) or {}).get("current")
+        exact_candidate = geometry_candidates[0] if geometry_candidates else (anchor_candidates[0] if anchor_candidates else None)
+        reference_candidate = None
+        if exact_candidate is not None:
+            reference_candidate = {
+                "candidate_id": exact_candidate.id_key,
+                "direction": exact_candidate.direction,
+                "turn_span": int(exact_candidate.turn_span),
+                "tl_contacts": int(exact_candidate.tl_contacts),
+                "ch_contacts": int(exact_candidate.ch_contacts),
+                "unbroken_close": bool(exact_candidate.unbroken_close),
+                "ch_offset": float(exact_candidate.ch_offset),
+                "zone_width": float(exact_candidate.zone_width),
+                "decision_hl_kind": exact_candidate.decision_hl.kind if exact_candidate.decision_hl else None,
+                "decision_hl_time": exact_candidate.decision_hl.time.isoformat() if exact_candidate.decision_hl else None,
+                "decision_hl_price": float(exact_candidate.decision_hl.price) if exact_candidate.decision_hl else None,
+                "hl_break_time": exact_candidate.hl_break_time.isoformat() if exact_candidate.hl_break_time else None,
+                "hl_break_mode": exact_candidate.hl_break_mode,
+                "exact_reference_geometry": candidate_geometry_match(exact_candidate, ref),
+            }
         out[ref["reference_id"]] = {
             "bar_count": len(bars),
             "first_bar": bars[0].time.isoformat() if bars else None,
@@ -162,6 +181,7 @@ def replay_stage_snapshot(bars, symbol: str, tf: str, refs: list[dict]) -> dict:
             "anchor2_present": bool(a2),
             "anchor_pair_candidate_count": len(anchor_candidates),
             "exact_geometry_candidate_count": len(geometry_candidates),
+            "reference_candidate": reference_candidate,
             "selected_event_count": len(hits.get(ref["reference_id"], [])),
             "selected_events": hits.get(ref["reference_id"], [])[-10:],
             "current_matches_reference": state_geometry_match(current, ref),
