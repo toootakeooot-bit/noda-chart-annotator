@@ -242,7 +242,7 @@ int RenderOverlayOnChart(long chartId,string symbol,string tf)
       {
          c=H1CHColor;
          style=STYLE_SOLID;
-         width=2;
+         width=3;
       }
 
       ObjectSetInteger(chartId,name,OBJPROP_COLOR,c);
@@ -250,13 +250,18 @@ int RenderOverlayOnChart(long chartId,string symbol,string tf)
       ObjectSetInteger(chartId,name,OBJPROP_WIDTH,width);
       rendered++;
 
-      if(role=="CONT_TL" || role=="CONT_HL" || role=="UPDATED_CH")
+      if(role=="CONT_TL" || role=="CONT_HL" || role=="UPDATED_CH" || role=="REACTION_ZONE_HIGH")
       {
          string lname=XPREFIX+"LBL_"+objectId;
          if(ObjectFind(chartId,lname)>=0) ObjectDelete(chartId,lname);
          if(ObjectCreate(chartId,lname,OBJ_TEXT,0,t2,p2))
          {
-            ObjectSetText(lname,objectId,LabelFontSize,"Arial",c);
+            string labelText=objectId;
+            if(role=="UPDATED_CH") labelText=objectId+" [UPDATED CH]";
+            else if(role=="CONT_TL") labelText=objectId+" [D1 CONT TL]";
+            else if(role=="CONT_HL") labelText=objectId+" [DECISION HL]";
+            else if(role=="REACTION_ZONE_HIGH") labelText=objectId+" [ZONE]";
+            ObjectSetText(lname,labelText,LabelFontSize,"Arial",c);
             ObjectSetInteger(chartId,lname,OBJPROP_SELECTABLE,false);
             ObjectSetInteger(chartId,lname,OBJPROP_BACK,false);
          }
