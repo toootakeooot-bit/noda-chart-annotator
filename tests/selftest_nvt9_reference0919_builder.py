@@ -75,7 +75,7 @@ def main() -> None:
         line(2, "R0919-02", "D1", "MID_DOW", "RISING", 140.0),
         line(3, "R0919-03", "H4", "LARGE_DOW", "FALLING", 164.0),
         line(6, "R0919-06", "H1", "MID_DOW", "FALLING", 160.0),
-        line(8, "R0919-08", "M15", "MID_DOW", "RISING", 153.0),
+        {**line(8, "R0919-08", "M15", "MID_DOW", "RISING", 153.0), "zone_width": 0.0},
     ]
     diag_results = [result(x["reference_id"], x["timeframe"], x["structure_level"], x["direction"]) for x in lines]
 
@@ -106,7 +106,7 @@ def main() -> None:
         index = json.loads((out / "NVT9_0919_REFERENCE_INDEX.json").read_text(encoding="utf-8"))
         assert index["selected_reference_ids"] == sorted(selected)
         assert index["reference_count"] == 4
-        assert index["draw_row_count"] == 20  # 4 families x (TL,CH,2 edges,HL)
+        assert index["draw_row_count"] == 18  # R0919-08 zero-width suppresses its two duplicate zone edges
 
         csv_text = (out / "NVT9_0919_REFERENCE_DRAW.csv").read_text(encoding="utf-8")
         for rid in selected:
@@ -132,7 +132,7 @@ def main() -> None:
         assert pending_index["reference_count"] == 4
         assert pending_index["hl_pending_count"] == 1
         assert pending_index["hl_pending_reference_ids"] == ["R0919-02"]
-        assert pending_index["draw_row_count"] == 19
+        assert pending_index["draw_row_count"] == 17
 
         print("NVT9_REFERENCE0919_BUILDER_SELFTEST_PASS")
 
