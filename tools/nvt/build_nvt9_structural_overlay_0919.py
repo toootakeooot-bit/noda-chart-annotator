@@ -269,13 +269,6 @@ def cluster_reaction_zones(bars, *, base_t1, base_p1, base_slope, max_zones: int
     return selected
 
 
-def updated_h1_channel(bars, pivots, *, base_t1, base_p1, base_t2, base_ch_offset) -> dict | None:
-    slope = slope_per_second(base_t1, base_p1, base_t2, line_value(base_t2, base_t1, base_p1, slope_per_second(base_t1, base_p1, base_t2, base_p1 + 1.0)))
-    # Correct slope is supplied by anchors below; this placeholder is replaced
-    # immediately by caller-provided geometry through explicit recomputation.
-    return None
-
-
 def choose_updated_ch(pivots, *, base_t1, base_p1, base_t2, base_p2, base_ch_offset, tolerance) -> dict | None:
     slope = slope_per_second(base_t1, base_p1, base_t2, base_p2)
     highs = [p for p in pivots if p.kind == "HIGH" and p.time > base_t2]
