@@ -34,22 +34,24 @@ if ($Missing.Count -gt 0) {
 New-Item -ItemType Directory -Force -Path $RefOut | Out-Null
 New-Item -ItemType Directory -Force -Path $DiagOut | Out-Null
 
-Write-Host '[1/4] Restore frozen 09/19 eight-line reference and fixed numbering'
-& $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_0919_reference.py') --manifest $Manifest --output-dir $RefOut
-if ($LASTEXITCODE -ne 0) { Write-Host 'REFERENCE BUILD FAILED'; exit $LASTEXITCODE }
-
-Write-Host ''
-Write-Host '[2/4] Rebuild current 09/19 OLD replay with selector audit'
+Write-Host '[1/4] Rebuild current 09/19 OLD replay with selector audit'
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'run_nvt9_ab_0912_0919.ps1') -Python $Python -Symbol $Symbol
 if ($LASTEXITCODE -ne 0) { Write-Host 'CURRENT 09/19 REPLAY FAILED'; exit $LASTEXITCODE }
 if (!(Test-Path $PreviewAudit)) { Write-Host ("STOP: preview audit not found: {0}" -f $PreviewAudit); exit 3 }
 
 Write-Host ''
-Write-Host '[3/4] Compare R0919-01..08 through A/B/C/D/E stages'
+Write-Host '[2/4] Compare R0919-01..08 through 600-bar and deep A/B/C/D/E stages'
 & $Python (Join-Path $RepoRoot 'tools\nvt\diagnose_nvt9_reference_0919.py') --input-dir $InputDir --reference $Manifest --output-dir $DiagOut --preview-audit $PreviewAudit --symbol $Symbol
 if ($LASTEXITCODE -ne 0) { Write-Host 'DIAGNOSTIC FAILED'; exit $LASTEXITCODE }
 
 $DiagPath = Join-Path $DiagOut 'NVT9_0919_REFERENCE_DIAGNOSTIC.json'
+if (!(Test-Path $DiagPath)) { Write-Host ("STOP: diagnostic missing: {0}" -f $DiagPath); exit 4 }
+
+Write-Host ''
+Write-Host '[3/4] Build selected 09/19 reference families + decision HL + reason links'
+& $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_0919_reference.py') --manifest $Manifest --diagnostic $DiagPath --output-dir $RefOut
+if ($LASTEXITCODE -ne 0) { Write-Host 'REFERENCE BUILD FAILED'; exit $LASTEXITCODE }
+
 $Diag = Get-Content -Raw -Encoding UTF8 $DiagPath | ConvertFrom-Json
 
 Write-Host ''
@@ -58,6 +60,17 @@ Write-Host '------------------------'
 foreach ($r in $Diag.results) {
   Write-Host ("{0}  {1,-3} {2,-9} -> {3}" -f $r.reference_id,$r.timeframe,$r.structure_level,$r.first_divergence_stage)
   Write-Host ("    {0}" -f $r.reason)
+}
+
+Write-Host ''
+Write-Host '09/19 DISPLAY-SELECTION SUMMARY'
+Write-Host '-------------------------------'
+Write-Host ("Selected reference IDs: {0}" -f (($Diag.production_600_display_selected_refs) -join ', '))
+foreach ($r in $Diag.results) {
+  $p = $r.production_600_replay
+  if ($null -ne $p -and $p.display_selected -eq $true) {
+    Write-Host ("{0}: selector={1} display={2}" -f $r.reference_id,$p.selector_reason,$p.display_reason)
+  }
 }
 
 Write-Host ''
@@ -79,7 +92,8 @@ Write-Host ''
 Write-Host 'READY - 09/19 FROZEN REFERENCE RESTORED'
 Write-Host '---------------------------------------'
 Write-Host 'MT4 script: NCA_NVT9_Reference0919_View'
-Write-Host 'Reference IDs: R0919-01 ... R0919-08'
+Write-Host 'Reference IDs: machine-selected subset of R0919-01 ... R0919-08'
+Write-Host 'Each selected reference now includes its numbered Decision HL and selector/display reason links.'
 Write-Host ("Reference index: {0}" -f (Join-Path $RefOut 'NVT9_0919_REFERENCE_INDEX.txt'))
 Write-Host ("Diagnostic:      {0}" -f (Join-Path $DiagOut 'NVT9_0919_REFERENCE_DIAGNOSTIC.txt'))
 Write-Host ''
