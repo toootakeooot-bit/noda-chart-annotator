@@ -113,6 +113,27 @@ def main() -> None:
             assert f"{rid}-HL" in csv_text
             assert rid in csv_text
 
+        # Missing historical HL evidence must not block TL/CH restoration.
+        pending_diag = json.loads(diagnostic.read_text(encoding="utf-8"))
+        pending_diag["results"][0]["production_600_replay"]["reference_candidate"]["decision_hl_kind"] = None
+        pending_diag["results"][0]["production_600_replay"]["reference_candidate"]["decision_hl_time"] = None
+        pending_diag["results"][0]["production_600_replay"]["reference_candidate"]["decision_hl_price"] = None
+        pending_path = td / "diagnostic_pending.json"
+        pending_out = td / "out_pending"
+        pending_path.write_text(json.dumps(pending_diag), encoding="utf-8")
+
+        proc2 = subprocess.run(
+            [sys.executable, str(SCRIPT), "--manifest", str(manifest), "--diagnostic", str(pending_path), "--output-dir", str(pending_out)],
+            text=True,
+            capture_output=True,
+        )
+        assert proc2.returncode == 0, proc2.stdout + proc2.stderr
+        pending_index = json.loads((pending_out / "NVT9_0919_REFERENCE_INDEX.json").read_text(encoding="utf-8"))
+        assert pending_index["reference_count"] == 4
+        assert pending_index["hl_pending_count"] == 1
+        assert pending_index["hl_pending_reference_ids"] == ["R0919-02"]
+        assert pending_index["draw_row_count"] == 19
+
         print("NVT9_REFERENCE0919_BUILDER_SELFTEST_PASS")
 
 
