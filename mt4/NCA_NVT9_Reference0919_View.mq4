@@ -63,6 +63,15 @@ bool ReadRow(int h,
    return true;
 }
 
+bool SourceVisibleOnDestination(string sourceTf, string destTf)
+{
+   if(sourceTf == destTf) return true;
+   if(sourceTf == "H4" && destTf == "D1") return true;
+   if(sourceTf == "H1" && destTf == "H4") return true;
+   if(sourceTf == "M15" && destTf == "H1") return true;
+   return false;
+}
+
 void ColorsForTF(string tf, color &tl, color &ch)
 {
    tl=D1TLColor; ch=D1CHColor;
@@ -99,7 +108,7 @@ int RenderOnChart(long chartId,string symbol,string tf)
    {
       string objectId,rowSymbol,rowTf,structure,role,t1s,p1s,t2s,p2s,genRole,generation,status,extent;
       if(!ReadRow(h,objectId,rowSymbol,rowTf,structure,role,t1s,p1s,t2s,p2s,genRole,generation,status,extent)) break;
-      if(rowSymbol!=symbol || rowTf!=tf) continue;
+      if(rowSymbol!=symbol || !SourceVisibleOnDestination(rowTf,tf)) continue;
 
       datetime t1=StringToTime(t1s), t2=StringToTime(t2s);
       double p1=StrToDouble(p1s), p2=StrToDouble(p2s);
@@ -113,7 +122,7 @@ int RenderOnChart(long chartId,string symbol,string tf)
       ObjectSetInteger(chartId,name,OBJPROP_SELECTABLE,false);
 
       color tlColor,chColor;
-      ColorsForTF(tf,tlColor,chColor);
+      ColorsForTF(rowTf,tlColor,chColor);
       color c=tlColor;
       int style=STYLE_SOLID;
       int width=(structure=="LARGE_DOW") ? LargeWidth : MidWidth;
