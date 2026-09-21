@@ -87,15 +87,21 @@ def main() -> None:
             assert max(a["low_offset"], b["low_offset"]) > min(a["high_offset"], b["high_offset"])
 
     # H1-native continuation must be constructible independently from any M15 reference.
-    h1_native = build_h1_native_continuation(h1, [
+    # Use a >2-day structure, matching the intended Sep14 -> Sep17 class of H1 swing.
+    h1_native_bars = []
+    for i in range(96):
+        t = start + timedelta(hours=i)
+        base = 154.9 + i * 0.012
+        h1_native_bars.append(Bar(t, base, base + 0.25, base - 0.15, base + 0.08))
+    h1_native = build_h1_native_continuation(h1_native_bars, [
         Pivot("LOW", 0, start, 154.8, 1, start + timedelta(hours=1), 0.38),
-        Pivot("HIGH", 8, start + timedelta(hours=8), 156.2, 9, start + timedelta(hours=9), 0.38),
-        Pivot("LOW", 18, start + timedelta(hours=18), 155.2, 19, start + timedelta(hours=19), 0.38),
+        Pivot("HIGH", 36, start + timedelta(hours=36), 156.5, 37, start + timedelta(hours=37), 0.38),
+        Pivot("LOW", 72, start + timedelta(hours=72), 155.7, 73, start + timedelta(hours=73), 0.38),
     ])
     assert h1_native is not None
     assert h1_native.anchor1.time == start
-    assert h1_native.anchor2.time == start + timedelta(hours=18)
-    assert h1_native.decision_hl.price == 156.2
+    assert h1_native.anchor2.time == start + timedelta(hours=72)
+    assert h1_native.decision_hl.price == 156.5
 
     # Updated CH requires a confirmed HIGH outside the existing CH by tolerance.
     base_t1 = start
