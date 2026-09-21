@@ -28,7 +28,7 @@ enum NVT9_AB_VARIANT
 input NVT9_AB_CASE HistoryCase = CASE_20260919;
 input NVT9_AB_VARIANT Variant = VARIANT_OLD;
 input bool ApplyToAllOpenTargetCharts = true;
-input bool AuditDeleteAllChartObjects = true;
+input bool AuditDeleteAllChartObjects = false;
 
 input color D1TLColor = clrYellow;
 input color D1CHColor = clrOrange;
@@ -145,6 +145,23 @@ int DeleteAllChartObjects(long chartId)
    }
    return deleted;
 }
+
+int DeleteAuditOwnedObjects(long chartId)
+{
+   int deleted = 0;
+   int total = ObjectsTotal(chartId, -1, -1);
+   for(int i=total-1; i>=0; i--)
+   {
+      string n = ObjectName(chartId, i, -1, -1);
+      if(n == "") continue;
+      if(StringFind(n, PREFIX, 0) == 0 || StringFind(n, "NVT9_AB_CUTOFF__", 0) == 0)
+      {
+         if(ObjectDelete(chartId, n)) deleted++;
+      }
+   }
+   return deleted;
+}
+
 
 
 bool DrawCaseMarker(long chartId, datetime cutoff)
@@ -295,6 +312,7 @@ bool ApplyHistoryToChart(long chartId, string symbol, string path, datetime cuto
 
    string tf = TFNameFromPeriod(period);
    if(AuditDeleteAllChartObjects) DeleteAllChartObjects(chartId);
+   else DeleteAuditOwnedObjects(chartId);
 
    int rendered = RenderRowsOnChart(path, chartId, symbol, tf);
    if(rendered <= 0)
