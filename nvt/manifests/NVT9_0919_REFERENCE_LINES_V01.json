@@ -113,7 +113,16 @@
       "anchor2_price": 159.611,
       "ch_offset": -0.04280487804876998,
       "zone_width": 0.007000000000005002,
-      "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+      "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1",
+      "display_override": {
+        "status": "SUPPRESSED",
+        "reason_code": "USER_CONFIRMED_UNNECESSARY_0919_VISUAL",
+        "reason": "H1 MID_DOW FALLING family is not required in the approved 09/19 visual reference. Suppress on source H1 and all Plan-B mapped destinations, including H4.",
+        "applies_to_source_tf": true,
+        "applies_to_mapped_destinations": true,
+        "audit_id": "ID10IQ200",
+        "confirmed_date": "2026-09-21"
+      }
     },
     {
       "reference_no": 7,
