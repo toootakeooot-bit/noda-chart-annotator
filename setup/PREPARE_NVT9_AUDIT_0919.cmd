@@ -9,11 +9,11 @@ echo Variant: OLD - frozen 09/19 baseline
 echo Audit:   ID10IQ200
 echo.
 
-echo [1/2] Rebuild historical A/B package and enforce exact 09/19 baseline gate
+echo [1/2] Rebuild historical A/B package and enforce selector-trace invariance gate
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0run_nvt9_ab_0912_0919.ps1"
 if errorlevel 1 (
   echo.
-  echo STOP: 09/19 baseline replay did not pass. MT4 replay is blocked.
+  echo STOP: 09/19 selector-trace invariance did not pass. MT4 replay is blocked.
   pause
   exit /b %ERRORLEVEL%
 )
