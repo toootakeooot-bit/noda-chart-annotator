@@ -114,9 +114,10 @@ def main() -> None:
         assert index["draw_row_count"] == 13  # 2 full families + R0919-08 zero-width + 3 recovered HL
 
         csv_text = (out / "NVT9_0919_REFERENCE_DRAW.csv").read_text(encoding="utf-8")
-        for rid in selected:
+        for rid in expected_selected:
             assert f"{rid}-HL" in csv_text
             assert rid in csv_text
+        assert "R0919-06" not in csv_text
 
         # Missing historical HL evidence must not block TL/CH restoration.
         pending_diag = json.loads(diagnostic.read_text(encoding="utf-8"))
