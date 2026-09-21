@@ -245,6 +245,20 @@ def replay_stage_snapshot(bars, symbol: str, tf: str, refs: list[dict]) -> dict:
         level_key = "large" if ref["structure_level"] == "LARGE_DOW" else "mid"
         level_reason = final_audit.get("large_reason") if level_key == "large" else final_audit.get("mid_reason")
         decision = trace.get(level_key) or {}
+        catalog = trace.get("candidate_catalog") or []
+        reference_catalog_rows = []
+        ref_candidate = row.get("reference_candidate") or {}
+        for cat in catalog:
+            if cat.get("native_candidate_id") != ref_candidate.get("candidate_id"):
+                continue
+            if not eqf(cat.get("ch_offset"), ref.get("ch_offset")):
+                continue
+            if not eqf(cat.get("zone_width"), ref.get("zone_width")):
+                continue
+            reference_catalog_rows.append(cat)
+        reference_catalog = reference_catalog_rows[0] if reference_catalog_rows else None
+
+        row["reference_candidate_audit"] = reference_catalog
         row["selector_reason"] = level_reason
         row["selector_trace_decision"] = decision
         row["replay_display_candidates"] = [
