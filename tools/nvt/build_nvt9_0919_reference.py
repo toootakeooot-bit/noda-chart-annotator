@@ -74,6 +74,8 @@ def main() -> int:
         level = line["structure_level"]
         level_code = "L" if level == "LARGE_DOW" else "M"
         for role in ROLES:
+            if role in ("TL_ZONE_EDGE", "CH_ZONE_EDGE") and abs(float(line["zone_width"])) <= 1e-12:
+                continue
             p1, p2 = points(line, role)
             oid = f"{rid}_SRC_{tf}_{level_code}_{role}"
             rows.append([
