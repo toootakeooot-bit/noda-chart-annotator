@@ -15,8 +15,8 @@ def main() -> None:
         'if(role=="HL")',
         'SourceVisibleOnDestination',
         '[UPDATED CH]',
-        'rowTf+" CONT TL"',
-        'rowTf+" DECISION HL"',
+        'rowTf+" CONT TL]"',
+        'rowTf+" DECISION HL]"',
         '[ZONE]',
     ]
     for token in required:
