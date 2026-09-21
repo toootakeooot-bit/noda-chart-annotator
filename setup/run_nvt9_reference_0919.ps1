@@ -54,6 +54,19 @@ if ($LASTEXITCODE -ne 0) { Write-Host 'REFERENCE BUILD FAILED'; exit $LASTEXITCO
 
 $Diag = Get-Content -Raw -Encoding UTF8 $DiagPath | ConvertFrom-Json
 
+$IndexPath = Join-Path $RefOut 'NVT9_0919_REFERENCE_INDEX.json'
+if (!(Test-Path $IndexPath)) { Write-Host ("STOP: reference index missing: {0}" -f $IndexPath); exit 5 }
+$Index = Get-Content -Raw -Encoding UTF8 $IndexPath | ConvertFrom-Json
+
+Write-Host ''
+Write-Host 'HL RECOVERY SUMMARY'
+Write-Host '-------------------'
+Write-Host ("Recovered HL: {0}/{1}" -f $Index.hl_recovered_count,$Index.reference_count)
+if ($Index.hl_pending_count -gt 0) {
+  Write-Host ("Pending HL:   {0}" -f (($Index.hl_pending_reference_ids) -join ', '))
+  Write-Host 'Pending means TL/CH restoration continues; HL is not guessed.'
+}
+
 Write-Host ''
 Write-Host 'FIRST-DIVERGENCE SUMMARY'
 Write-Host '------------------------'
@@ -93,7 +106,8 @@ Write-Host 'READY - 09/19 FROZEN REFERENCE RESTORED'
 Write-Host '---------------------------------------'
 Write-Host 'MT4 script: NCA_NVT9_Reference0919_View'
 Write-Host 'Reference IDs: machine-selected subset of R0919-01 ... R0919-08'
-Write-Host 'Each selected reference now includes its numbered Decision HL and selector/display reason links.'
+Write-Host 'Each selected reference includes selector/display reason links.'
+Write-Host 'Decision HL is drawn only when historical evidence is recovered; otherwise the Rxx-HL ID remains PENDING in the index.'
 Write-Host ("Reference index: {0}" -f (Join-Path $RefOut 'NVT9_0919_REFERENCE_INDEX.txt'))
 Write-Host ("Diagnostic:      {0}" -f (Join-Path $DiagOut 'NVT9_0919_REFERENCE_DIAGNOSTIC.txt'))
 Write-Host ''
