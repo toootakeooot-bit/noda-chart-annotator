@@ -216,19 +216,19 @@ int RenderOverlayOnChart(long chartId,string symbol,string tf)
 
       if(role=="CONT_TL")
       {
-         c=D1TLColor;
+         c=tlColor;
          style=STYLE_SOLID;
          width=3;
       }
       else if(role=="CONT_CH")
       {
-         c=D1CHColor;
+         c=chColor;
          style=STYLE_SOLID;
          width=2;
       }
       else if(role=="CONT_HL")
       {
-         c=D1TLColor;
+         c=tlColor;
          style=STYLE_DASH;
          width=2;
       }
@@ -258,8 +258,8 @@ int RenderOverlayOnChart(long chartId,string symbol,string tf)
          {
             string labelText=objectId;
             if(role=="UPDATED_CH") labelText=objectId+" [UPDATED CH]";
-            else if(role=="CONT_TL") labelText=objectId+" [D1 CONT TL]";
-            else if(role=="CONT_HL") labelText=objectId+" [DECISION HL]";
+            else if(role=="CONT_TL") labelText=objectId+" ["+rowTf+" CONT TL]";
+            else if(role=="CONT_HL") labelText=objectId+" ["+rowTf+" DECISION HL]";
             else if(role=="REACTION_ZONE_HIGH") labelText=objectId+" [ZONE]";
             ObjectSetText(lname,labelText,LabelFontSize,"Arial",c);
             ObjectSetInteger(chartId,lname,OBJPROP_SELECTABLE,false);
