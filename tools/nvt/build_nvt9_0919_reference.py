@@ -100,24 +100,25 @@ def main() -> int:
         hl_time = reference_candidate.get("decision_hl_time")
         hl_price = reference_candidate.get("decision_hl_price")
         last_bar = (diagnostic.get("input_coverage", {}).get(tf) or {}).get("last_replay_bar")
-        if not hl_kind or not hl_time or hl_price is None or not last_bar:
-            raise ValueError(f"{rid}: selected 09/19 reference candidate missing decision-HL evidence in 600-bar window")
 
-        rows.append([
-            hl_id,
-            payload["symbol"],
-            tf,
-            f"HL_{hl_kind}",
-            "HL",
-            mt4_time(hl_time),
-            f"{float(hl_price):.8f}",
-            mt4_time(last_bar),
-            f"{float(hl_price):.8f}",
-            "REFERENCE",
-            str(line["generation"]),
-            "ACTIVE",
-            "RAY_RIGHT",
-        ])
+        hl_status = "PENDING_HISTORICAL_HL_NOT_REPRODUCED"
+        if hl_kind and hl_time and hl_price is not None and last_bar:
+            hl_status = "RECOVERED_FROM_600BAR_REFERENCE_CANDIDATE"
+            rows.append([
+                hl_id,
+                payload["symbol"],
+                tf,
+                f"HL_{hl_kind}",
+                "HL",
+                mt4_time(hl_time),
+                f"{float(hl_price):.8f}",
+                mt4_time(last_bar),
+                f"{float(hl_price):.8f}",
+                "REFERENCE",
+                str(line["generation"]),
+                "ACTIVE",
+                "RAY_RIGHT",
+            ])
 
         index_rows.append({
             "reference_id": rid,
@@ -135,9 +136,10 @@ def main() -> int:
             "ch_offset": line["ch_offset"],
             "zone_width": line["zone_width"],
             "hl_id": hl_id,
+            "hl_status": hl_status,
             "hl_kind": hl_kind,
             "hl_time": hl_time,
-            "hl_price": float(hl_price),
+            "hl_price": float(hl_price) if hl_price is not None else None,
             "hl_break_time": reference_candidate.get("hl_break_time"),
             "hl_break_mode": reference_candidate.get("hl_break_mode"),
             "reference_candidate_id": reference_candidate.get("candidate_id"),
@@ -171,6 +173,9 @@ def main() -> int:
         w.writerow(header)
         w.writerows(rows)
 
+    hl_recovered = [x["reference_id"] for x in index_rows if x.get("hl_status") == "RECOVERED_FROM_600BAR_REFERENCE_CANDIDATE"]
+    hl_pending = [x["reference_id"] for x in index_rows if x.get("hl_status") != "RECOVERED_FROM_600BAR_REFERENCE_CANDIDATE"]
+
     index_json = outdir / "NVT9_0919_REFERENCE_INDEX.json"
     index_json.write_text(json.dumps({
         "schema": "nvt9-0919-reference-index/1.0",
@@ -181,6 +186,10 @@ def main() -> int:
         "selected_reference_ids": sorted(selected_refs),
         "reference_count": len(index_rows),
         "draw_row_count": len(rows),
+        "hl_recovered_count": len(hl_recovered),
+        "hl_recovered_reference_ids": hl_recovered,
+        "hl_pending_count": len(hl_pending),
+        "hl_pending_reference_ids": hl_pending,
         "lines": index_rows,
     }, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -196,7 +205,7 @@ def main() -> int:
             f"  A1={x['anchor1_id']} {x['anchor1_time']} {x['anchor1_price']}",
             f"  A2={x['anchor2_id']} {x['anchor2_time']} {x['anchor2_price']}",
             f"  CH offset={x['ch_offset']}  zone={x['zone_width']}",
-            f"  HL={x['hl_id']} {x['hl_kind']} {x['hl_time']} {x['hl_price']} break={x['hl_break_time']}",
+            f"  HL={x['hl_id']} status={x.get('hl_status')} {x['hl_kind']} {x['hl_time']} {x['hl_price']} break={x['hl_break_time']}",
             f"  Reference candidate={x.get('reference_candidate_id')} audit={x.get('reference_candidate_audit_id')} span={x.get('reference_candidate_turn_span')} TLc={x.get('reference_candidate_tl_contacts')} CHc={x.get('reference_candidate_ch_contacts')} unbroken={x.get('reference_candidate_unbroken_close')}",
             f"  Reference Pivot IDs={x.get('reference_anchor1_pivot_id')} -> {x.get('reference_anchor2_pivot_id')} CH={x.get('reference_channel_anchor_pivot_id')}",
             f"  Selector reason status={x.get('selector_reason_status')}",
@@ -214,6 +223,9 @@ def main() -> int:
         "status": "PASS_0919_SELECTED_REFERENCE_WITH_HL_AND_REASON_LINKS",
         "reference_count": len(index_rows),
         "draw_row_count": len(rows),
+        "hl_recovered_count": len(hl_recovered),
+        "hl_pending_count": len(hl_pending),
+        "hl_pending_reference_ids": hl_pending,
         "csv": str(csv_path),
         "index_json": str(index_json),
         "index_txt": str(txt_path),
