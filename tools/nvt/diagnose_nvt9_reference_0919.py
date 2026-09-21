@@ -355,6 +355,7 @@ def main() -> int:
         "reference_source": str(args.reference),
         "cutoff_exclusive": CUTOFF.isoformat(),
         "input_coverage": input_coverage,
+        "input_window_changed_timeframes": [tf for tf, row in input_coverage.items() if row.get("input_window_changed")],
         "stage_order": ["A_PIVOT", "B_CANDIDATE_PAIR", "B_CANDIDATE_GEOMETRY", "C_SELECTOR", "C_SELECTOR_LEVEL", "D_LIFECYCLE", "D_LIFECYCLE_REPLACED", "E_DISPLAY_SELECTION", "MATCH_THROUGH_E"],
         "stage_counts": stage_counts,
         "results": sorted(results, key=lambda x: x.get("reference_no", 999)),
