@@ -90,6 +90,7 @@ def main() -> int:
         current = p600.get("current") or {}
         reference_candidate = p600.get("reference_candidate") or {}
         selector_decision = p600.get("selector_trace_decision") or {}
+        reference_candidate_audit = p600.get("reference_candidate_audit") or {}
         selector_reason = p600.get("selector_reason")
         selector_reason_status = p600.get("selector_reason_status")
         display_detail = p600.get("display_reason_detail") or {}
@@ -145,6 +146,10 @@ def main() -> int:
             "reference_candidate_ch_contacts": reference_candidate.get("ch_contacts"),
             "reference_candidate_unbroken_close": reference_candidate.get("unbroken_close"),
             "selector_reason_status": selector_reason_status,
+            "reference_candidate_audit_id": reference_candidate_audit.get("candidate_audit_id"),
+            "reference_anchor1_pivot_id": reference_candidate_audit.get("anchor1_pivot_id"),
+            "reference_anchor2_pivot_id": reference_candidate_audit.get("anchor2_pivot_id"),
+            "reference_channel_anchor_pivot_id": reference_candidate_audit.get("channel_anchor_pivot_id"),
             "selector_candidate_audit_id": selector_decision.get("selected_candidate_audit_id"),
             "selector_native_candidate_id": selector_decision.get("selected_native_candidate_id"),
             "selector_anchor1_pivot_id": selector_decision.get("anchor1_pivot_id"),
@@ -192,10 +197,11 @@ def main() -> int:
             f"  A2={x['anchor2_id']} {x['anchor2_time']} {x['anchor2_price']}",
             f"  CH offset={x['ch_offset']}  zone={x['zone_width']}",
             f"  HL={x['hl_id']} {x['hl_kind']} {x['hl_time']} {x['hl_price']} break={x['hl_break_time']}",
-            f"  Reference candidate={x.get('reference_candidate_id')} span={x.get('reference_candidate_turn_span')} TLc={x.get('reference_candidate_tl_contacts')} CHc={x.get('reference_candidate_ch_contacts')} unbroken={x.get('reference_candidate_unbroken_close')}",
+            f"  Reference candidate={x.get('reference_candidate_id')} audit={x.get('reference_candidate_audit_id')} span={x.get('reference_candidate_turn_span')} TLc={x.get('reference_candidate_tl_contacts')} CHc={x.get('reference_candidate_ch_contacts')} unbroken={x.get('reference_candidate_unbroken_close')}",
+            f"  Reference Pivot IDs={x.get('reference_anchor1_pivot_id')} -> {x.get('reference_anchor2_pivot_id')} CH={x.get('reference_channel_anchor_pivot_id')}",
             f"  Selector reason status={x.get('selector_reason_status')}",
             f"  Selector winner={x.get('selector_candidate_audit_id')} native={x.get('selector_native_candidate_id')}",
-            f"  Pivot IDs={x.get('selector_anchor1_pivot_id')} -> {x.get('selector_anchor2_pivot_id')}",
+            f"  Winner Pivot IDs={x.get('selector_anchor1_pivot_id')} -> {x.get('selector_anchor2_pivot_id')}",
             f"  Selector priority={x.get('selector_priority_order')}",
             f"  Selector reason={x.get('selector_reason')}",
             f"  Display reason={x.get('display_reason')} {x.get('display_reason_detail')}",
