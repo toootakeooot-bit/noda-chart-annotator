@@ -43,6 +43,25 @@ def main() -> None:
     assert c.anchor1.time == lows[0].time
     assert c.anchor2.time == lows[1].time
 
+    # D1 selector regression: duration-first would choose the older/shallow A1.
+    # The audited rule must choose the tighter still-unbroken broad support B1.
+    t1 = datetime(2025, 1, 1)
+    broad_bars = []
+    for i in range(240):
+        t = t1 + timedelta(days=i)
+        base = 113.0 if i >= 200 else 120.0
+        broad_bars.append(Bar(t, base, base + 1.0, base - 1.0, base))
+    a1 = Pivot("LOW", 0, t1, 100.0, 1, t1 + timedelta(days=1), 0.38)
+    b1 = Pivot("LOW", 40, t1 + timedelta(days=40), 101.0, 41, t1 + timedelta(days=41), 0.38)
+    mid_high = Pivot("HIGH", 100, t1 + timedelta(days=100), 118.0, 101, t1 + timedelta(days=101), 0.38)
+    a2 = Pivot("LOW", 200, t1 + timedelta(days=200), 110.0, 201, t1 + timedelta(days=201), 0.38)
+    tight = build_d1_continuation(broad_bars, [a1, b1, mid_high, a2])
+    assert tight is not None
+    assert tight.duration_days >= 120.0
+    assert tight.anchor1.time == b1.time
+    assert tight.anchor2.time == a2.time
+    assert tight.status == "REFERENCE_PENDING_HL_BREAK"
+
     # Reaction-zone clustering: construct repeated body/wick reactions around
     # separated residual bands; selected zones must never overlap.
     h1 = []
