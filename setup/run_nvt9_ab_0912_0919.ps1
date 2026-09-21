@@ -31,15 +31,15 @@ if ($LASTEXITCODE -ne 0) {
 
 $SummaryPath = Join-Path $OutputDir 'AB_0912_0919_SUMMARY.json'
 $Summary = Get-Content -Raw -Encoding UTF8 $SummaryPath | ConvertFrom-Json
-$Gate = $Summary.baseline_0919_expected_gate
+$Gate = $Summary.selector_trace_0919_invariance_gate
 
 Write-Host ''
 Write-Host 'NVT9 A-B BUILD PASS'
 Write-Host ("Summary: {0}" -f $SummaryPath)
-Write-Host ("09/19 exact baseline gate: {0}  lines={1}  mismatches={2}" -f $Gate.status,$Gate.actual_line_count,$Gate.mismatch_count)
+Write-Host ("09/19 selector-trace invariance gate: {0}  timeframes={1}  mismatches={2}" -f $Gate.status,$Gate.timeframe_count,$Gate.mismatch_count)
 Write-Host ("09/19 selector trace: {0}" -f $Summary.cases.'2026-09-19'.selector_trace_json)
 
 if ($Gate.status -ne 'PASS') {
-  Write-Host 'STOP: 09/19 exact baseline line set did not match. Do not visually approve this replay.'
+  Write-Host 'STOP: selector trace changed OLD 09/19 replay semantics. Do not visually approve this replay.'
   exit 20
 }
