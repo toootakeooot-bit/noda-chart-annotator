@@ -205,6 +205,7 @@ def main() -> int:
     preview_audit = load_json(Path(args.preview_audit)) if args.preview_audit and Path(args.preview_audit).exists() else None
 
     refs_by_tf = {tf: [] for tf in TFS}
+    historical_input_reference = refdoc.get("historical_input_reference") or {}
     for ref in refdoc["lines"]:
         refs_by_tf[ref["timeframe"]].append(ref)
 
@@ -226,13 +227,30 @@ def main() -> int:
 
         all_bars = load_ohlc_csv(src)
         bars = [b for b in all_bars if b.time < CUTOFF]
+        hist = historical_input_reference.get(tf) or {}
+        first_replay = bars[0].time.isoformat() if bars else None
+        last_replay = bars[-1].time.isoformat() if bars else None
+        known_hist_first = hist.get("first_bar")
+        known_hist_count = hist.get("bar_count")
+        known_hist_last = hist.get("last_closed_bar")
         input_coverage[tf] = {
             "source": str(src),
             "all_bar_count": len(all_bars),
             "replay_bar_count": len(bars),
-            "first_replay_bar": bars[0].time.isoformat() if bars else None,
-            "last_replay_bar": bars[-1].time.isoformat() if bars else None,
+            "first_replay_bar": first_replay,
+            "last_replay_bar": last_replay,
             "cutoff_exclusive": CUTOFF.isoformat(),
+            "historical_first_bar": known_hist_first,
+            "historical_bar_count": known_hist_count,
+            "historical_last_closed_bar": known_hist_last,
+            "first_bar_same_as_historical": (first_replay == known_hist_first) if known_hist_first else None,
+            "bar_count_same_as_historical": (len(bars) == int(known_hist_count)) if known_hist_count is not None else None,
+            "last_bar_same_as_historical": (last_replay == known_hist_last) if known_hist_last else None,
+            "input_window_changed": (
+                (known_hist_first is not None and first_replay != known_hist_first)
+                or (known_hist_count is not None and len(bars) != int(known_hist_count))
+                or (known_hist_last is not None and last_replay != known_hist_last)
+            ),
         }
         if len(bars) < 3:
             continue
@@ -355,7 +373,11 @@ def main() -> int:
     for tf in TFS:
         c = input_coverage.get(tf)
         if c:
-            txt.append(f"  {tf}: bars={c['replay_bar_count']} first={c['first_replay_bar']} last={c['last_replay_bar']}")
+            txt.append(
+                f"  {tf}: bars={c['replay_bar_count']} first={c['first_replay_bar']} last={c['last_replay_bar']} "
+                f"| historical_first={c.get('historical_first_bar')} historical_count={c.get('historical_bar_count')} "
+                f"| window_changed={c.get('input_window_changed')}"
+            )
     txt.append("")
     txt.append("REFERENCE RESULTS")
     for r in payload["results"]:
