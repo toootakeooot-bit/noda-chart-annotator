@@ -54,6 +54,48 @@
       "reason": "Parallel reaction zones must not overlap; when overlap occurs, the weaker-scoring zone is rejected rather than merged into a wider ambiguous band.",
       "enforcement": "cluster_reaction_zones keeps only the strongest non-overlapping zones.",
       "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0919-005",
+      "target_type": "SELECTOR_CONSTRAINT",
+      "target": "D1_CONTINUATION_LAST4_ANCHOR2_ONLY",
+      "scope": [
+        "D1_CONTINUATION_SUPPORT"
+      ],
+      "reason_code": "REJECT_RECENT_ANCHOR2_ONLY_FOR_BROAD_D1",
+      "reason": "Restricting D1 continuation anchor2 to only the latest four lows can exclude an older major pullback low that still owns the broad support structure.",
+      "replacement_policy": "SEARCH_ALL_CONFIRMED_D1_LOWS_THEN_REQUIRE_BROAD_UNBROKEN_SUPPORT",
+      "enforcement": "build_d1_continuation no longer applies the last-four-low anchor2 gate and validates closed-bar support for the whole candidate life.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0919-006",
+      "target_type": "TIMEFRAME_OWNERSHIP",
+      "target": "M15_R0919_08_USED_AS_H1_NATIVE_BASE",
+      "scope": [
+        "H1_TL",
+        "H1_HL",
+        "H1_REACTION_ZONE",
+        "H1_UPDATED_CH"
+      ],
+      "reason_code": "REJECT_MAPPED_M15_AS_H1_NATIVE_STRUCTURE",
+      "reason": "A mapped M15 line may be displayed on H1, but it must not substitute for the H1-native TL/HL structure or own H1 reaction zones and Updated CH.",
+      "replacement_policy": "H1_NATIVE_CONFIRMED_PIVOTS",
+      "enforcement": "H1 overlay now builds X0919-H1-CONT-01 from H1 bars/pivots; zones and Updated CH use that family only.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0919-007",
+      "target_type": "ZONE_DENSITY",
+      "target": "H1_REACTION_ZONE_TOO_DENSE",
+      "scope": [
+        "H1_PARALLEL_REACTION_ZONE"
+      ],
+      "reason_code": "REJECT_TOO_DENSE_REACTION_ZONES",
+      "reason": "Four non-overlapping bands can still be visually too dense. H1 zones must be structurally separated, not merely mathematically non-overlapping.",
+      "replacement_policy": "MAX_3_WITH_MINIMUM_CENTER_GAP_AND_STRONGER_REACTION_EVIDENCE",
+      "enforcement": "H1 zones are capped at three; centers must be at least 1.25 median H1 bar ranges apart; each zone needs at least four reacting bars and body-weight >= 6.0.",
+      "status": "ENFORCED"
     }
   ]
 }
