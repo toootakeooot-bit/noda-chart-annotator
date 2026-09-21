@@ -82,6 +82,11 @@ def geom_summary(item: dict | None) -> dict | None:
         "zone_width": item.get("zone_width"),
         "generation": item.get("generation"),
         "status": item.get("status"),
+        "decision_hl_time": item.get("decision_hl_time"),
+        "decision_hl_price": item.get("decision_hl_price"),
+        "decision_hl_kind": item.get("decision_hl_kind"),
+        "hl_break_time": item.get("hl_break_time"),
+        "hl_break_mode": item.get("hl_break_mode"),
     }
 
 
@@ -109,6 +114,26 @@ def state_locations(state: dict, ref: dict) -> list[dict]:
             if state_geometry_match(item, ref):
                 found.append({"slot": slot_key, "role": f"HISTORY[{i}]", "line": geom_summary(item)})
     return found
+
+
+def projected_channel(item: dict, at: datetime) -> tuple[float, float]:
+    t1 = datetime.fromisoformat(item["anchor1_time"])
+    t2 = datetime.fromisoformat(item["anchor2_time"])
+    p1 = float(item["anchor1_price"])
+    p2 = float(item["anchor2_price"])
+    sec = (t2 - t1).total_seconds()
+    if sec == 0:
+        return p1, p1 + float(item["ch_offset"])
+    slope = (p2 - p1) / sec
+    tl = p1 + slope * (at - t1).total_seconds()
+    return tl, tl + float(item["ch_offset"])
+
+
+def channel_distance(price: float, tl: float, ch: float) -> float:
+    lo, hi = sorted((tl, ch))
+    if lo <= price <= hi:
+        return 0.0
+    return min(abs(price - lo), abs(price - hi))
 
 
 def replay_stage_snapshot(bars, symbol: str, tf: str, refs: list[dict]) -> dict:
@@ -144,6 +169,70 @@ def replay_stage_snapshot(bars, symbol: str, tf: str, refs: list[dict]) -> dict:
             "current_differences": first_geometry_diffs(current, ref),
             "transition_count": audit.get("transition_count"),
         }
+    # Reproduce the approved 09/19 source-family display selection:
+    # CURRENT only, one nearest family per source TF, LARGE wins only on equal distance.
+    latest_time = bars[-1].time if bars else None
+    latest_close = float(bars[-1].close) if bars else None
+    display_candidates = []
+    if latest_time is not None:
+        for level in ("LARGE_DOW", "MID_DOW"):
+            slot_key = f"{symbol}|{tf}|{level}"
+            current = (state.get("slots", {}).get(slot_key) or {}).get("current")
+            if not current:
+                continue
+            tl, ch = projected_channel(current, latest_time)
+            display_candidates.append({
+                "level": level,
+                "line_id": current.get("line_id"),
+                "distance_to_channel": channel_distance(latest_close, tl, ch),
+                "projected_tl": tl,
+                "projected_ch": ch,
+                "current": geom_summary(current),
+            })
+    display_candidates.sort(key=lambda x: (
+        x["distance_to_channel"],
+        0 if x["level"] == "LARGE_DOW" else 1,
+        x["line_id"] or "",
+    ))
+    display_selected = display_candidates[0] if display_candidates else None
+
+    final_audit = audit.get("final_selector_audit") or {}
+    trace = final_audit.get("selector_trace") or {}
+    for ref in refs:
+        row = out[ref["reference_id"]]
+        level_key = "large" if ref["structure_level"] == "LARGE_DOW" else "mid"
+        level_reason = final_audit.get("large_reason") if level_key == "large" else final_audit.get("mid_reason")
+        decision = trace.get(level_key) or {}
+        row["selector_reason"] = level_reason
+        row["selector_trace_decision"] = decision
+        row["display_candidates"] = [
+            {
+                "level": x["level"],
+                "line_id": x["line_id"],
+                "distance_to_channel": x["distance_to_channel"],
+                "projected_tl": x["projected_tl"],
+                "projected_ch": x["projected_ch"],
+            }
+            for x in display_candidates
+        ]
+        row["display_selected_level"] = display_selected["level"] if display_selected else None
+        row["display_selected_line_id"] = display_selected["line_id"] if display_selected else None
+        row["display_selected"] = (
+            display_selected is not None
+            and display_selected["level"] == ref["structure_level"]
+            and state_geometry_match(display_selected["current"], ref)
+        )
+        if row["display_selected"]:
+            row["display_reason"] = "SOURCE_TF_NEAREST_CURRENT_FAMILY"
+            row["display_reason_detail"] = {
+                "latest_closed_bar_time": latest_time.isoformat(),
+                "latest_close": latest_close,
+                "distance_to_channel": display_selected["distance_to_channel"],
+                "tie_break": "LARGE_DOW_ONLY_WHEN_DISTANCE_EQUAL",
+            }
+        else:
+            row["display_reason"] = "NOT_SELECTED_FOR_0919_DISPLAY"
+
     return out
 
 
@@ -389,6 +478,12 @@ def main() -> int:
     for r in results:
         stage_counts[r["first_divergence_stage"]] = stage_counts.get(r["first_divergence_stage"], 0) + 1
 
+    production_600_display_selected_refs = [
+        r["reference_id"]
+        for r in results
+        if (r.get("production_600_replay") or {}).get("display_selected") is True
+    ]
+
     prod600_matches = [
         r for r in results
         if (r.get("production_600_replay") or {}).get("current_matches_reference") is True
@@ -410,6 +505,7 @@ def main() -> int:
         "status": "PASS_DIAGNOSTIC_COMPLETED",
         "root_cause_status": root_cause_status,
         "production_600_reference_match_count": len(prod600_matches),
+        "production_600_display_selected_refs": production_600_display_selected_refs,
         "deep_reference_match_count": len(deep_matches),
         "symbol": args.symbol,
         "reference_source": str(args.reference),
@@ -429,6 +525,7 @@ def main() -> int:
         f"status={payload['status']}",
         f"root_cause_status={root_cause_status}",
         f"production_600_reference_match_count={len(prod600_matches)}/{len(results)}",
+        f"production_600_display_selected_refs={','.join(production_600_display_selected_refs)}",
         f"deep_reference_match_count={len(deep_matches)}/{len(results)}",
         f"stage_counts={json.dumps(stage_counts, ensure_ascii=False)}",
         "",
@@ -449,6 +546,7 @@ def main() -> int:
         txt.append(
             f"  {r['reference_id']} {r['timeframe']} {r['structure_level']} | "
             f"600bar_match={p600.get('current_matches_reference')} | "
+            f"display_selected={p600.get('display_selected')} | "
             f"deep_first_divergence={r['first_divergence_stage']} | {r['reason']}"
         )
         if "D_lifecycle" in r:
