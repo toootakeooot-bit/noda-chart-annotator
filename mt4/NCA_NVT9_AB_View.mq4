@@ -25,7 +25,7 @@ enum NVT9_AB_VARIANT
    VARIANT_NEW = 1
 };
 
-input NVT9_AB_CASE HistoryCase = CASE_20260919;
+input NVT9_AB_CASE HistoryCase = CASE_20260912;
 input NVT9_AB_VARIANT Variant = VARIANT_OLD;
 input bool ApplyToAllOpenTargetCharts = true;
 input bool AuditDeleteAllChartObjects = false;
@@ -71,6 +71,8 @@ datetime CaseCutoff()
 
 string HistoryPreviewPath()
 {
+   if(HistoryCase == CASE_20260912 && Variant == VARIANT_OLD)
+      return "noda_draw\\live_output\\nvt9_reference_0912\\base\\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv";
    return BASE_DIR + "\\" + CaseKey() + "\\" + VariantKey() +
           "\\output\\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv";
 }
