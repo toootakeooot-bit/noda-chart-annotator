@@ -11,6 +11,7 @@ $LiveOutput = Join-Path $Common 'live_output'
 $RefOut = Join-Path $LiveOutput 'nvt9_reference_0919'
 $DiagOut = Join-Path $RefOut 'diagnostic'
 $Manifest = Join-Path $RepoRoot 'nvt\manifests\NVT9_0919_REFERENCE_LINES_V01.json'
+$RejectedLedger = Join-Path $RepoRoot 'nvt\manifests\NVT9_REJECTED_DRAW_LEDGER_V01.json'
 $PreviewAudit = Join-Path $LiveOutput 'nvt9_ab_0912_0919\20260919\OLD\output\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json'
 $Safe = ($Symbol -replace '[<>:"/\\|?*]','_')
 
@@ -33,6 +34,9 @@ if ($Missing.Count -gt 0) {
 
 New-Item -ItemType Directory -Force -Path $RefOut | Out-Null
 New-Item -ItemType Directory -Force -Path $DiagOut | Out-Null
+if (Test-Path $RejectedLedger) {
+  Copy-Item -Force $RejectedLedger (Join-Path $RefOut 'NVT9_REJECTED_DRAW_LEDGER_V01.json')
+}
 
 Write-Host '[1/5] Rebuild current 09/19 OLD replay with selector audit'
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'run_nvt9_ab_0912_0919.ps1') -Python $Python -Symbol $Symbol
@@ -138,4 +142,5 @@ Write-Host ''
 Write-Host 'Run the viewer once with USDJPY# D1/H4/H1/M15 open.'
 Write-Host 'Reference + research overlay objects are replaced; manual objects and Production NCA_DRAW__ are preserved.'
 Write-Host ("Structural overlay audit: {0}" -f (Join-Path $RefOut 'NVT9_0919_STRUCTURAL_OVERLAY_AUDIT.txt'))
+Write-Host ("Rejected draw ledger:    {0}" -f (Join-Path $RefOut 'NVT9_REJECTED_DRAW_LEDGER_V01.json'))
 exit 0
