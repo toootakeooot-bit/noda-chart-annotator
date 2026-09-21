@@ -18,9 +18,12 @@ input color M15CHColor = clrViolet;
 input int LargeWidth = 2;
 input int MidWidth = 1;
 input int LabelFontSize = 8;
+input bool ShowStructuralOverlay = true;
 
 string PREFIX = "NVT9_REF0919__";
+string XPREFIX = "NVT9_X0919__";
 string PATH = "noda_draw\\live_output\\nvt9_reference_0919\\NVT9_0919_REFERENCE_DRAW.csv";
+string OVERLAY_PATH = "noda_draw\\live_output\\nvt9_reference_0919\\NVT9_0919_STRUCTURAL_OVERLAY.csv";
 
 string TFNameFromPeriod(int p)
 {
@@ -90,6 +93,7 @@ string RefIdFromObject(string objectId)
 bool IsNVT9AuditOwnedObject(string name)
 {
    if(StringFind(name,PREFIX,0)==0) return true;
+   if(StringFind(name,XPREFIX,0)==0) return true;
    if(StringFind(name,"NVT9_TFMAP__",0)==0) return true;
    if(StringFind(name,"NVT9_PREVIEW__",0)==0) return true;
    if(StringFind(name,"NVT9_AB_CUTOFF__",0)==0) return true;
@@ -177,6 +181,93 @@ int RenderOnChart(long chartId,string symbol,string tf)
    return rendered;
 }
 
+
+int RenderOverlayOnChart(long chartId,string symbol,string tf)
+{
+   if(!ShowStructuralOverlay) return 0;
+
+   int h=FileOpen(OVERLAY_PATH,FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON,',');
+   if(h==INVALID_HANDLE) return 0;
+   if(!ReadHeader(h)) { FileClose(h); return -2; }
+
+   int rendered=0;
+   while(!FileIsEnding(h))
+   {
+      string objectId,rowSymbol,rowTf,structure,role,t1s,p1s,t2s,p2s,genRole,generation,status,extent;
+      if(!ReadRow(h,objectId,rowSymbol,rowTf,structure,role,t1s,p1s,t2s,p2s,genRole,generation,status,extent)) break;
+      if(rowSymbol!=symbol || rowTf!=tf) continue;
+
+      datetime t1=StringToTime(t1s), t2=StringToTime(t2s);
+      double p1=StrToDouble(p1s), p2=StrToDouble(p2s);
+      if(t1<=0 || t2<=t1 || p1<=0 || p2<=0) continue;
+
+      string name=XPREFIX+objectId;
+      if(StringLen(name)>63) continue;
+      if(!ObjectCreate(chartId,name,OBJ_TREND,0,t1,p1,t2,p2)) continue;
+      ObjectSetInteger(chartId,name,OBJPROP_RAY_RIGHT,true);
+      ObjectSetInteger(chartId,name,OBJPROP_BACK,false);
+      ObjectSetInteger(chartId,name,OBJPROP_SELECTABLE,false);
+
+      color tlColor,chColor;
+      ColorsForTF(rowTf,tlColor,chColor);
+      color c=tlColor;
+      int style=STYLE_SOLID;
+      int width=2;
+
+      if(role=="CONT_TL")
+      {
+         c=D1TLColor;
+         style=STYLE_SOLID;
+         width=3;
+      }
+      else if(role=="CONT_CH")
+      {
+         c=D1CHColor;
+         style=STYLE_SOLID;
+         width=2;
+      }
+      else if(role=="CONT_HL")
+      {
+         c=D1TLColor;
+         style=STYLE_DASH;
+         width=2;
+      }
+      else if(role=="REACTION_ZONE_LOW" || role=="REACTION_ZONE_HIGH")
+      {
+         c=H1TLColor;
+         style=STYLE_SOLID;
+         width=1;
+      }
+      else if(role=="UPDATED_CH")
+      {
+         c=H1CHColor;
+         style=STYLE_SOLID;
+         width=2;
+      }
+
+      ObjectSetInteger(chartId,name,OBJPROP_COLOR,c);
+      ObjectSetInteger(chartId,name,OBJPROP_STYLE,style);
+      ObjectSetInteger(chartId,name,OBJPROP_WIDTH,width);
+      rendered++;
+
+      if(role=="CONT_TL" || role=="CONT_HL" || role=="UPDATED_CH")
+      {
+         string lname=XPREFIX+"LBL_"+objectId;
+         if(ObjectFind(chartId,lname)>=0) ObjectDelete(chartId,lname);
+         if(ObjectCreate(chartId,lname,OBJ_TEXT,0,t2,p2))
+         {
+            ObjectSetText(lname,objectId,LabelFontSize,"Arial",c);
+            ObjectSetInteger(chartId,lname,OBJPROP_SELECTABLE,false);
+            ObjectSetInteger(chartId,lname,OBJPROP_BACK,false);
+         }
+      }
+   }
+   FileClose(h);
+   ChartRedraw(chartId);
+   return rendered;
+}
+
+
 bool ApplyOne(long chartId,string symbol)
 {
    if(ChartSymbol(chartId)!=symbol) return false;
@@ -185,8 +276,9 @@ bool ApplyOne(long chartId,string symbol)
    string tf=TFNameFromPeriod(p);
    DeleteOwned(chartId);
    int n=RenderOnChart(chartId,symbol,tf);
-   Print("NVT9 0919 REF VIEW ",tf," objects=",n);
-   return n>0;
+   int x=RenderOverlayOnChart(chartId,symbol,tf);
+   Print("NVT9 0919 REF VIEW ",tf," reference=",n," overlay=",x);
+   return (n>0 || x>0);
 }
 
 void OnStart()
