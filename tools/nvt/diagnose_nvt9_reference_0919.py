@@ -111,6 +111,42 @@ def state_locations(state: dict, ref: dict) -> list[dict]:
     return found
 
 
+def replay_stage_snapshot(bars, symbol: str, tf: str, refs: list[dict]) -> dict:
+    """Evaluate a fixed bar window against frozen references."""
+    turns = detect_turns(bars)
+    candidates = build_channel_candidates(bars, turns.pivots)
+    hits = scan_selected_events(bars, symbol, tf, refs)
+    state, audit = rebuild_timeframe_baseline_0919_from_bars(
+        bars, symbol, tf, include_selector_trace=True
+    )
+    out = {}
+    for ref in refs:
+        kind = pivot_kind(ref)
+        a1 = [p for p in turns.pivots if pivot_match(p, kind, ref["anchor1_time"], ref["anchor1_price"])]
+        a2 = [p for p in turns.pivots if pivot_match(p, kind, ref["anchor2_time"], ref["anchor2_price"])]
+        anchor_candidates = [c for c in candidates if candidate_anchor_match(c, ref)]
+        geometry_candidates = [c for c in anchor_candidates if candidate_geometry_match(c, ref)]
+        slot_key = f"{symbol}|{tf}|{ref['structure_level']}"
+        current = (state.get("slots", {}).get(slot_key) or {}).get("current")
+        out[ref["reference_id"]] = {
+            "bar_count": len(bars),
+            "first_bar": bars[0].time.isoformat() if bars else None,
+            "last_bar": bars[-1].time.isoformat() if bars else None,
+            "confirmed_pivot_count": len(turns.pivots),
+            "anchor1_present": bool(a1),
+            "anchor2_present": bool(a2),
+            "anchor_pair_candidate_count": len(anchor_candidates),
+            "exact_geometry_candidate_count": len(geometry_candidates),
+            "selected_event_count": len(hits.get(ref["reference_id"], [])),
+            "selected_events": hits.get(ref["reference_id"], [])[-10:],
+            "current_matches_reference": state_geometry_match(current, ref),
+            "current": geom_summary(current),
+            "current_differences": first_geometry_diffs(current, ref),
+            "transition_count": audit.get("transition_count"),
+        }
+    return out
+
+
 def preview_selected_geometry(preview_audit: dict | None, tf: str) -> list[dict]:
     if not preview_audit:
         return []
@@ -227,6 +263,8 @@ def main() -> int:
 
         all_bars = load_ohlc_csv(src)
         bars = [b for b in all_bars if b.time < CUTOFF]
+        production_600_bars = bars[-600:] if len(bars) >= 600 else bars
+        production_600 = replay_stage_snapshot(production_600_bars, args.symbol, tf, refs_by_tf[tf])
         hist = historical_input_reference.get(tf) or {}
         first_replay = bars[0].time.isoformat() if bars else None
         last_replay = bars[-1].time.isoformat() if bars else None
@@ -246,6 +284,9 @@ def main() -> int:
             "first_bar_same_as_historical": (first_replay == known_hist_first) if known_hist_first else None,
             "bar_count_same_as_historical": (len(bars) == int(known_hist_count)) if known_hist_count is not None else None,
             "last_bar_same_as_historical": (last_replay == known_hist_last) if known_hist_last else None,
+            "production_600_bar_count": len(production_600_bars),
+            "production_600_first_bar": production_600_bars[0].time.isoformat() if production_600_bars else None,
+            "production_600_last_bar": production_600_bars[-1].time.isoformat() if production_600_bars else None,
             "input_window_changed": (
                 (known_hist_first is not None and first_replay != known_hist_first)
                 or (known_hist_count is not None and len(bars) != int(known_hist_count))
@@ -309,6 +350,7 @@ def main() -> int:
                 "reference_direction": ref["direction"],
                 "reference_anchor1": {"time": ref["anchor1_time"], "price": ref["anchor1_price"]},
                 "reference_anchor2": {"time": ref["anchor2_time"], "price": ref["anchor2_price"]},
+                "production_600_replay": production_600.get(ref["reference_id"]),
                 "A_pivot": {
                     "expected_kind": kind,
                     "anchor1_present": bool(a1_matches),
@@ -347,10 +389,28 @@ def main() -> int:
     for r in results:
         stage_counts[r["first_divergence_stage"]] = stage_counts.get(r["first_divergence_stage"], 0) + 1
 
+    prod600_matches = [
+        r for r in results
+        if (r.get("production_600_replay") or {}).get("current_matches_reference") is True
+    ]
+    deep_matches = [
+        r for r in results
+        if r.get("first_divergence_stage") == "MATCH_THROUGH_E"
+    ]
+    if len(prod600_matches) == len(results) and len(deep_matches) < len(results):
+        root_cause_status = "ROOT_CAUSE_INPUT_HORIZON_CONFIRMED"
+    elif len(prod600_matches) > len(deep_matches):
+        root_cause_status = "INPUT_HORIZON_STRONGLY_SUPPORTED"
+    else:
+        root_cause_status = "INPUT_HORIZON_NOT_SUFFICIENT_ALONE"
+
     payload = {
         "schema": "nvt9-0919-reference-diagnostic/1.0",
         "audit_id": "ID10IQ200",
         "status": "PASS_DIAGNOSTIC_COMPLETED",
+        "root_cause_status": root_cause_status,
+        "production_600_reference_match_count": len(prod600_matches),
+        "deep_reference_match_count": len(deep_matches),
         "symbol": args.symbol,
         "reference_source": str(args.reference),
         "cutoff_exclusive": CUTOFF.isoformat(),
@@ -367,6 +427,9 @@ def main() -> int:
         "NVT9 09/19 REFERENCE DIAGNOSTIC",
         "Audit ID: ID10IQ200",
         f"status={payload['status']}",
+        f"root_cause_status={root_cause_status}",
+        f"production_600_reference_match_count={len(prod600_matches)}/{len(results)}",
+        f"deep_reference_match_count={len(deep_matches)}/{len(results)}",
         f"stage_counts={json.dumps(stage_counts, ensure_ascii=False)}",
         "",
         "INPUT COVERAGE",
@@ -382,9 +445,11 @@ def main() -> int:
     txt.append("")
     txt.append("REFERENCE RESULTS")
     for r in payload["results"]:
+        p600 = r.get("production_600_replay") or {}
         txt.append(
-            f"  {r['reference_id']} {r['timeframe']} {r['structure_level']} -> "
-            f"{r['first_divergence_stage']} | {r['reason']}"
+            f"  {r['reference_id']} {r['timeframe']} {r['structure_level']} | "
+            f"600bar_match={p600.get('current_matches_reference')} | "
+            f"deep_first_divergence={r['first_divergence_stage']} | {r['reason']}"
         )
         if "D_lifecycle" in r:
             current = r["D_lifecycle"].get("current")
