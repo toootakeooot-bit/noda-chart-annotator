@@ -52,6 +52,7 @@ jobs:
             tests/selftest_nvt9_reference0919_builder.py \
             tests/selftest_nvt9_reference0919_viewer_safety.py \
             tests/selftest_nvt9_structural_overlay.py \
+            tests/selftest_nvt9_rejected_draw_ledger.py \
             tests/selftest_nvt9_cross_tf.py \
             tests/selftest_nvt9_normal_vs_full_history.py \
             tests/selftest_nvt9_deep_lifecycle_state.py \
@@ -79,6 +80,9 @@ jobs:
 
       - name: Structural overlay self-test
         run: python tests/selftest_nvt9_structural_overlay.py
+
+      - name: Rejected draw ledger self-test
+        run: python tests/selftest_nvt9_rejected_draw_ledger.py
 
       - name: NormalRun lifecycle replay self-test
         run: python tests/selftest_normal_run.py
