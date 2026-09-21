@@ -17,8 +17,6 @@ from live_draw.market_input import load_ohlc_csv
 from live_draw.normal_run import safe_symbol_filename
 from live_draw.turn_detector import detect_turns
 
-CUTOFF = datetime.fromisoformat("2026-09-19T00:00:00")
-
 
 def mt4_time(value: datetime) -> str:
     return value.strftime("%Y.%m.%d %H:%M:%S")
@@ -435,16 +433,22 @@ def main() -> int:
     ap.add_argument("--reference", required=True)
     ap.add_argument("--output-dir", required=True)
     ap.add_argument("--symbol", default="USDJPY#")
+    ap.add_argument("--cutoff", default="2026-09-19T00:00:00")
+    ap.add_argument("--case-tag", default="0919")
     args = ap.parse_args()
 
+    cutoff = datetime.fromisoformat(args.cutoff)
+    case_tag = args.case_tag
     input_dir = Path(args.input_dir)
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
     refdoc = json.loads(Path(args.reference).read_text(encoding="utf-8-sig"))
     rows = []
     audit = {
-        "schema": "nvt9-structural-overlay-0919/0.1",
+        "schema": "nvt9-structural-overlay/0.2",
         "audit_id": "ID10IQ200",
+        "case_tag": case_tag,
+        "cutoff_exclusive": cutoff.isoformat(),
         "research_only": True,
         "production_changed": False,
         "d1_continuation": {"status": "NOT_BUILT"},
@@ -457,7 +461,7 @@ def main() -> int:
     d1_path = input_dir / f"NVT_{safe_symbol_filename(args.symbol)}_D1.csv"
     if d1_path.exists():
         d1_all = load_ohlc_csv(d1_path)
-        d1 = [b for b in d1_all if b.time < CUTOFF][-600:]
+        d1 = [b for b in d1_all if b.time < cutoff][-600:]
         piv = detect_turns(d1).pivots
         cand = build_d1_continuation(d1, piv)
         if cand is not None:
@@ -465,18 +469,18 @@ def main() -> int:
             tl2 = line_value(end, cand.anchor1.time, cand.anchor1.price, cand.slope)
             ch1 = cand.anchor1.price + cand.ch_offset
             ch2 = tl2 + cand.ch_offset
-            write_row(rows, object_id="X0919-D1-CONT-01-TL", symbol=args.symbol, timeframe="D1",
+            write_row(rows, object_id=f"X{case_tag}-D1-CONT-01-TL", symbol=args.symbol, timeframe="D1",
                       structure="CONTINUATION_SUPPORT", role="CONT_TL",
                       t1=cand.anchor1.time, p1=cand.anchor1.price, t2=end, p2=tl2, status=cand.status)
-            write_row(rows, object_id="X0919-D1-CONT-01-CH", symbol=args.symbol, timeframe="D1",
+            write_row(rows, object_id=f"X{case_tag}-D1-CONT-01-CH", symbol=args.symbol, timeframe="D1",
                       structure="CONTINUATION_SUPPORT", role="CONT_CH",
                       t1=cand.anchor1.time, p1=ch1, t2=end, p2=ch2, status=cand.status)
-            write_row(rows, object_id="X0919-D1-CONT-01-HL", symbol=args.symbol, timeframe="D1",
+            write_row(rows, object_id=f"X{case_tag}-D1-CONT-01-HL", symbol=args.symbol, timeframe="D1",
                       structure="CONTINUATION_SUPPORT", role="CONT_HL",
                       t1=cand.decision_hl.time, p1=cand.decision_hl.price, t2=end, p2=cand.decision_hl.price, status=cand.status)
             audit["d1_continuation"] = {
                 "status": "BUILT",
-                "object_family": "X0919-D1-CONT-01",
+                "object_family": f"X{case_tag}-D1-CONT-01",
                 "reason_code": "D1_CONTINUATION_SUPPORT_TIGHTEST_UNBROKEN_BROAD_PRE_BREAK" if cand.hl_break_time is None else "D1_CONTINUATION_SUPPORT_TIGHTEST_UNBROKEN_BROAD_ACTIVE",
                 "anchor1": {"time": cand.anchor1.time.isoformat(), "price": float(cand.anchor1.price)},
                 "anchor2": {"time": cand.anchor2.time.isoformat(), "price": float(cand.anchor2.price)},
@@ -503,7 +507,7 @@ def main() -> int:
     h1_path = input_dir / f"NVT_{safe_symbol_filename(args.symbol)}_H1.csv"
     if h1_path.exists():
         h1_all = load_ohlc_csv(h1_path)
-        h1 = [b for b in h1_all if b.time < CUTOFF][-600:]
+        h1 = [b for b in h1_all if b.time < cutoff][-600:]
         h1_turns = detect_turns(h1)
         h1_cand = build_h1_native_continuation(h1, h1_turns.pivots)
 
@@ -513,20 +517,20 @@ def main() -> int:
             ch_start = h1_cand.anchor1.price + h1_cand.ch_offset
             ch_end = tl_end + h1_cand.ch_offset
 
-            write_row(rows, object_id="X0919-H1-CONT-01-TL", symbol=args.symbol, timeframe="H1",
+            write_row(rows, object_id=f"X{case_tag}-H1-CONT-01-TL", symbol=args.symbol, timeframe="H1",
                       structure="H1_NATIVE_CONTINUATION", role="CONT_TL",
                       t1=h1_cand.anchor1.time, p1=h1_cand.anchor1.price, t2=end, p2=tl_end, status=h1_cand.status)
-            write_row(rows, object_id="X0919-H1-CONT-01-CH", symbol=args.symbol, timeframe="H1",
+            write_row(rows, object_id=f"X{case_tag}-H1-CONT-01-CH", symbol=args.symbol, timeframe="H1",
                       structure="H1_NATIVE_CONTINUATION", role="CONT_CH",
                       t1=h1_cand.anchor1.time, p1=ch_start, t2=end, p2=ch_end, status=h1_cand.status)
-            write_row(rows, object_id="X0919-H1-CONT-01-HL", symbol=args.symbol, timeframe="H1",
+            write_row(rows, object_id=f"X{case_tag}-H1-CONT-01-HL", symbol=args.symbol, timeframe="H1",
                       structure="H1_NATIVE_CONTINUATION", role="CONT_HL",
                       t1=h1_cand.decision_hl.time, p1=h1_cand.decision_hl.price,
                       t2=end, p2=h1_cand.decision_hl.price, status=h1_cand.status)
 
             audit["h1_native_continuation"] = {
                 "status": "BUILT",
-                "object_family": "X0919-H1-CONT-01",
+                "object_family": f"X{case_tag}-H1-CONT-01",
                 "reason_code": "H1_NATIVE_RECENT_TIGHT_UNBROKEN_CONTINUATION",
                 "anchor1": {"time": h1_cand.anchor1.time.isoformat(), "price": float(h1_cand.anchor1.price)},
                 "anchor2": {"time": h1_cand.anchor2.time.isoformat(), "price": float(h1_cand.anchor2.price)},
@@ -555,7 +559,7 @@ def main() -> int:
             )
 
             for z in zones:
-                zid = f"X0919-H1-Z{z['zone_no']:02d}"
+                zid = f"X{case_tag}-H1-Z{z['zone_no']:02d}"
                 low1 = line_value(start, h1_cand.anchor1.time, h1_cand.anchor1.price, h1_cand.slope, z["low_offset"])
                 low2 = line_value(end, h1_cand.anchor1.time, h1_cand.anchor1.price, h1_cand.slope, z["low_offset"])
                 high1 = line_value(start, h1_cand.anchor1.time, h1_cand.anchor1.price, h1_cand.slope, z["high_offset"])
@@ -569,7 +573,7 @@ def main() -> int:
 
             audit["h1_reaction_zones"] = {
                 "status": "BUILT" if zones else "NO_ZONE_PASSED",
-                "base_reference_id": "X0919-H1-CONT-01",
+                "base_reference_id": f"X{case_tag}-H1-CONT-01",
                 "reason_code": "H1_NATIVE_PARALLEL_REACTION_ZONE_BODY_WICK_CLUSTER",
                 "slope_per_second": h1_cand.slope,
                 "analysis_start": start.isoformat(),
@@ -598,13 +602,13 @@ def main() -> int:
             if uch is not None:
                 p1 = line_value(start, h1_cand.anchor1.time, h1_cand.anchor1.price, h1_cand.slope, uch["offset"])
                 p2 = line_value(end, h1_cand.anchor1.time, h1_cand.anchor1.price, h1_cand.slope, uch["offset"])
-                write_row(rows, object_id="X0919-H1-UCH-01", symbol=args.symbol, timeframe="H1",
+                write_row(rows, object_id=f"X{case_tag}-H1-UCH-01", symbol=args.symbol, timeframe="H1",
                           structure="UPDATED_CHANNEL", role="UPDATED_CH",
                           t1=start, p1=p1, t2=end, p2=p2, status="ACTIVE")
                 audit["h1_updated_ch"] = {
                     "status": "BUILT",
                     **{k:(v.isoformat() if isinstance(v, datetime) else v) for k,v in uch.items()},
-                    "base_reference_id": "X0919-H1-CONT-01",
+                    "base_reference_id": f"X{case_tag}-H1-CONT-01",
                     "old_ch_offset": h1_cand.ch_offset,
                     "new_ch_offset": uch["offset"],
                     "tolerance": tol,
@@ -612,7 +616,7 @@ def main() -> int:
             else:
                 audit["h1_updated_ch"] = {
                     "status": "NO_CONFIRMED_HIGH_OUTSIDE_EXISTING_CH",
-                    "base_reference_id": "X0919-H1-CONT-01",
+                    "base_reference_id": f"X{case_tag}-H1-CONT-01",
                     "old_ch_offset": h1_cand.ch_offset,
                     "tolerance": tol,
                 }
@@ -643,7 +647,7 @@ def main() -> int:
 
     txt_path = outdir / "NVT9_0919_STRUCTURAL_OVERLAY_AUDIT.txt"
     txt = [
-        "NVT9 09/19 STRUCTURAL OVERLAY AUDIT",
+        f"NVT9 {case_tag} STRUCTURAL OVERLAY AUDIT",
         "Audit ID: ID10IQ200",
         "",
         f"D1 continuation: {audit['d1_continuation'].get('status')} {audit['d1_continuation'].get('reason_code')}",
