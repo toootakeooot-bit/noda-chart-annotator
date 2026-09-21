@@ -108,7 +108,12 @@ int RenderOnChart(long chartId,string symbol,string tf)
    {
       string objectId,rowSymbol,rowTf,structure,role,t1s,p1s,t2s,p2s,genRole,generation,status,extent;
       if(!ReadRow(h,objectId,rowSymbol,rowTf,structure,role,t1s,p1s,t2s,p2s,genRole,generation,status,extent)) break;
-      if(rowSymbol!=symbol || !SourceVisibleOnDestination(rowTf,tf)) continue;
+      if(rowSymbol!=symbol) continue;
+      if(role=="HL") {
+         if(rowTf!=tf) continue;
+      } else {
+         if(!SourceVisibleOnDestination(rowTf,tf)) continue;
+      }
 
       datetime t1=StringToTime(t1s), t2=StringToTime(t2s);
       double p1=StrToDouble(p1s), p2=StrToDouble(p2s);
@@ -127,7 +132,13 @@ int RenderOnChart(long chartId,string symbol,string tf)
       int style=STYLE_SOLID;
       int width=(structure=="LARGE_DOW") ? LargeWidth : MidWidth;
 
-      if(role=="CH") c=chColor;
+      if(role=="HL")
+      {
+         c=tlColor;
+         style=STYLE_DOT;
+         width=2;
+      }
+      else if(role=="CH") c=chColor;
       else if(role=="TL_ZONE_EDGE" || role=="CH_ZONE_EDGE")
       {
          c=(role=="CH_ZONE_EDGE") ? chColor : tlColor;
@@ -139,9 +150,9 @@ int RenderOnChart(long chartId,string symbol,string tf)
       ObjectSetInteger(chartId,name,OBJPROP_WIDTH,width);
       rendered++;
 
-      if(role=="TL")
+      if(role=="TL" || role=="HL")
       {
-         string refId=RefIdFromObject(objectId);
+         string refId=(role=="HL") ? objectId : RefIdFromObject(objectId);
          string lname=PREFIX+"LBL_"+refId;
          if(ObjectFind(chartId,lname)>=0) ObjectDelete(chartId,lname);
          if(ObjectCreate(chartId,lname,OBJ_TEXT,0,t2,p2))
