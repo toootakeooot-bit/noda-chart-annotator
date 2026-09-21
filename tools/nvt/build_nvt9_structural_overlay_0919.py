@@ -71,13 +71,13 @@ def build_d1_continuation(bars, pivots) -> ContinuationCandidate | None:
         return None
 
     tol = max(median_bar_range(bars) * 0.28, 1e-8)
-    recent_anchor2_times = {p.time for p in lows[-4:]}
+    # D1 broad continuation must not be restricted to only the last few lows.
+    # The visual reference can legitimately use an older major pullback low as
+    # anchor2 while the newer local sequence develops above it.
     candidates: list[ContinuationCandidate] = []
 
     for i, a in enumerate(lows[:-1]):
         for b in lows[i + 1:]:
-            if b.time not in recent_anchor2_times:
-                continue
             if b.price <= a.price:
                 continue
             between = [h for h in highs if a.time < h.time < b.time]
@@ -87,10 +87,11 @@ def build_d1_continuation(bars, pivots) -> ContinuationCandidate | None:
             decision_hl = max(between, key=lambda p: (p.price, p.time))
             slope = slope_per_second(a.time, a.price, b.time, b.price)
 
-            # A continuation reference must still act as support after anchor2.
+            # A structural support must remain below closed-bar price for the
+            # whole life of the candidate, not only after anchor2.
             broken = False
             for bar in bars:
-                if bar.time <= b.time:
+                if bar.time < a.time:
                     continue
                 if bar.close < line_value(bar.time, a.time, a.price, slope) - tol:
                     broken = True
@@ -179,6 +180,111 @@ def build_d1_continuation(bars, pivots) -> ContinuationCandidate | None:
     return max(pool, key=support_rank)
 
 
+def build_h1_native_continuation(bars, pivots) -> ContinuationCandidate | None:
+    """Build a native H1 rising TL/CH/Decision-HL family.
+
+    This deliberately does not reuse a mapped M15 line.  It uses H1-confirmed
+    pivots, prefers a recent structural pullback anchor2, and requires the
+    support line to remain unbroken by closed H1 bars.
+    """
+    lows = [p for p in pivots if p.kind == "LOW"]
+    highs = [p for p in pivots if p.kind == "HIGH"]
+    if len(lows) < 2 or not highs:
+        return None
+
+    tol = max(median_bar_range(bars) * 0.28, 1e-8)
+    recent_anchor2_times = {p.time for p in lows[-8:]}
+    candidates: list[ContinuationCandidate] = []
+
+    for i, a in enumerate(lows[:-1]):
+        for b in lows[i + 1:]:
+            if b.time not in recent_anchor2_times:
+                continue
+            duration_days = (b.time - a.time).total_seconds() / 86400.0
+            if duration_days < 2.0:
+                continue
+            if b.price <= a.price:
+                continue
+
+            between = [h for h in highs if a.time < h.time < b.time]
+            if not between:
+                continue
+            decision_hl = max(between, key=lambda p: (p.price, p.time))
+            slope = slope_per_second(a.time, a.price, b.time, b.price)
+
+            broken = False
+            for bar in bars:
+                if bar.time < a.time:
+                    continue
+                if bar.close < line_value(bar.time, a.time, a.price, slope) - tol:
+                    broken = True
+                    break
+            if broken:
+                continue
+
+            contacts = 0
+            for p in lows:
+                if p.time < a.time:
+                    continue
+                if abs(p.price - line_value(p.time, a.time, a.price, slope)) <= tol:
+                    contacts += 1
+
+            hl_break_time = None
+            for bar in bars:
+                if bar.time <= b.time:
+                    continue
+                if bar.close > decision_hl.price:
+                    hl_break_time = bar.time
+                    break
+
+            # Base CH belongs to the structure that existed by anchor2.
+            # Later highs are reserved for Updated-CH adjudication.
+            residuals = [
+                (h.price - line_value(h.time, a.time, a.price, slope), h)
+                for h in between
+            ]
+            residuals = [(off, h) for off, h in residuals if off > 0]
+            if not residuals:
+                continue
+            ch_offset, ch_anchor = max(residuals, key=lambda x: (x[0], x[1].time))
+
+            candidates.append(
+                ContinuationCandidate(
+                    anchor1=a,
+                    anchor2=b,
+                    decision_hl=decision_hl,
+                    slope=slope,
+                    tl_contacts=contacts,
+                    duration_days=duration_days,
+                    unbroken_close=True,
+                    hl_break_time=hl_break_time,
+                    ch_anchor=ch_anchor,
+                    ch_offset=ch_offset,
+                    tolerance=tol,
+                )
+            )
+
+    if not candidates:
+        return None
+
+    cutoff_time = bars[-1].time
+    cutoff_close = float(bars[-1].close)
+
+    # Prefer the newest meaningful H1 pullback structure first.  Within the
+    # same anchor2 epoch, prefer the tightest unbroken support and more contacts.
+    def rank(c: ContinuationCandidate):
+        projected = line_value(cutoff_time, c.anchor1.time, c.anchor1.price, c.slope)
+        gap = max(0.0, cutoff_close - projected)
+        return (
+            c.anchor2.time,
+            -gap,
+            c.tl_contacts,
+            c.duration_days,
+        )
+
+    return max(candidates, key=rank)
+
+
 @dataclass
 class WeightedResidual:
     value: float
@@ -201,7 +307,7 @@ def weighted_quantile(points: list[WeightedResidual], q: float) -> float:
     return ordered[-1].value
 
 
-def cluster_reaction_zones(bars, *, base_t1, base_p1, base_slope, max_zones: int = 4) -> list[dict]:
+def cluster_reaction_zones(bars, *, base_t1, base_p1, base_slope, max_zones: int = 3) -> list[dict]:
     if not bars:
         return []
     mr = median_bar_range(bars)
@@ -248,7 +354,7 @@ def cluster_reaction_zones(bars, *, base_t1, base_p1, base_slope, max_zones: int
         unique_bars = len({p.bar_index for p in pts})
         body_weight = sum(p.weight for p in pts if p.kind.startswith("BODY"))
         wick_weight = sum(p.weight for p in pts if p.kind.startswith("WICK"))
-        if unique_bars < 3 or body_weight <= 0:
+        if unique_bars < 4 or body_weight < 6.0:
             continue
         low = weighted_quantile(pts, 0.20)
         high = weighted_quantile(pts, 0.80)
@@ -271,13 +377,16 @@ def cluster_reaction_zones(bars, *, base_t1, base_p1, base_slope, max_zones: int
     # Strongest non-overlapping bands survive. Any overlap suppresses the
     # weaker band; we never merge two bands into one opaque wide zone.
     selected: list[dict] = []
+    min_center_gap = mr * 1.25
     for c in sorted(candidates, key=lambda x: (-x["score"], x["center_offset"])):
-        overlap = False
-        for s in selected:
-            if max(c["low_offset"], s["low_offset"]) <= min(c["high_offset"], s["high_offset"]):
-                overlap = True
+        overlap_or_too_close = False
+        for existing in selected:
+            overlaps = max(c["low_offset"], existing["low_offset"]) <= min(c["high_offset"], existing["high_offset"])
+            too_close = abs(c["center_offset"] - existing["center_offset"]) < min_center_gap
+            if overlaps or too_close:
+                overlap_or_too_close = True
                 break
-        if overlap:
+        if overlap_or_too_close:
             continue
         selected.append(c)
         if len(selected) >= max_zones:
@@ -339,6 +448,7 @@ def main() -> int:
         "research_only": True,
         "production_changed": False,
         "d1_continuation": {"status": "NOT_BUILT"},
+        "h1_native_continuation": {"status": "NOT_BUILT"},
         "h1_reaction_zones": {"status": "NOT_BUILT"},
         "h1_updated_ch": {"status": "NOT_BUILT"},
     }
@@ -389,86 +499,133 @@ def main() -> int:
                 "rejected_policy_reason": "Visual audit showed the duration-first selector can choose an obsolete shallow D1 line below the active support structure.",
             }
 
-    # ---- H1 parallel reaction zones + updated CH ----
-    base = next((x for x in refdoc.get("lines", []) if x.get("reference_id") == "R0919-08"), None)
+    # ---- H1 native TL/HL + parallel reaction zones + updated CH ----
     h1_path = input_dir / f"NVT_{safe_symbol_filename(args.symbol)}_H1.csv"
-    if base and h1_path.exists():
+    if h1_path.exists():
         h1_all = load_ohlc_csv(h1_path)
         h1 = [b for b in h1_all if b.time < CUTOFF][-600:]
-        base_t1 = datetime.fromisoformat(base["anchor1_time"])
-        base_t2 = datetime.fromisoformat(base["anchor2_time"])
-        base_p1 = float(base["anchor1_price"])
-        base_p2 = float(base["anchor2_price"])
-        base_slope = slope_per_second(base_t1, base_p1, base_t2, base_p2)
-        start = base_t1 - timedelta(days=3)
-        zone_bars = [b for b in h1 if b.time >= start]
-        zones = cluster_reaction_zones(
-            zone_bars,
-            base_t1=base_t1,
-            base_p1=base_p1,
-            base_slope=base_slope,
-            max_zones=4,
-        )
-        end = h1[-1].time if h1 else base_t2
-        for z in zones:
-            zid = f"X0919-H1-Z{z['zone_no']:02d}"
-            low1 = line_value(start, base_t1, base_p1, base_slope, z["low_offset"])
-            low2 = line_value(end, base_t1, base_p1, base_slope, z["low_offset"])
-            high1 = line_value(start, base_t1, base_p1, base_slope, z["high_offset"])
-            high2 = line_value(end, base_t1, base_p1, base_slope, z["high_offset"])
-            write_row(rows, object_id=zid+"-LOW", symbol=args.symbol, timeframe="H1",
-                      structure="PARALLEL_REACTION_ZONE", role="REACTION_ZONE_LOW",
-                      t1=start, p1=low1, t2=end, p2=low2, status="ACTIVE")
-            write_row(rows, object_id=zid+"-HIGH", symbol=args.symbol, timeframe="H1",
-                      structure="PARALLEL_REACTION_ZONE", role="REACTION_ZONE_HIGH",
-                      t1=start, p1=high1, t2=end, p2=high2, status="ACTIVE")
+        h1_turns = detect_turns(h1)
+        h1_cand = build_h1_native_continuation(h1, h1_turns.pivots)
 
-        audit["h1_reaction_zones"] = {
-            "status": "BUILT" if zones else "NO_ZONE_PASSED",
-            "base_reference_id": "R0919-08",
-            "reason_code": "PARALLEL_REACTION_ZONE_BODY_WICK_CLUSTER",
-            "slope_per_second": base_slope,
-            "analysis_start": start.isoformat(),
-            "analysis_end": end.isoformat(),
-            "zone_count": len(zones),
-            "non_overlap_policy": "WEAKER_OVERLAPPING_ZONE_SUPPRESSED",
-            "max_zones": 4,
-            "body_weight": 1.5,
-            "wick_weight": 0.75,
-            "zones": zones,
-        }
+        if h1_cand is not None:
+            end = h1[-1].time
+            tl_end = line_value(end, h1_cand.anchor1.time, h1_cand.anchor1.price, h1_cand.slope)
+            ch_start = h1_cand.anchor1.price + h1_cand.ch_offset
+            ch_end = tl_end + h1_cand.ch_offset
 
-        turns = detect_turns(h1)
-        tol = max(median_bar_range(h1) * 0.25, 1e-8)
-        uch = choose_updated_ch(
-            turns.pivots,
-            base_t1=base_t1,
-            base_p1=base_p1,
-            base_t2=base_t2,
-            base_p2=base_p2,
-            base_ch_offset=float(base["ch_offset"]),
-            tolerance=tol,
-        )
-        if uch is not None:
-            p1 = line_value(start, base_t1, base_p1, base_slope, uch["offset"])
-            p2 = line_value(end, base_t1, base_p1, base_slope, uch["offset"])
-            write_row(rows, object_id="X0919-H1-UCH-01", symbol=args.symbol, timeframe="H1",
-                      structure="UPDATED_CHANNEL", role="UPDATED_CH",
-                      t1=start, p1=p1, t2=end, p2=p2, status="ACTIVE")
-            audit["h1_updated_ch"] = {
+            write_row(rows, object_id="X0919-H1-CONT-01-TL", symbol=args.symbol, timeframe="H1",
+                      structure="H1_NATIVE_CONTINUATION", role="CONT_TL",
+                      t1=h1_cand.anchor1.time, p1=h1_cand.anchor1.price, t2=end, p2=tl_end, status=h1_cand.status)
+            write_row(rows, object_id="X0919-H1-CONT-01-CH", symbol=args.symbol, timeframe="H1",
+                      structure="H1_NATIVE_CONTINUATION", role="CONT_CH",
+                      t1=h1_cand.anchor1.time, p1=ch_start, t2=end, p2=ch_end, status=h1_cand.status)
+            write_row(rows, object_id="X0919-H1-CONT-01-HL", symbol=args.symbol, timeframe="H1",
+                      structure="H1_NATIVE_CONTINUATION", role="CONT_HL",
+                      t1=h1_cand.decision_hl.time, p1=h1_cand.decision_hl.price,
+                      t2=end, p2=h1_cand.decision_hl.price, status=h1_cand.status)
+
+            audit["h1_native_continuation"] = {
                 "status": "BUILT",
-                **{k:(v.isoformat() if isinstance(v, datetime) else v) for k,v in uch.items()},
-                "base_reference_id": "R0919-08",
-                "old_ch_offset": float(base["ch_offset"]),
-                "new_ch_offset": uch["offset"],
-                "tolerance": tol,
+                "object_family": "X0919-H1-CONT-01",
+                "reason_code": "H1_NATIVE_RECENT_TIGHT_UNBROKEN_CONTINUATION",
+                "anchor1": {"time": h1_cand.anchor1.time.isoformat(), "price": float(h1_cand.anchor1.price)},
+                "anchor2": {"time": h1_cand.anchor2.time.isoformat(), "price": float(h1_cand.anchor2.price)},
+                "decision_hl": {
+                    "time": h1_cand.decision_hl.time.isoformat(),
+                    "price": float(h1_cand.decision_hl.price),
+                    "break_time": h1_cand.hl_break_time.isoformat() if h1_cand.hl_break_time else None,
+                },
+                "tl_contacts": h1_cand.tl_contacts,
+                "duration_days": h1_cand.duration_days,
+                "ch_anchor": {"time": h1_cand.ch_anchor.time.isoformat(), "price": float(h1_cand.ch_anchor.price)},
+                "ch_offset": h1_cand.ch_offset,
+                "source_timeframe": "H1",
+                "mapped_lower_tf_used_as_base": False,
             }
+
+            # Reaction zones are now based on the H1-native TL slope, not R0919-08/M15.
+            start = h1_cand.anchor1.time
+            zone_bars = [bar for bar in h1 if bar.time >= start]
+            zones = cluster_reaction_zones(
+                zone_bars,
+                base_t1=h1_cand.anchor1.time,
+                base_p1=h1_cand.anchor1.price,
+                base_slope=h1_cand.slope,
+                max_zones=3,
+            )
+
+            for z in zones:
+                zid = f"X0919-H1-Z{z['zone_no']:02d}"
+                low1 = line_value(start, h1_cand.anchor1.time, h1_cand.anchor1.price, h1_cand.slope, z["low_offset"])
+                low2 = line_value(end, h1_cand.anchor1.time, h1_cand.anchor1.price, h1_cand.slope, z["low_offset"])
+                high1 = line_value(start, h1_cand.anchor1.time, h1_cand.anchor1.price, h1_cand.slope, z["high_offset"])
+                high2 = line_value(end, h1_cand.anchor1.time, h1_cand.anchor1.price, h1_cand.slope, z["high_offset"])
+                write_row(rows, object_id=zid+"-LOW", symbol=args.symbol, timeframe="H1",
+                          structure="PARALLEL_REACTION_ZONE", role="REACTION_ZONE_LOW",
+                          t1=start, p1=low1, t2=end, p2=low2, status="ACTIVE")
+                write_row(rows, object_id=zid+"-HIGH", symbol=args.symbol, timeframe="H1",
+                          structure="PARALLEL_REACTION_ZONE", role="REACTION_ZONE_HIGH",
+                          t1=start, p1=high1, t2=end, p2=high2, status="ACTIVE")
+
+            audit["h1_reaction_zones"] = {
+                "status": "BUILT" if zones else "NO_ZONE_PASSED",
+                "base_reference_id": "X0919-H1-CONT-01",
+                "reason_code": "H1_NATIVE_PARALLEL_REACTION_ZONE_BODY_WICK_CLUSTER",
+                "slope_per_second": h1_cand.slope,
+                "analysis_start": start.isoformat(),
+                "analysis_end": end.isoformat(),
+                "zone_count": len(zones),
+                "non_overlap_policy": "WEAKER_OVERLAP_OR_TOO_CLOSE_ZONE_SUPPRESSED",
+                "max_zones": 3,
+                "minimum_center_gap_median_range_multiple": 1.25,
+                "minimum_unique_bars": 4,
+                "minimum_body_weight": 6.0,
+                "body_weight": 1.5,
+                "wick_weight": 0.75,
+                "zones": zones,
+            }
+
+            tol = max(median_bar_range(h1) * 0.25, 1e-8)
+            uch = choose_updated_ch(
+                h1_turns.pivots,
+                base_t1=h1_cand.anchor1.time,
+                base_p1=h1_cand.anchor1.price,
+                base_t2=h1_cand.anchor2.time,
+                base_p2=h1_cand.anchor2.price,
+                base_ch_offset=h1_cand.ch_offset,
+                tolerance=tol,
+            )
+            if uch is not None:
+                p1 = line_value(start, h1_cand.anchor1.time, h1_cand.anchor1.price, h1_cand.slope, uch["offset"])
+                p2 = line_value(end, h1_cand.anchor1.time, h1_cand.anchor1.price, h1_cand.slope, uch["offset"])
+                write_row(rows, object_id="X0919-H1-UCH-01", symbol=args.symbol, timeframe="H1",
+                          structure="UPDATED_CHANNEL", role="UPDATED_CH",
+                          t1=start, p1=p1, t2=end, p2=p2, status="ACTIVE")
+                audit["h1_updated_ch"] = {
+                    "status": "BUILT",
+                    **{k:(v.isoformat() if isinstance(v, datetime) else v) for k,v in uch.items()},
+                    "base_reference_id": "X0919-H1-CONT-01",
+                    "old_ch_offset": h1_cand.ch_offset,
+                    "new_ch_offset": uch["offset"],
+                    "tolerance": tol,
+                }
+            else:
+                audit["h1_updated_ch"] = {
+                    "status": "NO_CONFIRMED_HIGH_OUTSIDE_EXISTING_CH",
+                    "base_reference_id": "X0919-H1-CONT-01",
+                    "old_ch_offset": h1_cand.ch_offset,
+                    "tolerance": tol,
+                }
         else:
+            audit["h1_native_continuation"] = {
+                "status": "NO_H1_NATIVE_CONTINUATION_PASSED",
+                "reason_code": "DO_NOT_FALL_BACK_TO_MAPPED_M15_AS_H1_NATIVE",
+            }
+            audit["h1_reaction_zones"] = {
+                "status": "NOT_BUILT_NO_H1_NATIVE_BASE",
+            }
             audit["h1_updated_ch"] = {
-                "status": "NO_CONFIRMED_HIGH_OUTSIDE_EXISTING_CH",
-                "base_reference_id": "R0919-08",
-                "old_ch_offset": float(base["ch_offset"]),
-                "tolerance": tol,
+                "status": "NOT_BUILT_NO_H1_NATIVE_BASE",
             }
 
     header = [
@@ -490,6 +647,7 @@ def main() -> int:
         "Audit ID: ID10IQ200",
         "",
         f"D1 continuation: {audit['d1_continuation'].get('status')} {audit['d1_continuation'].get('reason_code')}",
+        f"H1 native TL/HL: {audit['h1_native_continuation'].get('status')} {audit['h1_native_continuation'].get('reason_code')}",
         f"H1 reaction zones: {audit['h1_reaction_zones'].get('status')} count={audit['h1_reaction_zones'].get('zone_count', 0)}",
         f"H1 updated CH: {audit['h1_updated_ch'].get('status')} {audit['h1_updated_ch'].get('reason_code')}",
         "",
