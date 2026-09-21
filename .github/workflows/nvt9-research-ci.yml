@@ -48,6 +48,8 @@ jobs:
             tools/nvt/prepare_nvt9_v7_preview_ready.py \
             tests/selftest_normal_run.py \
             tests/selftest_selector_trace.py \
+            tests/selftest_nvt9_reference0919_builder.py \
+            tests/selftest_nvt9_reference0919_viewer_safety.py \
             tests/selftest_nvt9_cross_tf.py \
             tests/selftest_nvt9_normal_vs_full_history.py \
             tests/selftest_nvt9_deep_lifecycle_state.py \
@@ -66,6 +68,12 @@ jobs:
 
       - name: Selector audit trace self-test
         run: python tests/selftest_selector_trace.py
+
+      - name: 09/19 reference builder self-test
+        run: python tests/selftest_nvt9_reference0919_builder.py
+
+      - name: 09/19 reference viewer safety self-test
+        run: python tests/selftest_nvt9_reference0919_viewer_safety.py
 
       - name: NormalRun lifecycle replay self-test
         run: python tests/selftest_normal_run.py
