@@ -19,6 +19,7 @@ def main() -> None:
         "RD0912-002", "RD0912-003", "RD0912-004", "RD0912-005", "RD0912-006",
         "RD0912-007", "RD0912-008", "RD0912-009", "RD0912-010",
         "RD0912-011", "RD0912-012", "RD0912-013", "RD0912-014",
+        "RD0905-001",
     }
 
     ref = json.loads(REFERENCE.read_text(encoding="utf-8"))
@@ -70,6 +71,7 @@ def main() -> None:
     assert entries["RD0912-012"]["replacement_policy"] == "PRE_CUTOFF_ANCHORS_ONLY_PLUS_RAY_RIGHT_DISPLAY"
     assert entries["RD0912-013"]["replacement_policy"] == "SCOPED_NCA_NVT9_CLEANUP_THEN_COMPLETE_REBUILD"
     assert entries["RD0912-014"]["replacement_policy"] == "FROZEN_REFERENCE_IDENTITY_ONLY_REBUILD_GEOMETRY_FROM_PRE_CUTOFF_BARS"
+    assert entries["RD0905-001"]["replacement_policy"] == "CURRENT_THEN_PREVIOUS_THEN_FROZEN_REFERENCE_REVALIDATED_PRE_CUTOFF_ELSE_NO_LINE"
 
     print("NVT9_REJECTED_DRAW_LEDGER_SELFTEST_PASS")
 
