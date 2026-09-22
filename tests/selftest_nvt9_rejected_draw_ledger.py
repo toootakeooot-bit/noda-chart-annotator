@@ -16,7 +16,7 @@ def main() -> None:
     assert set(entries) >= {
         "RD0919-001", "RD0919-002", "RD0919-003", "RD0919-004",
         "RD0919-005", "RD0919-006", "RD0919-007", "RD0912-001",
-        "RD0912-002", "RD0912-003", "RD0912-004",
+        "RD0912-002", "RD0912-003", "RD0912-004", "RD0912-005", "RD0912-006",
     }
 
     ref = json.loads(REFERENCE.read_text(encoding="utf-8"))
@@ -34,6 +34,9 @@ def main() -> None:
     assert 'max_zones=(2 if case_tag == "0912" else 3)' in overlay_text
     assert "recent_anchor2_times = {p.time for p in lows[-10:]}" in overlay_text
     assert "build_d1_major_channel" in overlay_text
+    assert "build_d1_retained_reference_0912" in overlay_text
+    assert "2025-04-01T00:00:00" in overlay_text
+    assert "2025-08-20T00:00:00" in overlay_text
     assert "H1_NATIVE_FORMATION_VALID_AFTER_ANCHOR2" in overlay_text
 
     assert entries["RD0919-001"]["status"] == "ENFORCED"
@@ -47,6 +50,8 @@ def main() -> None:
     assert entries["RD0912-002"]["replacement_policy"] == "SUPPRESS_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT"
     assert entries["RD0912-003"]["replacement_policy"] == "D1_MAJOR_RISING_MULTI_MONTH_SUPPORT_CHANNEL"
     assert entries["RD0912-004"]["replacement_policy"] == "STRICT_FIRST_THEN_POST_ANCHOR2_UNBROKEN_H1_N_STRUCTURE"
+    assert entries["RD0912-005"]["replacement_policy"] == "GT0004_NVT5_EVIDENCE_WINDOWS_RETAIN_ORIGINAL_GEOMETRY"
+    assert entries["RD0912-006"]["replacement_policy"] == "CHANNEL_ANCHOR_FROM_ORIGINAL_FORMATION_WINDOW"
 
     print("NVT9_REJECTED_DRAW_LEDGER_SELFTEST_PASS")
 
