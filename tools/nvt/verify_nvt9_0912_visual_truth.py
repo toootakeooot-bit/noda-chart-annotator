@@ -110,10 +110,15 @@ def main() -> int:
     if len(h4_selection) != 1:
         raise ValueError(f"H4 retained reference missing: {h4_selection}")
     h4 = h4_selection[0]
-    if h4.get("generation_role") != "PREVIOUS":
-        raise ValueError(f"H4 fallback is not PREVIOUS/retained: {h4}")
-    if h4.get("display_reason") != "SOURCE_TF_RETAINED_PREVIOUS_FALLBACK":
+    if h4.get("generation_role") not in {"PREVIOUS", "REFERENCE"}:
+        raise ValueError(f"H4 fallback is not retained PREVIOUS/REFERENCE: {h4}")
+    if h4.get("display_reason") not in {
+        "SOURCE_TF_RETAINED_PREVIOUS_FALLBACK",
+        "SOURCE_TF_FROZEN_REFERENCE_REVALIDATED",
+    }:
         raise ValueError(f"H4 retained fallback reason missing: {h4}")
+    if h4.get("generation_role") == "REFERENCE" and h4.get("reference_anchor_revalidated") is not True:
+        raise ValueError(f"H4 frozen reference was not revalidated against pre-cutoff pivots: {h4}")
     if h4.get("display_roles") != ["TL", "CH"]:
         raise ValueError(f"H4 retained family must be main TL/CH only: {h4.get('display_roles')}")
 
@@ -157,6 +162,8 @@ def main() -> int:
             "generation_role": h4.get("generation_role"),
             "display_reason": h4.get("display_reason"),
             "display_roles": h4.get("display_roles"),
+            "reference_id": h4.get("reference_id"),
+            "reference_anchor_revalidated": h4.get("reference_anchor_revalidated"),
         },
         "m15_display_roles": m15_selection[0].get("display_roles"),
         "post_cutoff_anchor_violations": [],
