@@ -398,10 +398,21 @@ bool ApplyHistoryToChart(long chartId, string symbol, string path, datetime cuto
 
    int rendered = RenderRowsOnChart(path, chartId, symbol, tf);
    int overlayRendered = RenderCurrentOverlay0912(chartId, symbol, tf);
-   if(rendered <= 0)
+   bool allowNoLine0912 = (HistoryCase == CASE_20260912 && Variant == VARIANT_OLD);
+   if(rendered < 0)
+   {
+      Print("NVT9 A-B VIEW: preview read failed chart=", chartId, " tf=", tf, " code=", rendered);
+      return false;
+   }
+   if(rendered == 0 && overlayRendered <= 0 && !allowNoLine0912)
    {
       Print("NVT9 A-B VIEW: no rows rendered chart=", chartId, " tf=", tf, " code=", rendered);
       return false;
+   }
+   if(rendered == 0 && allowNoLine0912)
+   {
+      Print("NVT9 A-B VIEW: 09/12 NO-LINE accepted chart=", chartId, " tf=", tf,
+            " overlay=", overlayRendered);
    }
 
    if(!MoveChartToCase(chartId, symbol, period, cutoff))
