@@ -1,0 +1,153 @@
+{
+  "schema": "nvt9-tl-quality-patterns/1.0",
+  "audit_id": "ID10IQ200",
+  "version": "NVT9_TL_QUALITY_PATTERNS_V01",
+  "mode": "AUDIT_ONLY",
+  "production_mutation": false,
+  "principles": {
+    "history_use": "Historical pattern match may increase classification confidence but never overrides a failed hard gate.",
+    "break_rule": "Structural break requires a later closed-bar close beyond the relevant level; wick-only penetration is not a confirmed break.",
+    "no_line_rule": "After an active TL breaks, do not create the next TL until valid pivots, anchors, Dow/N structure and required break evidence exist.",
+    "cross_tf_rule": "source_tf and owner/display_tf are separate concepts; lower-timeframe structure may be displayed on a higher timeframe only when ownership evidence supports it."
+  },
+  "teacher_cases": [
+    {
+      "market_date": "2026-09-19",
+      "role": "NORMAL_BASELINE",
+      "expected_patterns": ["P01", "P02", "P07"],
+      "expected_quality": "GOOD",
+      "use": "Regression baseline; validated lines should remain GOOD after auditor changes."
+    },
+    {
+      "market_date": "2026-09-12",
+      "role": "OUTER_INNER_SELECTION",
+      "expected_patterns": ["P03"],
+      "expected_quality": "BAD",
+      "use": "Detect selection of an inner TL when an important outer structure should own the line."
+    },
+    {
+      "market_date": "2026-09-05",
+      "role": "NO_LINE_TRANSITION",
+      "expected_patterns": ["P04"],
+      "expected_quality": "HOLD",
+      "use": "Detect the transition state after old-TL break and before the next structural TL is ready."
+    }
+  ],
+  "patterns": [
+    {
+      "id": "P01",
+      "name": "NORMAL_MAJOR_TL",
+      "default_quality": "GOOD",
+      "layer": "STRUCTURE",
+      "meaning": "Large/Mid TL has valid pivots, anchors, HL/N/Dow evidence and closed-bar break confirmation."
+    },
+    {
+      "id": "P02",
+      "name": "OUTER_TL_PREFERRED",
+      "default_quality": "GOOD",
+      "layer": "ANCHOR",
+      "meaning": "Important outer structure is selected instead of a weaker inner anchor pair."
+    },
+    {
+      "id": "P03",
+      "name": "INNER_TL_OVERSELECTED",
+      "default_quality": "BAD",
+      "layer": "ANCHOR",
+      "reason_code": "OUTER_STRUCTURE_MISMATCH"
+    },
+    {
+      "id": "P04",
+      "name": "NO_LINE_AFTER_BREAK",
+      "default_quality": "HOLD",
+      "layer": "STRUCTURE",
+      "reason_code": "NO_LINE_HOLD"
+    },
+    {
+      "id": "P05",
+      "name": "NEXT_TL_AFTER_NEW_DOW",
+      "default_quality": "GOOD",
+      "layer": "STRUCTURE"
+    },
+    {
+      "id": "P06",
+      "name": "WICK_ONLY_BREAK",
+      "default_quality": "HOLD",
+      "layer": "STRUCTURE",
+      "reason_code": "WICK_ONLY_BREAK"
+    },
+    {
+      "id": "P07",
+      "name": "CLOSED_BAR_BREAK",
+      "default_quality": "GOOD",
+      "layer": "STRUCTURE"
+    },
+    {
+      "id": "P08",
+      "name": "CROSS_TF_CONFIRMED",
+      "default_quality": "GOOD",
+      "layer": "OWNERSHIP"
+    },
+    {
+      "id": "P09",
+      "name": "CROSS_TF_OWNERSHIP_UNRESOLVED",
+      "default_quality": "HOLD",
+      "layer": "OWNERSHIP",
+      "reason_code": "OWNERSHIP_UNRESOLVED"
+    },
+    {
+      "id": "P10",
+      "name": "REFERENCE_RETAINED",
+      "default_quality": "GOOD",
+      "layer": "LIFECYCLE"
+    },
+    {
+      "id": "P11",
+      "name": "REANCHORED_CURRENT",
+      "default_quality": "GOOD",
+      "layer": "LIFECYCLE"
+    },
+    {
+      "id": "P12",
+      "name": "SELECTOR_WRONG_WITH_VALID_CANDIDATE",
+      "default_quality": "BAD",
+      "layer": "SELECTOR",
+      "reason_code": "SELECTOR_ERROR"
+    },
+    {
+      "id": "P13",
+      "name": "REQUIRED_CANDIDATE_ABSENT",
+      "default_quality": "BAD",
+      "layer": "CANDIDATE_GENERATION",
+      "reason_code": "CANDIDATE_GENERATION_ERROR"
+    },
+    {
+      "id": "P14",
+      "name": "SMALL_DOW_PROMOTED_TO_MAJOR",
+      "default_quality": "BAD",
+      "layer": "STRUCTURE",
+      "reason_code": "SMALL_DOW_MAJOR_PROMOTION"
+    },
+    {
+      "id": "P15",
+      "name": "LATEST_ONLY_PRECEDENCE",
+      "default_quality": "BAD",
+      "layer": "SELECTOR",
+      "reason_code": "LATEST_ONLY_PRECEDENCE"
+    }
+  ],
+  "error_layers": [
+    "PIVOT_ERROR",
+    "ANCHOR_ERROR",
+    "STRUCTURE_ERROR",
+    "CANDIDATE_GENERATION_ERROR",
+    "SELECTOR_ERROR",
+    "OWNERSHIP_ERROR",
+    "LIFECYCLE_ERROR",
+    "RENDERER_ERROR"
+  ],
+  "promotion_policy": {
+    "stage_1": "Audit and log only. Never rewrite Candidate, Selector, Lifecycle or Renderer state.",
+    "stage_2": "Only after stable regression: BAD -> cause -> candidate/selector reevaluation -> re-audit.",
+    "determinism_required": true
+  }
+}
