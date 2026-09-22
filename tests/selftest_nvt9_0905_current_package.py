@@ -6,6 +6,7 @@ BUILDER = ROOT / "tools" / "nvt" / "build_nvt9_reference_0905.py"
 VERIFY = ROOT / "tools" / "nvt" / "verify_nvt9_0905_previsual.py"
 TRUTH = ROOT / "nvt" / "manifests" / "NVT9_0905_VISUAL_TRUTH_V01.json"
 VIEWER = ROOT / "mt4" / "NCA_NVT9_AB_View.mq4"
+OVERLAY = ROOT / "tools" / "nvt" / "build_nvt9_structural_overlay_0919.py"
 RUN = ROOT / "setup" / "run_nvt9_reference_0905.ps1"
 CMD = ROOT / "setup" / "PREPARE_NVT9_REFERENCE_0905.cmd"
 
@@ -35,6 +36,12 @@ def main() -> None:
     assert truth["render_contract"]["selection_cutoff_exclusive"] == "2026-09-05T00:00:00"
     assert truth["render_contract"]["future_bars_used_for_selection"] is False
     assert truth["render_contract"]["extend_selected_reference_geometry_beyond_cutoff"] is True
+
+    o = OVERLAY.read_text(encoding="utf-8")
+    assert 'build_d1_visual_truth_0912(d1, piv, visual_truth)' in o
+    assert 'if visual_truth else None' in o
+    assert 'if case_tag == "0912" and visual_truth else None' not in o
+    assert 'D1_APPROVED_OUTER_WICK_ENVELOPE' in o
 
     v = VIEWER.read_text(encoding="utf-8")
     assert 'CASE_20260905 = 0' in v
