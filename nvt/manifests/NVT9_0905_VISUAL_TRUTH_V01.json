@@ -64,5 +64,27 @@
       "interpretation": "Carry 09/12-specific delete/suppress decisions backward to 09/05 without fresh visual evidence.",
       "reason": "09/05 must first be replayed from pre-cutoff data. Only generalized geometry/lifecycle rules are carried backward; date-specific suppressions require 09/05 review."
     }
-  ]
+  ],
+  "transition_expectations": {
+    "lifecycle_layer": "POST_SELECTOR_PRE_MAPPING",
+    "H4": {
+      "expected_state": "TRANSITION_NO_TL",
+      "display_owner_tf": "D1",
+      "reason": "09/05 is between the broken prior H4 TL and the next activated H4 N; H4 displays the parent D1 structure during the gap."
+    },
+    "H1": {
+      "expected_states": [
+        "ACTIVE",
+        "NEW_ACTIVE"
+      ],
+      "source_required": true,
+      "reason": "H1 must provide the structural family used on H1 and inherited by M15."
+    },
+    "M15": {
+      "native_selector_enabled": false,
+      "display_owner_tf": "H1",
+      "copied_without_reselection": true,
+      "reason": "M15 is transition/noise-prone and does not own a native TL in this audit."
+    }
+  }
 }
