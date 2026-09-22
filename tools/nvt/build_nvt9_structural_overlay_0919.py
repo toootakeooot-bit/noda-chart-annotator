@@ -564,20 +564,61 @@ def main() -> int:
         "research_only": True,
         "production_changed": False,
         "d1_continuation": {"status": "NOT_BUILT"},
+        "d1_major_channel": {"status": "NOT_BUILT"},
         "h1_native_continuation": {"status": "NOT_BUILT"},
         "h1_reaction_zones": {"status": "NOT_BUILT"},
         "h1_updated_ch": {"status": "NOT_BUILT"},
     }
 
-    # ---- D1 continuation support TL + Decision HL ----
+    # ---- D1 structure ----
     d1_path = input_dir / f"NVT_{safe_symbol_filename(args.symbol)}_D1.csv"
     if d1_path.exists():
         d1_all = load_ohlc_csv(d1_path)
-        d1 = [b for b in d1_all if b.time < cutoff][-600:]
+        d1 = [bar for bar in d1_all if bar.time < cutoff][-600:]
         piv = detect_turns(d1).pivots
         cand = build_d1_continuation(d1, piv)
-        if cand is not None:
-            end = d1[-1].time
+        major = build_d1_major_channel(d1, piv) if case_tag == "0912" else None
+        end = d1[-1].time if d1 else None
+
+        # 09/12 visual audit prefers the broad major channel and suppresses
+        # the shallow/tight continuation overlay when a valid major exists.
+        if major is not None and end is not None:
+            tl2 = line_value(end, major.anchor1.time, major.anchor1.price, major.slope)
+            ch1 = major.anchor1.price + major.ch_offset
+            ch2 = tl2 + major.ch_offset
+            write_row(rows, object_id=f"X{case_tag}-D1-MAJOR-01-TL", symbol=args.symbol, timeframe="D1",
+                      structure="D1_MAJOR_CHANNEL", role="MAJOR_TL",
+                      t1=major.anchor1.time, p1=major.anchor1.price, t2=end, p2=tl2, status=major.status)
+            write_row(rows, object_id=f"X{case_tag}-D1-MAJOR-01-CH", symbol=args.symbol, timeframe="D1",
+                      structure="D1_MAJOR_CHANNEL", role="MAJOR_CH",
+                      t1=major.anchor1.time, p1=ch1, t2=end, p2=ch2, status=major.status)
+            write_row(rows, object_id=f"X{case_tag}-D1-MAJOR-01-HL", symbol=args.symbol, timeframe="D1",
+                      structure="D1_MAJOR_CHANNEL", role="MAJOR_HL",
+                      t1=major.decision_hl.time, p1=major.decision_hl.price,
+                      t2=end, p2=major.decision_hl.price, status=major.status)
+            audit["d1_major_channel"] = {
+                "status": "BUILT",
+                "object_family": f"X{case_tag}-D1-MAJOR-01",
+                "reason_code": "D1_MAJOR_RISING_MULTI_MONTH_SUPPORT_CHANNEL",
+                "anchor1": {"time": major.anchor1.time.isoformat(), "price": float(major.anchor1.price)},
+                "anchor2": {"time": major.anchor2.time.isoformat(), "price": float(major.anchor2.price)},
+                "decision_hl": {
+                    "time": major.decision_hl.time.isoformat(),
+                    "price": float(major.decision_hl.price),
+                    "break_time": major.hl_break_time.isoformat() if major.hl_break_time else None,
+                },
+                "tl_contacts": major.tl_contacts,
+                "duration_days": major.duration_days,
+                "ch_anchor": {"time": major.ch_anchor.time.isoformat(), "price": float(major.ch_anchor.price)},
+                "ch_offset": major.ch_offset,
+                "selector_policy": "MULTI_MONTH_RISING_SUPPORT_REPEATED_CONTACTS_THEN_SPAN",
+            }
+            audit["d1_continuation"] = {
+                "status": "SUPPRESSED_BY_0912_MAJOR_CHANNEL",
+                "reason_code": "REJECT_SHALLOW_DUPLICATE_WHEN_MAJOR_CHANNEL_AVAILABLE",
+            }
+
+        elif cand is not None and end is not None:
             tl2 = line_value(end, cand.anchor1.time, cand.anchor1.price, cand.slope)
             ch1 = cand.anchor1.price + cand.ch_offset
             ch2 = tl2 + cand.ch_offset
@@ -611,8 +652,6 @@ def main() -> int:
                 "bypass_reason": "Same-direction continuation support is visible as reference and does not claim a new-direction regime switch.",
                 "selector_policy": "TIGHTEST_UNBROKEN_BROAD_SUPPORT",
                 "selector_min_broad_days": 120.0,
-                "rejected_policy": "LONGEST_DURATION_FIRST",
-                "rejected_policy_reason": "Visual audit showed the duration-first selector can choose an obsolete shallow D1 line below the active support structure.",
             }
 
     # ---- H1 native TL/HL + parallel reaction zones + updated CH ----
@@ -643,7 +682,11 @@ def main() -> int:
             audit["h1_native_continuation"] = {
                 "status": "BUILT",
                 "object_family": f"X{case_tag}-H1-CONT-01",
-                "reason_code": "H1_NATIVE_RECENT_TIGHT_UNBROKEN_CONTINUATION",
+                "reason_code": (
+                    "H1_NATIVE_RECENT_TIGHT_UNBROKEN_CONTINUATION"
+                    if h1_cand.unbroken_close
+                    else "H1_NATIVE_FORMATION_VALID_AFTER_ANCHOR2"
+                ),
                 "anchor1": {"time": h1_cand.anchor1.time.isoformat(), "price": float(h1_cand.anchor1.price)},
                 "anchor2": {"time": h1_cand.anchor2.time.isoformat(), "price": float(h1_cand.anchor2.price)},
                 "decision_hl": {
@@ -657,6 +700,8 @@ def main() -> int:
                 "ch_offset": h1_cand.ch_offset,
                 "source_timeframe": "H1",
                 "mapped_lower_tf_used_as_base": False,
+                "full_life_unbroken": h1_cand.unbroken_close,
+                "post_anchor2_unbroken_required": True,
             }
 
             # Reaction zones are now based on the H1-native TL slope, not R0919-08/M15.
@@ -667,7 +712,7 @@ def main() -> int:
                 base_t1=h1_cand.anchor1.time,
                 base_p1=h1_cand.anchor1.price,
                 base_slope=h1_cand.slope,
-                max_zones=3,
+                max_zones=(2 if case_tag == "0912" else 3),
             )
 
             for z in zones:
@@ -692,7 +737,7 @@ def main() -> int:
                 "analysis_end": end.isoformat(),
                 "zone_count": len(zones),
                 "non_overlap_policy": "WEAKER_OVERLAP_OR_TOO_CLOSE_ZONE_SUPPRESSED",
-                "max_zones": 3,
+                "max_zones": (2 if case_tag == "0912" else 3),
                 "minimum_center_gap_median_range_multiple": 1.25,
                 "minimum_unique_bars": 4,
                 "minimum_body_weight": 6.0,
@@ -763,6 +808,7 @@ def main() -> int:
         "Audit ID: ID10IQ200",
         "",
         f"D1 continuation: {audit['d1_continuation'].get('status')} {audit['d1_continuation'].get('reason_code')}",
+        f"D1 major channel: {audit['d1_major_channel'].get('status')} {audit['d1_major_channel'].get('reason_code')}",
         f"H1 native TL/HL: {audit['h1_native_continuation'].get('status')} {audit['h1_native_continuation'].get('reason_code')}",
         f"H1 reaction zones: {audit['h1_reaction_zones'].get('status')} count={audit['h1_reaction_zones'].get('zone_count', 0)}",
         f"H1 updated CH: {audit['h1_updated_ch'].get('status')} {audit['h1_updated_ch'].get('reason_code')}",
