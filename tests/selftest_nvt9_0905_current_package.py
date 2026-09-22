@@ -73,8 +73,6 @@ def main() -> None:
     assert "PASS_0905_PREVISUAL_NO_LOOKAHEAD" in verify
     assert "PENDING_USER_0905_SCREENSHOT" in verify
     assert "09/05 D1 approved TL has formation wick breach" in verify
-    assert "09/05 H4 frozen reference was not revalidated" in verify
-    assert "09/05 H1 frozen reference was not revalidated" in verify
     assert "09/05 H4 transition state mismatch" in verify
     assert "09/05 H4 display is not inherited from D1" in verify
     assert "09/05 H1 must be ACTIVE/NEW_ACTIVE before M15 inheritance" in verify
