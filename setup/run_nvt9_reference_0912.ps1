@@ -18,7 +18,7 @@ Write-Host 'NVT9 09/12 CURRENT AUDIT PREPARE'
 Write-Host '==============================='
 Write-Host 'Cutoff: 2026-09-12 00:00 exclusive'
 Write-Host 'Window: last 600 closed bars per timeframe'
-Write-Host 'Rules: current audit branch (D1 continuation, H1 native TL/HL, spaced zones, Updated CH)'
+Write-Host 'Rules: 09/12 cleanup (D1 major channel, H1 native TL/HL, max-2 spaced zones, Updated CH)'
 Write-Host 'Production: unchanged'
 Write-Host ''
 
@@ -37,8 +37,10 @@ if (Test-Path $RejectedLedger) {
 
 $SummaryPath = Join-Path $OutDir 'NVT9_0912_CURRENT_SUMMARY.json'
 $OverlayPath = Join-Path $OutDir 'NVT9_0919_STRUCTURAL_OVERLAY_AUDIT.json'
+$BaseAuditPath = Join-Path $OutDir 'base\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json'
 $Summary = Get-Content -Raw -Encoding UTF8 $SummaryPath | ConvertFrom-Json
 $Overlay = Get-Content -Raw -Encoding UTF8 $OverlayPath | ConvertFrom-Json
+$BaseAudit = Get-Content -Raw -Encoding UTF8 $BaseAuditPath | ConvertFrom-Json
 
 Write-Host ''
 Write-Host '09/12 CURRENT SUMMARY'
@@ -47,8 +49,15 @@ foreach ($tf in 'D1','H4','H1','M15') {
   $c = $Summary.input_coverage.$tf
   Write-Host ("{0}: bars={1} first={2} last={3}" -f $tf,$c.bar_count,$c.first_bar,$c.last_bar)
 }
-Write-Host ("D1 continuation: {0} reason={1}" -f $Overlay.d1_continuation.status,$Overlay.d1_continuation.reason_code)
-Write-Host ("H1 native TL/HL: {0} reason={1}" -f $Overlay.h1_native_continuation.status,$Overlay.h1_native_continuation.reason_code)
+Write-Host ("Suppressed base selections: {0}" -f (($BaseAudit.suppressed_source_selections | ForEach-Object { "$($_.source_tf):$($_.direction):$($_.line_id)" }) -join ', '))
+Write-Host ("Empty source TFs:           {0}" -f (($BaseAudit.empty_source_tfs) -join ', '))
+Write-Host ("D1 major channel: {0} reason={1}" -f $Overlay.d1_major_channel.status,$Overlay.d1_major_channel.reason_code)
+Write-Host ("D1 continuation:  {0} reason={1}" -f $Overlay.d1_continuation.status,$Overlay.d1_continuation.reason_code)
+Write-Host ("H1 native TL/HL:  {0} reason={1}" -f $Overlay.h1_native_continuation.status,$Overlay.h1_native_continuation.reason_code)
+if ($Overlay.h1_native_continuation.status -eq 'BUILT') {
+  Write-Host ("  H1 TL A1={0} {1}  A2={2} {3}" -f $Overlay.h1_native_continuation.anchor1.time,$Overlay.h1_native_continuation.anchor1.price,$Overlay.h1_native_continuation.anchor2.time,$Overlay.h1_native_continuation.anchor2.price)
+  Write-Host ("  H1 Decision HL={0} {1} break={2}" -f $Overlay.h1_native_continuation.decision_hl.time,$Overlay.h1_native_continuation.decision_hl.price,$Overlay.h1_native_continuation.decision_hl.break_time)
+}
 Write-Host ("H1 zones:        {0} count={1}" -f $Overlay.h1_reaction_zones.status,$Overlay.h1_reaction_zones.zone_count)
 Write-Host ("H1 Updated CH:   {0} reason={1}" -f $Overlay.h1_updated_ch.status,$Overlay.h1_updated_ch.reason_code)
 
