@@ -89,6 +89,14 @@ def main() -> int:
         if fam.get("display_roles") != ["TL", "CH"]:
             raise ValueError(f"09/05 H4 must keep main TL/CH only: {fam}")
 
+    h1 = (base.get("source_selection") or {}).get("H1") or []
+    if h1:
+        fam = h1[0]
+        if fam.get("generation_role") not in {"CURRENT", "PREVIOUS", "REFERENCE"}:
+            raise ValueError(f"09/05 H1 has unsupported generation role: {fam}")
+        if fam.get("generation_role") == "REFERENCE" and fam.get("reference_anchor_revalidated") is not True:
+            raise ValueError(f"09/05 H1 frozen reference was not revalidated: {fam}")
+
     report = {
         "schema": "nvt9-0905-previsual-verification/1.0",
         "audit_id": "ID10IQ200",
@@ -107,6 +115,15 @@ def main() -> int:
                 "reference_id": h4[0].get("reference_id"),
             }
             if h4 else {"line_id": None, "generation_role": "NO_LINE_PREVISUAL_ALLOWED"}
+        ),
+        "h1_status": (
+            {
+                "line_id": h1[0].get("line_id"),
+                "generation_role": h1[0].get("generation_role"),
+                "display_reason": h1[0].get("display_reason"),
+                "reference_id": h1[0].get("reference_id"),
+            }
+            if h1 else {"line_id": None, "generation_role": "NO_LINE_PREVISUAL_ALLOWED"}
         ),
         "date_specific_suppressions_applied": summary.get("suppressed_source_directions"),
         "visual_adjudication_status": "PENDING_USER_0905_SCREENSHOT",
