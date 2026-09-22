@@ -8,7 +8,7 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 $Common = Join-Path $env:APPDATA 'MetaQuotes\Terminal\Common\Files\noda_draw'
 $InputDir = Join-Path $Common 'nvt_input'
 $OutDir = Join-Path $Common 'live_output\nvt9_reference_0905'
-$Policy = Join-Path $RepoRoot 'nvt\manifests\NVT9_TF_DISPLAY_MAP_H1_TO_M15_V02.json'
+$Policy = Join-Path $RepoRoot 'nvt\manifests\NVT9_TF_DISPLAY_MAP_TRANSITION_V03.json'
 $Reference = Join-Path $RepoRoot 'nvt\manifests\NVT9_0919_REFERENCE_LINES_V01.json'
 $RejectedLedger = Join-Path $RepoRoot 'nvt\manifests\NVT9_REJECTED_DRAW_LEDGER_V01.json'
 $VisualTruth = Join-Path $RepoRoot 'nvt\manifests\NVT9_0905_VISUAL_TRUTH_V01.json'
@@ -19,7 +19,7 @@ Write-Host 'NVT9 09/05 CURRENT AUDIT PREPARE'
 Write-Host '==============================='
 Write-Host 'Cutoff: 2026-09-05 00:00 exclusive'
 Write-Host 'Window: last 600 closed bars per timeframe'
-Write-Host 'Mode: 09/05 visual audit; M15 native disabled, H1 geometry copied to M15'
+Write-Host 'Mode: 09/05 transition lifecycle; H4 transition=>D1 owner, M15=>H1 owner'
 Write-Host 'Production: unchanged'
 Write-Host ''
 
@@ -50,6 +50,15 @@ foreach ($tf in 'D1','H4','H1','M15') {
   Write-Host ("{0}: bars={1} first={2} last={3}" -f $tf,$c.bar_count,$c.first_bar,$c.last_bar)
 }
 Write-Host ("Empty source TFs: {0}" -f (($BaseAudit.empty_source_tfs) -join ', '))
+if ($BaseAudit.tl_transition_states.H4) {
+  Write-Host ("H4 TL state: {0} reason={1}" -f $BaseAudit.tl_transition_states.H4.state,$BaseAudit.tl_transition_states.H4.reason_code)
+}
+if ($BaseAudit.tl_transition_states.H1) {
+  Write-Host ("H1 TL state: {0} reason={1}" -f $BaseAudit.tl_transition_states.H1.state,$BaseAudit.tl_transition_states.H1.reason_code)
+}
+foreach ($d in $BaseAudit.transition_display_decisions) {
+  Write-Host ("Display ownership: {0} <= {1} because {2}" -f $d.display_tf,$d.parent_source_tf,$d.state_or_reason)
+}
 if ($BaseAudit.source_selection.H4.Count -gt 0) {
   $h4 = $BaseAudit.source_selection.H4[0]
   Write-Host ("H4 source: {0} role={1} reason={2} display={3} ref={4}" -f $h4.line_id,$h4.generation_role,$h4.display_reason,(($h4.display_roles) -join '/'),$h4.reference_id)
