@@ -446,7 +446,7 @@ def main() -> int:
         raise ValueError("policy missing source_to_display_tfs")
 
     # 1) Select the source family on its OWN timeframe.
-    for source_tf, display_tfs in effective_source_to_display.items():
+    for source_tf, display_tfs in source_to_display.items():
         if source_tf not in latest:
             raise ValueError(f"missing latest source market data for {source_tf}")
         eval_time = latest[source_tf]["time"]
@@ -805,7 +805,7 @@ def main() -> int:
         "trade_authority": False,
     }
     source_presence_problems = []
-    for source_tf, display_tfs in source_to_display.items():
+    for source_tf, display_tfs in effective_source_to_display.items():
         for display_tf in display_tfs:
             counts = selected_source_counts.get(display_tf, Counter())
             if counts.get(source_tf, 0) < per_source:
