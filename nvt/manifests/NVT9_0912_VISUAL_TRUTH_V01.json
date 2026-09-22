@@ -1,0 +1,59 @@
+{
+  "schema": "nvt9-0912-visual-truth/1.0",
+  "status": "ACTIVE_USER_ANNOTATED_TRUTH",
+  "audit_id": "ID10IQ200",
+  "case_date": "2026-09-12",
+  "source": "user_annotated_screenshot_2026-09-22",
+  "production_generalization": false,
+  "render_contract": {
+    "stop_all_audit_lines_at_cutoff": true,
+    "cutoff_exclusive": "2026-09-12T00:00:00",
+    "reason": "Historical 09/12 view must not visually extend audit TL/CH/HL into the future region to the right of the cutoff marker."
+  },
+  "approved_families": [
+    {
+      "truth_id": "VT0912-D1-001",
+      "timeframe": "D1",
+      "role": "RISING_TL_RETAINED_AFTER_BREAK",
+      "object_family": "X0912-D1-APPROVED-01",
+      "anchor1": {
+        "kind": "LOW",
+        "window_start": "2026-01-20T00:00:00",
+        "window_end": "2026-02-15T23:59:59",
+        "selection": "LOWEST_CONFIRMED_LOW_IN_WINDOW",
+        "visual_marker": "yellow_circle_1"
+      },
+      "anchor2": {
+        "kind": "LOW",
+        "window_start": "2026-04-15T00:00:00",
+        "window_end": "2026-05-10T23:59:59",
+        "selection": "LOWEST_CONFIRMED_LOW_IN_WINDOW",
+        "visual_marker": "yellow_circle_2"
+      },
+      "lifecycle": {
+        "retain_after_closed_bar_break": true,
+        "state_after_break": "REFERENCE_RETAINED_BROKEN",
+        "do_not_require_unbroken_at_cutoff": true
+      },
+      "decision_hl": {
+        "rule": "HIGHEST_CONFIRMED_HIGH_BETWEEN_ANCHOR1_AND_ANCHOR2"
+      },
+      "channel": {
+        "rule": "PARALLEL_CHANNEL_FROM_CONFIRMED_HIGH_REACTION",
+        "allow_updated_ch_from_later_confirmed_high": true
+      }
+    }
+  ],
+  "rejected_interpretations": [
+    {
+      "rejection_id": "VT0912-RJ-001",
+      "interpretation": "Use GT_0004 2025-04 / 2025-09 anchor windows as the D1 line marked by the user's two yellow circles.",
+      "reason": "That is a different retained D1 reference. The annotated 09/12 target explicitly identifies two 2026 lows."
+    },
+    {
+      "rejection_id": "VT0912-RJ-002",
+      "interpretation": "Treat M15/H1 lines extending to the right of the 09/12 cutoff as newly valid post-cutoff audit geometry.",
+      "reason": "Historical viewer must clip audit-owned rays at the cutoff. First distinguish future-ray display from genuinely rejected pre-cutoff geometry."
+    }
+  ]
+}
