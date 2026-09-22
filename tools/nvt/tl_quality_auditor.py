@@ -402,6 +402,44 @@ def audit_line(record: dict[str, Any]) -> dict[str, Any]:
         if life in {"REANCHORED_CURRENT", "REANCHORED"} or _bool(record, lifecycle, "reanchored") is True:
             matched_patterns.append("P11")
 
+    if _bool(record, lifecycle, "persistent_reference_retained") is True:
+        matched_patterns.append("P16")
+
+    candidate_valid = _bool(record, lifecycle, "candidate_valid")
+    display_suppressed = _bool(record, lifecycle, "display_suppressed", "valid_suppressed")
+    line_role = _first(lifecycle, "line_role", default=_first(record, "line_role"))
+    if (
+        candidate_valid is True
+        and display_suppressed is True
+        and line_role is not None
+        and str(line_role).upper() == "TURN_LINE"
+    ):
+        matched_patterns.append("P17")
+
+    gentler_preference = _bool(record, selector, "gentler_preference_satisfied")
+    multiple_valid_alternatives = _bool(record, selector, "multiple_valid_alternatives")
+    if gentler_preference is True:
+        matched_patterns.append("P18")
+    elif gentler_preference is False and multiple_valid_alternatives is True:
+        _add(
+            findings,
+            pattern_id="P18",
+            layer="SELECTOR",
+            reason_code="GENTLER_PREFERENCE_MISMATCH",
+            disposition="BAD",
+            message="Multiple valid TL alternatives exist but Selector did not preserve the teacher-adjudicated gentler-angle preference.",
+        )
+
+    if _bool(record, candidate, "teacher_window_absent_diagnostic") is True:
+        _add(
+            findings,
+            pattern_id="P19",
+            layer="CANDIDATE_GENERATION",
+            reason_code="TEACHER_WINDOW_ABSENT_DIAGNOSTIC",
+            disposition="HOLD",
+            message="No candidate was found in the reviewed teacher anchor windows; exact anchors remain non-locking, so this is diagnostic HOLD rather than hard BAD.",
+        )
+
     unbroken_close = _first(geometry, "unbroken_close", default=_first(record, "unbroken_close"))
     geometry_state: CheckState = "UNKNOWN"
     geometry_notes: list[str] = []
@@ -462,8 +500,8 @@ def audit_line(record: dict[str, Any]) -> dict[str, Any]:
         cross_tf_state = "PASS" if source_tf is not None else "UNKNOWN"
 
     matched_patterns = list(dict.fromkeys(matched_patterns))
-    negative_pattern_ids = {"P03", "P04", "P06", "P09", "P12", "P13", "P14", "P15"}
-    positive_pattern_ids = {"P01", "P02", "P05", "P07", "P08", "P10", "P11"}
+    negative_pattern_ids = {"P03", "P04", "P06", "P09", "P12", "P13", "P14", "P15", "P19"}
+    positive_pattern_ids = {"P01", "P02", "P05", "P07", "P08", "P10", "P11", "P16", "P17", "P18"}
     historical_positive = [p for p in matched_patterns if p in positive_pattern_ids]
     historical_negative = [p for p in matched_patterns if p in negative_pattern_ids]
     history_state: CheckState = "PASS" if historical_positive else "HOLD" if historical_negative else "UNKNOWN"
