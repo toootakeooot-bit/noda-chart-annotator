@@ -52,6 +52,11 @@ foreach ($tf in 'D1','H4','H1','M15') {
 Write-Host ("Suppressed base selections: {0}" -f (($BaseAudit.suppressed_source_selections | ForEach-Object { "$($_.source_tf):$($_.direction):$($_.line_id)" }) -join ', '))
 Write-Host ("Empty source TFs:           {0}" -f (($BaseAudit.empty_source_tfs) -join ', '))
 Write-Host ("D1 major channel: {0} reason={1}" -f $Overlay.d1_major_channel.status,$Overlay.d1_major_channel.reason_code)
+if ($Overlay.d1_major_channel.status -eq 'BUILT') {
+  Write-Host ("  D1 A1={0} {1}  A2={2} {3}" -f $Overlay.d1_major_channel.anchor1.time,$Overlay.d1_major_channel.anchor1.price,$Overlay.d1_major_channel.anchor2.time,$Overlay.d1_major_channel.anchor2.price)
+  Write-Host ("  D1 CH anchor={0} {1} offset={2}" -f $Overlay.d1_major_channel.ch_anchor.time,$Overlay.d1_major_channel.ch_anchor.price,$Overlay.d1_major_channel.ch_offset)
+  Write-Host ("  D1 HL={0} {1} break={2}" -f $Overlay.d1_major_channel.decision_hl.time,$Overlay.d1_major_channel.decision_hl.price,$Overlay.d1_major_channel.decision_hl.break_time)
+}
 Write-Host ("D1 continuation:  {0} reason={1}" -f $Overlay.d1_continuation.status,$Overlay.d1_continuation.reason_code)
 Write-Host ("H1 native TL/HL:  {0} reason={1}" -f $Overlay.h1_native_continuation.status,$Overlay.h1_native_continuation.reason_code)
 if ($Overlay.h1_native_continuation.status -eq 'BUILT') {
