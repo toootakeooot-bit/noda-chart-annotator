@@ -15,13 +15,18 @@ def main() -> None:
     assert '"window_policy": "LAST_600_CLOSED_BARS_PER_TIMEFRAME"' in b
     assert '"future_bars_used": False' in b
     assert '"--allow-empty-source-tf", "H4"' in b
+    assert '"--suppress-selected-source-direction", "H1:FALLING"' in b
+    assert '"--suppress-selected-source-direction", "D1:RISING"' in b
     assert '"empty_source_policy": "NO_LINE_NO_SYNTHETIC_FALLBACK"' in b
+    assert '"source_suppression_policy": "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT"' in b
 
     o = OVERLAY.read_text(encoding="utf-8")
     assert 'ap.add_argument("--cutoff"' in o
     assert 'ap.add_argument("--case-tag"' in o
     assert 'f"X{case_tag}-H1-CONT-01-TL"' in o
     assert 'f"X{case_tag}-D1-CONT-01-TL"' in o
+    assert 'f"X{case_tag}-D1-MAJOR-01-TL"' in o
+    assert 'f"X{case_tag}-D1-MAJOR-01-HL"' in o
 
     v = VIEWER.read_text(encoding="utf-8")
     assert 'HistoryCase = CASE_20260912' in v
@@ -29,6 +34,9 @@ def main() -> None:
     assert r'nvt9_reference_0912\\NVT9_0919_STRUCTURAL_OVERLAY.csv' in v
     assert 'ShowCurrentStructuralOverlayOn0912Old = true' in v
     assert 'StringFind(n, XPREFIX, 0) == 0' in v
+    assert '09/12 NO-LINE accepted' in v
+    assert '[D1 MAJOR TL]' in v
+    assert '[D1 MAJOR HL]' in v
 
     freeze = json.loads(FREEZE.read_text(encoding="utf-8"))
     assert freeze["status"] == "FROZEN_VISUAL_AUDIT_COMPLETE"
