@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 from live_draw.model import Bar, Pivot
 from tools.nvt.build_nvt9_structural_overlay_0919 import (
     build_d1_continuation,
+    build_d1_major_channel,
     build_h1_native_continuation,
     choose_updated_ch,
     cluster_reaction_zones,
@@ -63,6 +64,25 @@ def main() -> None:
     assert tight.anchor2.time == a2.time
     assert tight.status == "REFERENCE_PENDING_HL_BREAK"
 
+    # 09/12 D1 major channel: a multi-month rising support family must be
+    # available separately from the tight continuation selector.
+    major_bars = []
+    mt0 = datetime(2025, 11, 1)
+    for i in range(300):
+        t = mt0 + timedelta(days=i)
+        base = 120.0 + i * 0.004
+        major_bars.append(Bar(t, base, base + 1.0, base - 1.0, base + 0.2))
+    major_a1 = Pivot("LOW", 0, mt0, 100.0, 1, mt0 + timedelta(days=1), 0.38)
+    major_h1 = Pivot("HIGH", 90, mt0 + timedelta(days=90), 118.0, 91, mt0 + timedelta(days=91), 0.38)
+    major_a2 = Pivot("LOW", 180, mt0 + timedelta(days=180), 110.0, 181, mt0 + timedelta(days=181), 0.38)
+    major_h2 = Pivot("HIGH", 250, mt0 + timedelta(days=250), 124.0, 251, mt0 + timedelta(days=251), 0.38)
+    major = build_d1_major_channel(major_bars, [major_a1, major_h1, major_a2, major_h2])
+    assert major is not None
+    assert major.duration_days >= 120.0
+    assert major.anchor1.time == major_a1.time
+    assert major.anchor2.time == major_a2.time
+    assert major.ch_offset > 0
+
     # Reaction-zone clustering: construct repeated body/wick reactions around
     # separated residual bands; selected zones must never overlap.
     h1 = []
@@ -102,6 +122,30 @@ def main() -> None:
     assert h1_native.anchor1.time == start
     assert h1_native.anchor2.time == start + timedelta(hours=72)
     assert h1_native.decision_hl.price == 156.5
+
+    # H1 formation-valid fallback: a projected line may have been crossed
+    # before anchor2 existed, but after anchor2 it must remain intact.  The
+    # Decision HL must stay tied to this same native H1 family.
+    fb_start = datetime(2026, 9, 8)
+    fb_bars = []
+    for i in range(84):
+        t = fb_start + timedelta(hours=i)
+        line = 100.0 + (4.0 / 48.0) * i
+        close = line + 1.0
+        if i == 24:
+            close = line - 0.8
+        if i > 48:
+            close = line + 1.2
+        fb_bars.append(Bar(t, close, close + 0.4, close - 0.4, close))
+    fb = build_h1_native_continuation(fb_bars, [
+        Pivot("LOW", 0, fb_start, 100.0, 1, fb_start + timedelta(hours=1), 0.38),
+        Pivot("HIGH", 28, fb_start + timedelta(hours=28), 108.0, 29, fb_start + timedelta(hours=29), 0.38),
+        Pivot("LOW", 48, fb_start + timedelta(hours=48), 104.0, 49, fb_start + timedelta(hours=49), 0.38),
+    ])
+    assert fb is not None
+    assert fb.unbroken_close is False
+    assert fb.decision_hl.price == 108.0
+    assert fb.anchor2.time == fb_start + timedelta(hours=48)
 
     # Updated CH requires a confirmed HIGH outside the existing CH by tolerance.
     base_t1 = start
