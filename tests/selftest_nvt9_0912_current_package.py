@@ -14,6 +14,8 @@ def main() -> None:
     assert 'eligible[-600:]' in b
     assert '"window_policy": "LAST_600_CLOSED_BARS_PER_TIMEFRAME"' in b
     assert '"future_bars_used": False' in b
+    assert '"--allow-empty-source-tf", "H4"' in b
+    assert '"empty_source_policy": "NO_LINE_NO_SYNTHETIC_FALLBACK"' in b
 
     o = OVERLAY.read_text(encoding="utf-8")
     assert 'ap.add_argument("--cutoff"' in o
