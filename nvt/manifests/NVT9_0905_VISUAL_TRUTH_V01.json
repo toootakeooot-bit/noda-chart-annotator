@@ -75,10 +75,12 @@
     "H1": {
       "expected_states": [
         "ACTIVE",
-        "NEW_ACTIVE"
+        "NEW_ACTIVE",
+        "REFERENCE_RETAINED"
       ],
       "source_required": true,
-      "reason": "H1 must provide the structural family used on H1 and inherited by M15."
+      "reason": "H1 must provide the structural family used on H1 and inherited by M15. If the rolling 600-bar selector cannot reconstruct it but chronological pre-cutoff replay shows it was already established, REFERENCE_RETAINED is valid.",
+      "retained_reference_policy": "FULL_PRE_CUTOFF_CHRONOLOGICAL_REPLAY_ONLY_NO_POST_CUTOFF_DATA"
     },
     "M15": {
       "native_selector_enabled": false,
