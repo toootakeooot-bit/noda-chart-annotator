@@ -179,12 +179,16 @@ def build_d1_continuation(bars, pivots) -> ContinuationCandidate | None:
 
 
 def build_d1_visual_truth_0912(bars, pivots, visual_truth: dict) -> tuple[ContinuationCandidate, datetime | None, dict] | None:
-    """Resolve the user-annotated 09/12 D1 LOW->LOW pair against real confirmed pivots.
+    """Resolve the user-annotated 09/12 D1 outer support against confirmed pivots.
 
-    The manifest stores windows, not guessed exact broker timestamps.  The
-    runtime data resolves each yellow circle to the lowest confirmed LOW in
-    its approved window.  A later break does NOT invalidate the historical
-    reference: the line is retained and its first closed-bar break is audited.
+    The two yellow-circle areas are evidence windows, not independent "take
+    the lowest pivot" instructions.  All LOW/LOW pairs inside the two windows
+    are tested as one geometry.  The approved TL must sit under every D1 wick
+    from anchor1 through anchor2; a line that cuts through even one formation
+    wick is rejected.  Among valid envelope lines, prefer the pair with more
+    wick contacts and the smallest mean wick gap (tightest outer support).
+    A later post-anchor2 break is lifecycle evidence and does not delete the
+    historical reference.
     """
     approved = [
         row for row in (visual_truth.get("approved_families") or [])
@@ -199,31 +203,73 @@ def build_d1_visual_truth_0912(bars, pivots, visual_truth: dict) -> tuple[Contin
     if len(lows) < 2 or not highs or not bars:
         return None
 
-    def resolve_low(anchor_spec: dict):
-        lo = datetime.fromisoformat(anchor_spec["window_start"])
-        hi = datetime.fromisoformat(anchor_spec["window_end"])
-        pool = [p for p in lows if lo <= p.time <= hi]
-        if not pool:
-            return None
-        return min(pool, key=lambda p: (p.price, p.time))
-
-    a = resolve_low(spec["anchor1"])
-    b = resolve_low(spec["anchor2"])
-    if a is None or b is None or b.time <= a.time or b.price <= a.price:
+    a1_lo = datetime.fromisoformat(spec["anchor1"]["window_start"])
+    a1_hi = datetime.fromisoformat(spec["anchor1"]["window_end"])
+    a2_lo = datetime.fromisoformat(spec["anchor2"]["window_start"])
+    a2_hi = datetime.fromisoformat(spec["anchor2"]["window_end"])
+    anchor1_pool = [p for p in lows if a1_lo <= p.time <= a1_hi]
+    anchor2_pool = [p for p in lows if a2_lo <= p.time <= a2_hi]
+    if not anchor1_pool or not anchor2_pool:
         return None
+
+    mr = max(median_bar_range(bars), 1e-8)
+    wick_tol = max(mr * 0.03, 1e-8)
+    contact_tol = max(mr * 0.12, wick_tol)
+    pair_candidates: list[tuple[object, object, float, int, float, float]] = []
+
+    for a in anchor1_pool:
+        for b in anchor2_pool:
+            if b.time <= a.time or b.price <= a.price:
+                continue
+            slope = slope_per_second(a.time, a.price, b.time, b.price)
+            if slope <= 0:
+                continue
+
+            formation_bars = [bar for bar in bars if a.time <= bar.time <= b.time]
+            if not formation_bars:
+                continue
+
+            gaps = [
+                float(bar.low) - line_value(bar.time, a.time, a.price, slope)
+                for bar in formation_bars
+            ]
+            breach_count = sum(1 for gap in gaps if gap < -wick_tol)
+            if breach_count:
+                continue
+
+            contact_count = sum(1 for gap in gaps if abs(gap) <= contact_tol)
+            mean_gap = sum(max(0.0, gap) for gap in gaps) / len(gaps)
+            min_gap = min(gaps)
+            pair_candidates.append((a, b, slope, contact_count, mean_gap, min_gap))
+
+    if not pair_candidates:
+        return None
+
+    # Supporting-envelope semantics: contact evidence first, then the line
+    # that runs closest under the intervening wick lows.  This rejects an
+    # inner line when a wick is outside it and avoids selecting a needlessly
+    # low line merely because it is older.
+    a, b, slope, formation_contacts, formation_mean_gap, formation_min_gap = max(
+        pair_candidates,
+        key=lambda item: (
+            item[3],
+            -item[4],
+            -item[1].time.timestamp(),
+            -abs(item[2]),
+        ),
+    )
 
     between = [h for h in highs if a.time < h.time < b.time]
     if not between:
         return None
     decision_hl = max(between, key=lambda p: (p.price, p.time))
-    slope = slope_per_second(a.time, a.price, b.time, b.price)
-    tol = max(median_bar_range(bars) * 0.28, 1e-8)
+    break_tol = max(mr * 0.28, 1e-8)
 
     break_time = None
     for bar in bars:
         if bar.time <= b.time:
             continue
-        if bar.close < line_value(bar.time, a.time, a.price, slope) - tol:
+        if bar.close < line_value(bar.time, a.time, a.price, slope) - break_tol:
             break_time = bar.time
             break
 
@@ -231,12 +277,11 @@ def build_d1_visual_truth_0912(bars, pivots, visual_truth: dict) -> tuple[Contin
         1
         for p in lows
         if p.time >= a.time
-        and abs(p.price - line_value(p.time, a.time, a.price, slope)) <= tol
+        and abs(p.price - line_value(p.time, a.time, a.price, slope)) <= contact_tol
     )
 
-    # Base/updated CH is derived from confirmed HIGH reactions above the
-    # approved TL.  Because the user explicitly allows Updated CH after a new
-    # high, later confirmed highs may own the active channel boundary.
+    # Updated channel may use a later confirmed high, but the TL anchors stay
+    # fixed to the user-approved outer support geometry.
     high_pool = [h for h in highs if h.time > a.time]
     residuals = [
         (h.price - line_value(h.time, a.time, a.price, slope), h)
@@ -266,13 +311,19 @@ def build_d1_visual_truth_0912(bars, pivots, visual_truth: dict) -> tuple[Contin
         hl_break_time=hl_break_time,
         ch_anchor=ch_anchor,
         ch_offset=ch_offset,
-        tolerance=tol,
+        tolerance=break_tol,
     )
     resolved = {
         "truth_id": spec["truth_id"],
         "anchor1_window": [spec["anchor1"]["window_start"], spec["anchor1"]["window_end"]],
         "anchor2_window": [spec["anchor2"]["window_start"], spec["anchor2"]["window_end"]],
-        "anchor_selection": "LOWEST_CONFIRMED_LOW_IN_WINDOW",
+        "anchor_selection": "PAIRWISE_OUTERMOST_WICK_ENVELOPE",
+        "formation_wick_breach_count": 0,
+        "formation_wick_contact_count": formation_contacts,
+        "formation_mean_wick_gap": formation_mean_gap,
+        "formation_min_wick_gap": formation_min_gap,
+        "formation_wick_tolerance": wick_tol,
+        "contact_tolerance": contact_tol,
         "retain_after_break": bool((spec.get("lifecycle") or {}).get("retain_after_closed_bar_break")),
     }
     return cand, break_time, resolved
