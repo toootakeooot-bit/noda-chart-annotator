@@ -258,8 +258,8 @@
       ],
       "reason_code": "RESTORE_RETAINED_PREVIOUS_WHEN_CURRENT_ABSENT",
       "reason": "At the 09/12 cutoff, H4 can have no CURRENT family while an older valid monitoring structure still exists. That retained family must not disappear solely because CURRENT is empty.",
-      "replacement_policy": "CURRENT_FIRST_THEN_PREVIOUS_REFERENCE_RETAINED",
-      "enforcement": "build_nvt9_reference_0912.py requests --fallback-previous-source-tf H4. The preview selects PREVIOUS only when CURRENT is absent, draws its main TL/CH on H4, and copies identical geometry to D1.",
+      "replacement_policy": "CURRENT_THEN_PREVIOUS_THEN_FROZEN_REFERENCE_REVALIDATED_PRE_CUTOFF",
+      "enforcement": "09/12 first uses CURRENT. If absent, PREVIOUS may be retained. If both are absent, the frozen 09/19 H4 anchor pair is accepted only when the exact pair rebuilds as a valid ChannelCandidate from 09/12 pre-cutoff bars; Decision HL and CH are recomputed from those bars.",
       "status": "ENFORCED"
     },
     {
@@ -292,6 +292,20 @@
       "reason": "A clean historical replay must remove stale NCA/NVT9 generated geometry without treating unrelated/manual chart objects as structural history.",
       "replacement_policy": "SCOPED_NCA_NVT9_CLEANUP_THEN_COMPLETE_REBUILD",
       "enforcement": "For 09/12 OLD, the viewer removes NCA_/NCA_DRAW__/NVT9-generated objects, preserves unrelated manual objects, then redraws base and overlay geometry.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-014",
+      "target_type": "H4_REFERENCE_RECOVERY",
+      "target": "H4_STATE_CURRENT_AND_PREVIOUS_BOTH_EMPTY",
+      "scope": [
+        "H4",
+        "D1_PLAN_B_COPY"
+      ],
+      "reason_code": "REVALIDATE_FROZEN_REFERENCE_ANCHORS_PRE_CUTOFF",
+      "reason": "The 09/12 600-bar lifecycle state can contain no H4 CURRENT/PREVIOUS even though the earlier frozen visual reference used an H4 structure whose anchors predate 09/12.",
+      "replacement_policy": "FROZEN_REFERENCE_IDENTITY_ONLY_REBUILD_GEOMETRY_FROM_PRE_CUTOFF_BARS",
+      "enforcement": "R0919 H4 anchor identity is used only as a lookup target. detect_turns/build_channel_candidates rerun on the 09/12 pre-cutoff input; the exact anchor pair must exist there as a valid candidate. CH offset, Decision HL, activation, and zone evidence come from the pre-cutoff candidate, not from 09/19 future geometry.",
       "status": "ENFORCED"
     }
   ]
