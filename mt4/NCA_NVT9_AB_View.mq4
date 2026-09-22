@@ -15,8 +15,9 @@
 
 enum NVT9_AB_CASE
 {
-   CASE_20260912 = 0,
-   CASE_20260919 = 1
+   CASE_20260905 = 0,
+   CASE_20260912 = 1,
+   CASE_20260919 = 2
 };
 
 enum NVT9_AB_VARIANT
@@ -25,11 +26,11 @@ enum NVT9_AB_VARIANT
    VARIANT_NEW = 1
 };
 
-input NVT9_AB_CASE HistoryCase = CASE_20260912;
+input NVT9_AB_CASE HistoryCase = CASE_20260905;
 input NVT9_AB_VARIANT Variant = VARIANT_OLD;
 input bool ApplyToAllOpenTargetCharts = true;
 input bool AuditDeleteAllChartObjects = false;
-input bool ShowCurrentStructuralOverlayOn0912Old = true;
+input bool ShowCurrentStructuralOverlayOnHistoricalOld = true;
 
 input color D1TLColor = clrYellow;
 input color D1CHColor = clrOrange;
@@ -49,12 +50,14 @@ input ENUM_LINE_STYLE CaseMarkerStyle = STYLE_DASH;
 string PREFIX = "NVT9_TFMAP__";
 string XPREFIX = "NVT9_X0912__";
 string BASE_DIR = "noda_draw\\live_output\\nvt9_ab_0912_0919";
+string OVERLAY_0905_PATH = "noda_draw\\live_output\\nvt9_reference_0905\\NVT9_0919_STRUCTURAL_OVERLAY.csv";
 string OVERLAY_0912_PATH = "noda_draw\\live_output\\nvt9_reference_0912\\NVT9_0919_STRUCTURAL_OVERLAY.csv";
 
 string CaseKey()
 {
    if(HistoryCase == CASE_20260919) return "20260919";
-   return "20260912";
+   if(HistoryCase == CASE_20260912) return "20260912";
+   return "20260905";
 }
 
 string VariantKey()
@@ -66,15 +69,34 @@ string VariantKey()
 datetime CaseCutoff()
 {
    if(HistoryCase == CASE_20260919) return StringToTime("2026.09.19 00:00");
-   return StringToTime("2026.09.12 00:00");
+   if(HistoryCase == CASE_20260912) return StringToTime("2026.09.12 00:00");
+   return StringToTime("2026.09.05 00:00");
 }
 
 string HistoryPreviewPath()
 {
-   if(HistoryCase == CASE_20260912 && Variant == VARIANT_OLD)
+   if(Variant == VARIANT_OLD && HistoryCase == CASE_20260905)
+      return "noda_draw\\live_output\\nvt9_reference_0905\\base\\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv";
+   if(Variant == VARIANT_OLD && HistoryCase == CASE_20260912)
       return "noda_draw\\live_output\\nvt9_reference_0912\\base\\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv";
    return BASE_DIR + "\\" + CaseKey() + "\\" + VariantKey() +
           "\\output\\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv";
+}
+
+bool IsDedicatedReferenceCase()
+{
+   return (
+      Variant == VARIANT_OLD &&
+      (HistoryCase == CASE_20260905 || HistoryCase == CASE_20260912)
+   );
+}
+
+string HistoricalOverlayPath()
+{
+   if(Variant != VARIANT_OLD) return "";
+   if(HistoryCase == CASE_20260905) return OVERLAY_0905_PATH;
+   if(HistoryCase == CASE_20260912) return OVERLAY_0912_PATH;
+   return "";
 }
 
 string TFNameFromPeriod(int p)
@@ -308,7 +330,7 @@ int RenderRowsOnChart(string path, long chartId, string symbol, string tf, datet
       else if(previous)
       {
          c = (role == "CH") ? chColor : tlColor;
-         if(HistoryCase == CASE_20260912 && Variant == VARIANT_OLD)
+         if(IsDedicatedReferenceCase())
          {
             style = STYLE_SOLID;
             width = PreviewCurrentWidth;
@@ -340,12 +362,14 @@ int RenderRowsOnChart(string path, long chartId, string symbol, string tf, datet
 }
 
 
-int RenderCurrentOverlay0912(long chartId,string symbol,string tf)
+int RenderCurrentHistoricalOverlay(long chartId,string symbol,string tf)
 {
-   if(!ShowCurrentStructuralOverlayOn0912Old) return 0;
-   if(HistoryCase != CASE_20260912 || Variant != VARIANT_OLD) return 0;
+   if(!ShowCurrentStructuralOverlayOnHistoricalOld) return 0;
+   if(!IsDedicatedReferenceCase()) return 0;
 
-   int h=FileOpen(OVERLAY_0912_PATH,FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON,',');
+   string overlayPath=HistoricalOverlayPath();
+   if(overlayPath=="") return 0;
+   int h=FileOpen(overlayPath,FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON,',');
    if(h==INVALID_HANDLE) return 0;
    if(!ReadAndValidateHeader(h)) { FileClose(h); return -2; }
 
@@ -443,28 +467,28 @@ bool ApplyHistoryToChart(long chartId, string symbol, string path, datetime cuto
    if(!IsTargetPeriod(period)) return false;
 
    string tf = TFNameFromPeriod(period);
-   bool isolate0912 = (HistoryCase == CASE_20260912 && Variant == VARIANT_OLD);
+   bool isolateHistorical = IsDedicatedReferenceCase();
    if(AuditDeleteAllChartObjects) DeleteAllChartObjects(chartId);
-   else if(isolate0912) DeleteHistoricalSystemObjects(chartId);
+   else if(isolateHistorical) DeleteHistoricalSystemObjects(chartId);
    else DeleteAuditOwnedObjects(chartId);
 
    int rendered = RenderRowsOnChart(path, chartId, symbol, tf, cutoff);
-   int overlayRendered = RenderCurrentOverlay0912(chartId, symbol, tf);
-   bool allowNoLine0912 = (HistoryCase == CASE_20260912 && Variant == VARIANT_OLD);
+   int overlayRendered = RenderCurrentHistoricalOverlay(chartId, symbol, tf);
+   bool allowNoLineHistorical = IsDedicatedReferenceCase();
    if(rendered < 0)
    {
       Print("NVT9 A-B VIEW: preview read failed chart=", chartId, " tf=", tf, " code=", rendered);
       return false;
    }
-   if(rendered == 0 && overlayRendered <= 0 && !allowNoLine0912)
+   if(rendered == 0 && overlayRendered <= 0 && !allowNoLineHistorical)
    {
       Print("NVT9 A-B VIEW: no rows rendered chart=", chartId, " tf=", tf, " code=", rendered);
       return false;
    }
-   if(rendered == 0 && allowNoLine0912)
+   if(rendered == 0 && allowNoLineHistorical)
    {
-      Print("NVT9 A-B VIEW: 09/12 NO-LINE accepted chart=", chartId, " tf=", tf,
-            " overlay=", overlayRendered);
+      Print("NVT9 A-B VIEW: historical NO-LINE accepted chart=", chartId, " tf=", tf,
+            " case=", CaseKey(), " overlay=", overlayRendered);
    }
 
    if(!MoveChartToCase(chartId, symbol, period, cutoff))
