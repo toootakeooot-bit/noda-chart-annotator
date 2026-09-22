@@ -328,7 +328,7 @@ def main() -> int:
             (retained_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json").read_text(encoding="utf-8")
         )
         assert retained_audit["status"] == "PASS_TF_MAPPED_PREVIEW"
-        assert retained_audit["selection_policy"]["generation_scope"] == "CURRENT_WITH_EXPLICIT_PREVIOUS_FALLBACK"
+        assert retained_audit["selection_policy"]["generation_scope"] == "CURRENT_WITH_EXPLICIT_RETAINED_FALLBACK"
         assert retained_audit["fallback_previous_source_tfs"] == ["H4"]
         assert retained_audit["main_roles_only_source_tfs"] == ["H4", "M15"]
         h4_retained = retained_audit["source_selection"]["H4"]
