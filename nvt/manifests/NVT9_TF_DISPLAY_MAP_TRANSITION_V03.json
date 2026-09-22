@@ -1,6 +1,6 @@
 {
-  "schema": "nvt9-tf-display-map/0.9",
-  "status": "RESEARCH_CANDIDATE_POST_SELECTOR_TRANSITION_OWNERSHIP",
+  "schema": "nvt9-tf-display-map/1.0",
+  "status": "RESEARCH_CANDIDATE_TRANSITION_WITH_RETAINED_LIFECYCLE",
   "audit_id": "ID10IQ200",
   "date": "2026-09-22",
   "symbol": "USDJPY#",
@@ -40,8 +40,11 @@
   },
   "important": [
     "TL transition state is resolved after source selection and before display mapping.",
-    "TRANSITION_NO_TL means an older activated TL is broken and no replacement N has yet produced two anchors plus a Decision-HL closed-bar break.",
-    "NEW_ACTIVE requires the existing N-structure rules; the transition layer does not invent anchors.",
+    "ACTIVE: current native TL is valid.",
+    "TRANSITION_NO_TL: old TL is broken and no replacement N is active.",
+    "NEW_ACTIVE: a replacement N satisfies the existing two-anchor + Decision-HL closed-bar break rule.",
+    "REFERENCE_RETAINED: rolling 600-bar selection cannot reconstruct a native candidate, but chronological pre-cutoff lifecycle replay proves the TL was already established and retained.",
+    "REFERENCE_RETAINED is not allowed to override OLD_TL_BROKEN_NO_UNBROKEN_REPLACEMENT_N.",
     "When H4 is TRANSITION_NO_TL, D1 becomes the H4 display owner.",
     "M15 native selection is disabled; H1 owns M15 display.",
     "Destination charts never reselect source geometry.",
@@ -135,5 +138,18 @@
       "suppress_native": true,
       "reason": "M15 does not own a native TL in this audit; display the exact H1-selected geometry."
     }
+  },
+  "lifecycle_states": [
+    "ACTIVE",
+    "REFERENCE_RETAINED",
+    "TRANSITION_NO_TL",
+    "NEW_ACTIVE"
+  ],
+  "retained_lifecycle_policy": {
+    "source": "FULL_PRE_CUTOFF_CHRONOLOGICAL_REPLAY",
+    "allowed_when_rolling_reason": "NO_ACTIVATED_N_STRUCTURE_YET",
+    "forbidden_when_rolling_reason": "OLD_TL_BROKEN_NO_UNBROKEN_REPLACEMENT_N",
+    "selection_horizon_semantics": "600 bars limits new selection; it does not delete a TL established earlier in lifecycle history.",
+    "future_bars_used": false
   }
 }
