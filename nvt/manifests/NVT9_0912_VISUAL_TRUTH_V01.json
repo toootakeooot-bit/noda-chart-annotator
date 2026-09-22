@@ -6,9 +6,11 @@
   "source": "user_annotated_screenshot_2026-09-22",
   "production_generalization": false,
   "render_contract": {
-    "stop_all_audit_lines_at_cutoff": true,
-    "cutoff_exclusive": "2026-09-12T00:00:00",
-    "reason": "Historical 09/12 view must not visually extend audit TL/CH/HL into the future region to the right of the cutoff marker."
+    "selection_cutoff_exclusive": "2026-09-12T00:00:00",
+    "future_bars_used_for_selection": false,
+    "extend_selected_reference_geometry_beyond_cutoff": true,
+    "projection_mode": "RAY_RIGHT_FROM_PRE_CUTOFF_ANCHORS",
+    "reason": "09/12 selects structures using only pre-cutoff data, but already-established TL/CH references remain projected to the right for monitoring. Selection-time no-lookahead and display projection are separate concerns."
   },
   "approved_families": [
     {
@@ -71,6 +73,11 @@
       "rejection_id": "VT0912-RJ-003",
       "interpretation": "Resolve anchor1/anchor2 independently as the lowest confirmed LOW in broad windows.",
       "reason": "Independent-low selection can choose an inner geometry whose TL cuts through another formation wick. The approved D1 line is the pairwise outer wick envelope."
+    },
+    {
+      "rejection_id": "VT0912-RJ-004",
+      "interpretation": "Stop every valid 09/12 TL/CH at the white cutoff marker.",
+      "reason": "The white cutoff limits information used to select the structure; it does not terminate the rightward projection of an already-established monitoring line."
     }
   ]
 }
