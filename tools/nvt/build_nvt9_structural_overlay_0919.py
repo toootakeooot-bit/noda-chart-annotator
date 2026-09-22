@@ -283,14 +283,15 @@ def build_d1_retained_reference_0912(bars, pivots) -> ContinuationCandidate | No
     if not candidates:
         return None
 
-    # Within the NVT5 evidence windows, prefer the strongest still-unbroken
-    # original reference; contacts first, then gentler slope, then earlier A2.
+    # Within the NVT5 evidence windows, preserve the earliest established
+    # retained geometry when contact evidence is comparable.  Do not let a
+    # later/gentler re-anchor silently replace the original monitoring line.
     return max(
         candidates,
         key=lambda c: (
             c.tl_contacts,
-            -abs(c.slope),
             -c.anchor2.time.timestamp(),
+            -abs(c.slope),
         ),
     )
 
