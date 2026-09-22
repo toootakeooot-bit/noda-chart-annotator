@@ -18,6 +18,7 @@ def main() -> None:
         "RD0919-005", "RD0919-006", "RD0919-007", "RD0912-001",
         "RD0912-002", "RD0912-003", "RD0912-004", "RD0912-005", "RD0912-006",
         "RD0912-007", "RD0912-008", "RD0912-009", "RD0912-010",
+        "RD0912-011", "RD0912-012", "RD0912-013",
     }
 
     ref = json.loads(REFERENCE.read_text(encoding="utf-8"))
@@ -50,7 +51,8 @@ def main() -> None:
     assert entries["RD0919-005"]["replacement_policy"] == "SEARCH_ALL_CONFIRMED_D1_LOWS_THEN_REQUIRE_BROAD_UNBROKEN_SUPPORT"
     assert entries["RD0919-006"]["replacement_policy"] == "H1_NATIVE_CONFIRMED_PIVOTS"
     assert entries["RD0919-007"]["replacement_policy"] == "MAX_3_WITH_MINIMUM_CENTER_GAP_AND_STRONGER_REACTION_EVIDENCE"
-    assert entries["RD0912-001"]["reason_code"] == "NO_LINE_NO_SYNTHETIC_FALLBACK"
+    assert entries["RD0912-001"]["status"] == "SUPERSEDED_BY_RETAINED_REFERENCE"
+    assert entries["RD0912-001"]["superseded_by"] == "RD0912-011"
     assert entries["RD0912-002"]["replacement_policy"] == "SUPPRESS_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT"
     assert entries["RD0912-003"]["status"] == "SUPERSEDED_BY_VISUAL_TRUTH"
     assert entries["RD0912-003"]["superseded_by"] == "VT0912-D1-001"
@@ -58,10 +60,15 @@ def main() -> None:
     assert entries["RD0912-005"]["status"] == "SUPERSEDED_WRONG_INTERPRETATION"
     assert entries["RD0912-005"]["superseded_by"] == "VT0912-D1-001"
     assert entries["RD0912-006"]["replacement_policy"] == "CHANNEL_ANCHOR_FROM_ORIGINAL_FORMATION_WINDOW"
-    assert entries["RD0912-007"]["replacement_policy"] == "PROJECT_TO_CUTOFF_THEN_RAY_RIGHT_FALSE"
+    assert entries["RD0912-007"]["status"] == "SUPERSEDED_SELECTION_DISPLAY_CONFLATION"
+    assert entries["RD0912-007"]["superseded_by"] == "RD0912-012"
     assert entries["RD0912-008"]["replacement_policy"] == "VT0912_D1_001_USER_ANNOTATED_2026_LOW_WINDOWS"
-    assert entries["RD0912-009"]["replacement_policy"] == "DELETE_ALL_CHART_OBJECTS_THEN_DRAW_0912_AUDIT_ONLY"
+    assert entries["RD0912-009"]["status"] == "SUPERSEDED_BY_SCOPED_SYSTEM_CLEANUP"
+    assert entries["RD0912-009"]["superseded_by"] == "RD0912-013"
     assert entries["RD0912-010"]["replacement_policy"] == "PAIRWISE_OUTERMOST_WICK_ENVELOPE_ZERO_FORMATION_WICK_BREACH"
+    assert entries["RD0912-011"]["replacement_policy"] == "CURRENT_FIRST_THEN_PREVIOUS_REFERENCE_RETAINED"
+    assert entries["RD0912-012"]["replacement_policy"] == "PRE_CUTOFF_ANCHORS_ONLY_PLUS_RAY_RIGHT_DISPLAY"
+    assert entries["RD0912-013"]["replacement_policy"] == "SCOPED_NCA_NVT9_CLEANUP_THEN_COMPLETE_REBUILD"
 
     print("NVT9_REJECTED_DRAW_LEDGER_SELFTEST_PASS")
 
