@@ -288,7 +288,7 @@ int RenderRowsOnChart(string path, long chartId, string symbol, string tf, datet
       // 09/12 is a selection cutoff, not a visual line-termination point.
       // The geometry is selected only from pre-cutoff bars, then projected
       // right as the monitoring reference that existed at that time.
-      ObjectSetInteger(chartId, name, OBJPROP_RAY_RIGHT, projectHistorical0912 ? true : true);
+      ObjectSetInteger(chartId, name, OBJPROP_RAY_RIGHT, true);
       ObjectSetInteger(chartId, name, OBJPROP_BACK, false);
 
       color tlColor, chColor;
