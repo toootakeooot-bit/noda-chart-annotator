@@ -483,7 +483,10 @@ def main() -> int:
         },
         "selection_policy": {
             "near_price_family_per_source_tf": per_source,
-            "generation_scope": "CURRENT_WITH_EXPLICIT_PREVIOUS_FALLBACK",
+            "generation_scope": (
+                "CURRENT_WITH_EXPLICIT_PREVIOUS_FALLBACK"
+                if fallback_previous_source_tfs else "CURRENT_ONLY"
+            ),
             "far_direction_context_max_families": context_max,
             "allowed_empty_source_tfs": sorted(allow_empty_source_tfs),
             "fallback_previous_source_tfs": sorted(fallback_previous_source_tfs),
