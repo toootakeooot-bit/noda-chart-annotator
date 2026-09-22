@@ -23,8 +23,8 @@ def main() -> None:
 
     v = VIEWER.read_text(encoding="utf-8")
     assert 'HistoryCase = CASE_20260912' in v
-    assert r'nvt9_reference_0912\\\\base\\\\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv' in v
-    assert r'nvt9_reference_0912\\\\NVT9_0919_STRUCTURAL_OVERLAY.csv' in v
+    assert r'nvt9_reference_0912\\base\\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv' in v
+    assert r'nvt9_reference_0912\\NVT9_0919_STRUCTURAL_OVERLAY.csv' in v
     assert 'ShowCurrentStructuralOverlayOn0912Old = true' in v
     assert 'StringFind(n, XPREFIX, 0) == 0' in v
 
