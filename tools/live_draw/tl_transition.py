@@ -80,27 +80,16 @@ def _first_break_after_anchor2(candidate, bars) -> datetime | None:
     return None
 
 
-def resolve_tl_transition_state(
+def resolve_tl_transition_from_candidates(
     bars,
     symbol: str,
     timeframe: str,
+    candidates,
+    confirmed_pivot_count: int,
     selected_state: dict | None = None,
 ) -> TLTransitionResolution:
-    """Resolve ACTIVE -> TRANSITION_NO_TL -> NEW_ACTIVE after normal selection.
-
-    This layer does not invent TL geometry.  A NEW_ACTIVE TL is allowed only
-    when the existing N-structure rules already produce an unbroken activated
-    ChannelCandidate: two same-side confirmed pivots, the intervening decision
-    HL, and a closed-bar HL break.
-
-    TRANSITION_NO_TL means an older activated TL has broken and no replacement
-    N has yet satisfied those existing activation rules.
-    """
-    turns = detect_turns(bars)
-    candidates = build_channel_candidates(bars, turns.pivots)
+    """Pure post-selector state resolution over an already-built candidate set."""
     large, _, _ = select_large_mid(symbol, timeframe, candidates)
-
-    unbroken = [c for c in candidates if c.unbroken_close]
     active_candidate = large.candidate if large is not None else None
 
     broken = [
@@ -126,7 +115,7 @@ def resolve_tl_transition_state(
                 active_candidate=active_candidate,
                 broken_candidate=latest_broken[0],
                 break_time=latest_broken[1],
-                confirmed_pivot_count=len(turns.pivots),
+                confirmed_pivot_count=confirmed_pivot_count,
                 candidate_count=len(candidates),
             )
         return TLTransitionResolution(
@@ -135,7 +124,7 @@ def resolve_tl_transition_state(
             active_candidate=active_candidate,
             broken_candidate=latest_broken[0],
             break_time=latest_broken[1],
-            confirmed_pivot_count=len(turns.pivots),
+            confirmed_pivot_count=confirmed_pivot_count,
             candidate_count=len(candidates),
         )
 
@@ -146,18 +135,44 @@ def resolve_tl_transition_state(
             active_candidate=None,
             broken_candidate=latest_broken[0],
             break_time=latest_broken[1],
-            confirmed_pivot_count=len(turns.pivots),
+            confirmed_pivot_count=confirmed_pivot_count,
             candidate_count=len(candidates),
         )
 
-    # No activated N exists yet.  This is still a transition/no-native-TL
-    # display state, but is distinguished in the reason code for audit.
     return TLTransitionResolution(
         state="TRANSITION_NO_TL",
         reason_code="NO_ACTIVATED_N_STRUCTURE_YET",
         active_candidate=None,
         broken_candidate=None,
         break_time=None,
-        confirmed_pivot_count=len(turns.pivots),
+        confirmed_pivot_count=confirmed_pivot_count,
         candidate_count=len(candidates),
+    )
+
+
+def resolve_tl_transition_state(
+    bars,
+    symbol: str,
+    timeframe: str,
+    selected_state: dict | None = None,
+) -> TLTransitionResolution:
+    """Resolve ACTIVE -> TRANSITION_NO_TL -> NEW_ACTIVE after normal selection.
+
+    This layer does not invent TL geometry.  A NEW_ACTIVE TL is allowed only
+    when the existing N-structure rules already produce an unbroken activated
+    ChannelCandidate: two same-side confirmed pivots, the intervening decision
+    HL, and a closed-bar HL break.
+
+    TRANSITION_NO_TL means an older activated TL has broken and no replacement
+    N has yet satisfied those existing activation rules.
+    """
+    turns = detect_turns(bars)
+    candidates = build_channel_candidates(bars, turns.pivots)
+    return resolve_tl_transition_from_candidates(
+        bars,
+        symbol,
+        timeframe,
+        candidates,
+        len(turns.pivots),
+        selected_state,
     )
