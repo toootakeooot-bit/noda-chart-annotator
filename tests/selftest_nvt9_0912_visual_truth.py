@@ -39,6 +39,12 @@ def main() -> None:
                 "anchor2": {"kind": "LOW", "time": "2026-04-28T00:00:00", "price": 154.0},
                 "tl_break_time": "2026-08-01T00:00:00",
                 "lifecycle_status": "REFERENCE_RETAINED_BROKEN",
+                "resolved_truth": {
+                    "anchor_selection": "PAIRWISE_OUTERMOST_WICK_ENVELOPE",
+                    "formation_wick_breach_count": 0,
+                    "formation_wick_contact_count": 4,
+                    "formation_mean_wick_gap": 0.25
+                },
             }
         }), encoding="utf-8")
         base_audit.write_text(json.dumps({
@@ -73,6 +79,8 @@ def main() -> None:
         report = json.loads((root / "NVT9_0912_VISUAL_TRUTH_VERIFY.json").read_text(encoding="utf-8"))
         assert report["status"] == "PASS_0912_VISUAL_TRUTH"
         assert report["lifecycle_status"] == "REFERENCE_RETAINED_BROKEN"
+        assert report["d1_anchor_selection"] == "PAIRWISE_OUTERMOST_WICK_ENVELOPE"
+        assert report["formation_wick_breach_count"] == 0
 
         # Deliberately move A1 outside the approved yellow-circle window:
         # verifier must fail rather than announce READY.
@@ -89,6 +97,22 @@ def main() -> None:
         ], capture_output=True, text=True)
         assert bad_proc.returncode != 0
         assert "outside approved yellow-circle window" in (bad_proc.stdout + bad_proc.stderr)
+
+        # Restore A1 and deliberately report a wick breach: verifier must fail.
+        wick_bad = json.loads(overlay_audit.read_text(encoding="utf-8"))
+        wick_bad["d1_visual_truth"]["anchor1"]["time"] = "2026-02-05T00:00:00"
+        wick_bad["d1_visual_truth"]["resolved_truth"]["formation_wick_breach_count"] = 1
+        overlay_audit.write_text(json.dumps(wick_bad), encoding="utf-8")
+        wick_proc = subprocess.run([
+            sys.executable, str(VERIFY),
+            "--visual-truth", str(TRUTH),
+            "--overlay-audit", str(overlay_audit),
+            "--overlay-csv", str(overlay_csv),
+            "--base-audit", str(base_audit),
+            "--base-csv", str(base_csv),
+        ], capture_output=True, text=True)
+        assert wick_proc.returncode != 0
+        assert "formation wick breach" in (wick_proc.stdout + wick_proc.stderr)
 
     print("NVT9_0912_VISUAL_TRUTH_SELFTEST_PASS")
 
