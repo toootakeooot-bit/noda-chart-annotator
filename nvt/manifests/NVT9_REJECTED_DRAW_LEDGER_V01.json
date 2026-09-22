@@ -321,6 +321,21 @@
       "replacement_policy": "CURRENT_THEN_PREVIOUS_THEN_FROZEN_REFERENCE_REVALIDATED_PRE_CUTOFF_ELSE_NO_LINE",
       "enforcement": "09/05 H1 selection now tries CURRENT, then PREVIOUS, then revalidates frozen H1 reference anchors using only pre-cutoff H1 bars. If all routes are absent, H1 NO-LINE is allowed for the first visual audit.",
       "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0905-002",
+      "target_type": "TIMEFRAME_OWNERSHIP",
+      "target": "M15_NATIVE_TL_CH_SELECTION",
+      "scope": [
+        "M15_TL",
+        "M15_CH",
+        "M15_DISPLAY"
+      ],
+      "reason_code": "DISABLE_M15_NATIVE_USE_H1_OWNER",
+      "reason": "User audit decision: M15 movement is too abrupt/noisy for stable native TL/CH selection. M15 should show the same structural family as H1 rather than create a separate M15 geometry.",
+      "replacement_policy": "H1_SELECTED_FAMILY_COPIED_TO_M15_NO_RESELECTION",
+      "enforcement": "NVT9_TF_DISPLAY_MAP_H1_TO_M15_V02 removes M15 from source_to_display_tfs, marks M15 native-disabled, and maps the H1-selected family to H1/H4/M15. build_nvt9_tf_mapped_preview.py rejects any native-disabled source leak.",
+      "status": "ENFORCED"
     }
   ]
 }
