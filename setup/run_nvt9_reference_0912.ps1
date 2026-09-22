@@ -11,6 +11,7 @@ $OutDir = Join-Path $Common 'live_output\nvt9_reference_0912'
 $Policy = Join-Path $RepoRoot 'nvt\manifests\NVT9_TF_DISPLAY_MAP_0919_V01.json'
 $Reference = Join-Path $RepoRoot 'nvt\manifests\NVT9_0919_REFERENCE_LINES_V01.json'
 $RejectedLedger = Join-Path $RepoRoot 'nvt\manifests\NVT9_REJECTED_DRAW_LEDGER_V01.json'
+$VisualTruth = Join-Path $RepoRoot 'nvt\manifests\NVT9_0912_VISUAL_TRUTH_V01.json'
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
@@ -22,18 +23,19 @@ Write-Host 'Rules: 09/12 cleanup (D1 major channel, H1 native TL/HL, max-2 space
 Write-Host 'Production: unchanged'
 Write-Host ''
 
-Write-Host '[1/3] Build no-lookahead 600-bar base'
+Write-Host '[1/4] Build no-lookahead 600-bar base'
 & $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_reference_0912.py') --input-dir $InputDir --output-dir $OutDir --policy $Policy --symbol $Symbol --cutoff '2026-09-12T00:00:00'
 if ($LASTEXITCODE -ne 0) { Write-Host '09/12 BASE BUILD FAILED'; exit $LASTEXITCODE }
 
 Write-Host ''
-Write-Host '[2/3] Build current structural overlay at 09/12 cutoff'
-& $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_structural_overlay_0919.py') --input-dir $InputDir --reference $Reference --output-dir $OutDir --symbol $Symbol --cutoff '2026-09-12T00:00:00' --case-tag '0912'
+Write-Host '[2/4] Build current structural overlay at 09/12 cutoff'
+& $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_structural_overlay_0919.py') --input-dir $InputDir --reference $Reference --output-dir $OutDir --symbol $Symbol --cutoff '2026-09-12T00:00:00' --case-tag '0912' --visual-truth $VisualTruth
 if ($LASTEXITCODE -ne 0) { Write-Host '09/12 STRUCTURAL OVERLAY FAILED'; exit $LASTEXITCODE }
 
 if (Test-Path $RejectedLedger) {
   Copy-Item -Force $RejectedLedger (Join-Path $OutDir 'NVT9_REJECTED_DRAW_LEDGER_V01.json')
 }
+Copy-Item -Force $VisualTruth (Join-Path $OutDir 'NVT9_0912_VISUAL_TRUTH_V01.json')
 
 $SummaryPath = Join-Path $OutDir 'NVT9_0912_CURRENT_SUMMARY.json'
 $OverlayPath = Join-Path $OutDir 'NVT9_0919_STRUCTURAL_OVERLAY_AUDIT.json'
@@ -51,6 +53,12 @@ foreach ($tf in 'D1','H4','H1','M15') {
 }
 Write-Host ("Suppressed base selections: {0}" -f (($BaseAudit.suppressed_source_selections | ForEach-Object { "$($_.source_tf):$($_.direction):$($_.line_id)" }) -join ', '))
 Write-Host ("Empty source TFs:           {0}" -f (($BaseAudit.empty_source_tfs) -join ', '))
+Write-Host ("D1 approved truth: {0} reason={1}" -f $Overlay.d1_visual_truth.status,$Overlay.d1_visual_truth.reason_code)
+if ($Overlay.d1_visual_truth.status -eq 'BUILT') {
+  Write-Host ("  APPROVED D1 A1={0} {1}" -f $Overlay.d1_visual_truth.anchor1.time,$Overlay.d1_visual_truth.anchor1.price)
+  Write-Host ("  APPROVED D1 A2={0} {1}" -f $Overlay.d1_visual_truth.anchor2.time,$Overlay.d1_visual_truth.anchor2.price)
+  Write-Host ("  TL break={0} lifecycle={1}" -f $Overlay.d1_visual_truth.tl_break_time,$Overlay.d1_visual_truth.lifecycle_status)
+}
 Write-Host ("D1 major channel: {0} reason={1}" -f $Overlay.d1_major_channel.status,$Overlay.d1_major_channel.reason_code)
 if ($Overlay.d1_major_channel.status -eq 'BUILT') {
   Write-Host ("  D1 A1={0} {1}  A2={2} {3}" -f $Overlay.d1_major_channel.anchor1.time,$Overlay.d1_major_channel.anchor1.price,$Overlay.d1_major_channel.anchor2.time,$Overlay.d1_major_channel.anchor2.price)
@@ -67,7 +75,17 @@ Write-Host ("H1 zones:        {0} count={1}" -f $Overlay.h1_reaction_zones.statu
 Write-Host ("H1 Updated CH:   {0} reason={1}" -f $Overlay.h1_updated_ch.status,$Overlay.h1_updated_ch.reason_code)
 
 Write-Host ''
-Write-Host '[3/3] Install/compile MT4 viewers'
+Write-Host '[3/4] Verify generated output against user-annotated 09/12 visual truth'
+& $Python (Join-Path $RepoRoot 'tools\nvt\verify_nvt9_0912_visual_truth.py') `
+  --visual-truth $VisualTruth `
+  --overlay-audit (Join-Path $OutDir 'NVT9_0919_STRUCTURAL_OVERLAY_AUDIT.json') `
+  --overlay-csv (Join-Path $OutDir 'NVT9_0919_STRUCTURAL_OVERLAY.csv') `
+  --base-audit (Join-Path $OutDir 'base\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json') `
+  --base-csv (Join-Path $OutDir 'base\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv')
+if ($LASTEXITCODE -ne 0) { Write-Host '09/12 VISUAL TRUTH VERIFY FAILED'; exit $LASTEXITCODE }
+
+Write-Host ''
+Write-Host '[4/4] Install/compile MT4 viewers'
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'install_nvt9_tfmap_preview_auto.ps1')
 if ($LASTEXITCODE -ne 0) { Write-Host 'MT4 INSTALL FAILED'; exit $LASTEXITCODE }
 
