@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 from live_draw.model import Bar, Pivot
 from tools.nvt.build_nvt9_structural_overlay_0919 import (
     build_d1_continuation,
+    build_d1_visual_truth_0912,
     build_d1_retained_reference_0912,
     build_d1_major_channel,
     build_h1_native_continuation,
@@ -64,6 +65,46 @@ def main() -> None:
     assert tight.anchor1.time == b1.time
     assert tight.anchor2.time == a2.time
     assert tight.status == "REFERENCE_PENDING_HL_BREAK"
+
+    # User-annotated 09/12 D1 truth: resolve the two yellow-circle
+    # LOW windows to confirmed pivots and keep the TL visible after a later break.
+    visual_truth = {
+        "approved_families": [{
+            "truth_id": "VT0912-D1-001",
+            "anchor1": {
+                "window_start": "2026-01-20T00:00:00",
+                "window_end": "2026-02-15T23:59:59",
+            },
+            "anchor2": {
+                "window_start": "2026-04-15T00:00:00",
+                "window_end": "2026-05-10T23:59:59",
+            },
+            "lifecycle": {"retain_after_closed_bar_break": True},
+        }]
+    }
+    vt0 = datetime(2026, 1, 1)
+    vt_bars = []
+    for i in range(254):
+        t = vt0 + timedelta(days=i)
+        close = 162.0
+        if t >= datetime(2026, 8, 1):
+            close = 150.0
+        vt_bars.append(Bar(t, close, close + 1.0, close - 1.0, close))
+    vt_pivots = [
+        Pivot("LOW", 35, datetime(2026, 2, 5), 150.0, 38, datetime(2026, 2, 8), 0.38),
+        Pivot("HIGH", 78, datetime(2026, 3, 20), 160.0, 81, datetime(2026, 3, 23), 0.38),
+        Pivot("LOW", 117, datetime(2026, 4, 28), 154.0, 120, datetime(2026, 5, 1), 0.38),
+        Pivot("HIGH", 195, datetime(2026, 7, 15), 166.0, 198, datetime(2026, 7, 18), 0.38),
+    ]
+    vt = build_d1_visual_truth_0912(vt_bars, vt_pivots, visual_truth)
+    assert vt is not None
+    vt_cand, vt_break, vt_resolved = vt
+    assert vt_cand.anchor1.time == datetime(2026, 2, 5)
+    assert vt_cand.anchor2.time == datetime(2026, 4, 28)
+    assert vt_cand.decision_hl.time == datetime(2026, 3, 20)
+    assert vt_break is not None
+    assert vt_cand.unbroken_close is False
+    assert vt_resolved["truth_id"] == "VT0912-D1-001"
 
     # 09/12 retained D1 reference: reproduce the GT_0004/NVT5
     # evidence-window family rather than filtering it out for being old/far.
