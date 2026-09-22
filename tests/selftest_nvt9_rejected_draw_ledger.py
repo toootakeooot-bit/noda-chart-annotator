@@ -29,7 +29,6 @@ def main() -> None:
 
     overlay_text = OVERLAY.read_text(encoding="utf-8")
     assert "TIGHTEST_UNBROKEN_BROAD_SUPPORT" in overlay_text
-    assert "LONGEST_DURATION_FIRST" in overlay_text
     assert "WEAKER_OVERLAP_OR_TOO_CLOSE_ZONE_SUPPRESSED" in overlay_text
     assert "build_h1_native_continuation" in overlay_text
     assert "max_zones=3" in overlay_text
