@@ -44,8 +44,10 @@ def main() -> int:
     outdir = Path(args.output_dir)
     policy = Path(args.policy)
     case_input = outdir / "input"
+    transition_warmup_input = outdir / "transition_warmup_input"
     base_out = outdir / "base"
     case_input.mkdir(parents=True, exist_ok=True)
+    transition_warmup_input.mkdir(parents=True, exist_ok=True)
     base_out.mkdir(parents=True, exist_ok=True)
 
     states = []
@@ -65,6 +67,13 @@ def main() -> int:
         dst = case_input / input_name(args.symbol, tf)
         write_ohlc_csv(dst, bars)
 
+        # Pre-cutoff-only detector warmup.  This file may include bars before
+        # the 600-bar selection window, but the preview transition resolver is
+        # required to reject any candidate whose A1/A2/Decision-HL predates
+        # the 600-bar selection floor.
+        warmup_dst = transition_warmup_input / input_name(args.symbol, tf)
+        write_ohlc_csv(warmup_dst, eligible)
+
         state, audit = rebuild_timeframe_baseline_0919_from_bars(
             bars, args.symbol, tf, include_selector_trace=True
         )
@@ -76,6 +85,11 @@ def main() -> int:
             "last_bar": bars[-1].time.isoformat(),
             "cutoff_exclusive": cutoff.isoformat(),
             "window_policy": "LAST_600_CLOSED_BARS_PER_TIMEFRAME",
+            "transition_warmup_bar_count": len(eligible),
+            "transition_warmup_first_bar": eligible[0].time.isoformat(),
+            "transition_warmup_last_bar": eligible[-1].time.isoformat(),
+            "transition_warmup_future_bars_used": False,
+            "transition_warmup_selection_rule": "DETECTOR_INITIALIZATION_ONLY_CANDIDATE_ANCHORS_RESTRICTED_TO_600_BAR_WINDOW",
         }
 
     merged = merge_rebuilt_states(states)
@@ -97,6 +111,7 @@ def main() -> int:
         "--policy", str(policy),
         "--input-dir", str(case_input),
         "--input-prefix", "NVT",
+        "--transition-warmup-input-dir", str(transition_warmup_input),
         "--output-dir", str(base_out),
         "--fallback-previous-source-tf", "H4",
         "--fallback-previous-source-tf", "H1",
@@ -123,6 +138,9 @@ def main() -> int:
         "cutoff_exclusive": cutoff.isoformat(),
         "window_policy": "LAST_600_CLOSED_BARS_PER_TIMEFRAME",
         "future_bars_used": False,
+        "transition_warmup_policy": "PRE_CUTOFF_DETECTOR_INITIALIZATION_ONLY_IF_600_BAR_TRANSITION_PASS_HAS_ZERO_CANDIDATES",
+        "transition_warmup_candidate_floor": "FIRST_BAR_OF_EACH_600_BAR_SELECTION_WINDOW",
+        "transition_warmup_future_bars_used": False,
         "allowed_empty_source_tfs": ["H4", "H1"],
         "fallback_previous_source_tfs": ["H4", "H1"],
         "fallback_reference_source_tfs": ["H4", "H1"],
