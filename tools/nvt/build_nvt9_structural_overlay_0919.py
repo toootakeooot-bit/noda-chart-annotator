@@ -179,7 +179,7 @@ def build_d1_continuation(bars, pivots) -> ContinuationCandidate | None:
 
 
 def build_d1_visual_truth_0912(bars, pivots, visual_truth: dict) -> tuple[ContinuationCandidate, datetime | None, dict] | None:
-    """Resolve the user-annotated 09/12 D1 outer support against confirmed pivots.
+    """Resolve the approved historical D1 outer support against confirmed pivots.
 
     The two yellow-circle areas are evidence windows, not independent "take
     the lowest pivot" instructions.  All LOW/LOW pairs inside the two windows
@@ -192,8 +192,14 @@ def build_d1_visual_truth_0912(bars, pivots, visual_truth: dict) -> tuple[Contin
     """
     approved = [
         row for row in (visual_truth.get("approved_families") or [])
-        if row.get("truth_id") == "VT0912-D1-001"
+        if row.get("timeframe") == "D1"
+        and row.get("role") == "RISING_TL_RETAINED_AFTER_BREAK"
     ]
+    if not approved:
+        approved = [
+            row for row in (visual_truth.get("approved_families") or [])
+            if str(row.get("truth_id", "")).endswith("-D1-001")
+        ]
     if not approved:
         return None
     spec = approved[0]
