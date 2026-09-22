@@ -71,57 +71,81 @@ def main() -> int:
     if int(resolved.get("formation_wick_breach_count", -1)) != 0:
         raise ValueError(f"09/05 D1 approved TL has formation wick breach: {resolved}")
 
-    # M15 structural ownership is delegated to H1.
-    # M15 must not select its own native family.  If H1 has a selected family,
-    # that exact geometry must be copied to the M15 display without reselection.
+    expectations = truth.get("transition_expectations") or {}
+    if expectations.get("lifecycle_layer") != "POST_SELECTOR_PRE_MAPPING":
+        raise ValueError(f"09/05 transition lifecycle layer missing: {expectations}")
+
     source_selection = base.get("source_selection") or {}
+    transition_states = base.get("tl_transition_states") or {}
+    effective_map = base.get("effective_source_to_display_tfs") or {}
+    decisions = base.get("transition_display_decisions") or []
+
+    # H4 must be in the explicit gap between the broken old TL and a future
+    # replacement N.  During this gap D1 owns the H4 display.
+    h4_expect = expectations.get("H4") or {}
+    h4_state = transition_states.get("H4") or {}
+    if h4_state.get("state") != h4_expect.get("expected_state"):
+        raise ValueError(
+            f"09/05 H4 transition state mismatch: expected={h4_expect.get('expected_state')} actual={h4_state}"
+        )
+    if h4_expect.get("display_owner_tf") != "D1":
+        raise ValueError(f"09/05 truth H4 owner is not D1: {h4_expect}")
+    if "H4" not in (effective_map.get("D1") or []):
+        raise ValueError(f"09/05 H4 display is not inherited from D1: {effective_map}")
+    if "H4" in (effective_map.get("H4") or []):
+        raise ValueError(f"09/05 H4 native display survived transition: {effective_map}")
+
+    h4_decision = [
+        x for x in decisions
+        if x.get("display_tf") == "H4"
+    ]
+    if len(h4_decision) != 1 or h4_decision[0].get("parent_source_tf") != "D1":
+        raise ValueError(f"09/05 H4 transition ownership decision missing: {h4_decision}")
+    if h4_decision[0].get("state_or_reason") != "TRANSITION_NO_TL":
+        raise ValueError(f"09/05 H4 ownership reason mismatch: {h4_decision}")
+
+    # H1 must have a real ACTIVE/NEW_ACTIVE N.  It is the structural owner
+    # used on H1 and copied to M15.
+    h1_expect = expectations.get("H1") or {}
+    h1_state = transition_states.get("H1") or {}
+    if h1_state.get("state") not in set(h1_expect.get("expected_states") or []):
+        raise ValueError(
+            f"09/05 H1 must be ACTIVE/NEW_ACTIVE before M15 inheritance: {h1_state}"
+        )
+    h1 = source_selection.get("H1") or []
+    if len(h1) != 1:
+        raise ValueError(f"09/05 H1 owner family missing: {h1}")
+    fam = h1[0]
+    if fam.get("display_roles") != ["TL", "CH"]:
+        raise ValueError(f"09/05 H1 owner family must use main TL/CH only: {fam}")
+
+    # M15 must never own a native source. It receives the exact H1 geometry.
+    m15_expect = expectations.get("M15") or {}
+    if m15_expect.get("native_selector_enabled") is not False:
+        raise ValueError(f"09/05 truth did not disable M15 native selector: {m15_expect}")
     if "M15" in source_selection and source_selection.get("M15"):
         raise ValueError(f"09/05 M15 native source must be disabled: {source_selection.get('M15')}")
     if "M15" not in set(base.get("native_disabled_source_tfs") or []):
         raise ValueError("09/05 M15 is not marked native-disabled in the display policy")
-
-    # H4 is intentionally unresolved before first 09/05 screenshot:
-    # CURRENT/PREVIOUS/revalidated REFERENCE are all acceptable, and NO-LINE is
-    # acceptable only if every pre-cutoff recovery route is absent.
-    h4 = (base.get("source_selection") or {}).get("H4") or []
-    if h4:
-        fam = h4[0]
-        if fam.get("generation_role") not in {"CURRENT", "PREVIOUS", "REFERENCE"}:
-            raise ValueError(f"09/05 H4 has unsupported generation role: {fam}")
-        if fam.get("generation_role") == "REFERENCE" and fam.get("reference_anchor_revalidated") is not True:
-            raise ValueError(f"09/05 H4 frozen reference was not revalidated: {fam}")
-        if fam.get("display_roles") != ["TL", "CH"]:
-            raise ValueError(f"09/05 H4 must keep main TL/CH only: {fam}")
-
-    h1 = source_selection.get("H1") or []
-    if h1:
-        fam = h1[0]
-        if fam.get("generation_role") not in {"CURRENT", "PREVIOUS", "REFERENCE"}:
-            raise ValueError(f"09/05 H1 has unsupported generation role: {fam}")
-        if fam.get("generation_role") == "REFERENCE" and fam.get("reference_anchor_revalidated") is not True:
-            raise ValueError(f"09/05 H1 frozen reference was not revalidated: {fam}")
-        if fam.get("display_roles") != ["TL", "CH"]:
-            raise ValueError(f"09/05 H1 owner family must use main TL/CH only: {fam}")
+    if "M15" not in (effective_map.get("H1") or []):
+        raise ValueError(f"09/05 M15 display is not inherited from H1: {effective_map}")
 
     m15_display = [
         x for x in (base.get("selected_families") or [])
         if x.get("display_tf") == "M15"
     ]
-    if h1:
-        if len(m15_display) != 1:
-            raise ValueError(f"09/05 M15 must contain exactly one H1-owned family: {m15_display}")
-        copied = m15_display[0]
-        if copied.get("source_tf") != "H1":
-            raise ValueError(f"09/05 M15 display source is not H1: {copied}")
-        if copied.get("copied_without_reselection") is not True:
-            raise ValueError(f"09/05 H1->M15 geometry was reselected: {copied}")
-        if copied.get("geometry_signature") != h1[0].get("geometry_signature"):
-            raise ValueError(
-                f"09/05 H1/M15 geometry mismatch: h1={h1[0].get('geometry_signature')} "
-                f"m15={copied.get('geometry_signature')}"
-            )
-    elif m15_display:
-        raise ValueError(f"09/05 M15 has geometry while H1 is NO-LINE: {m15_display}")
+    if len(m15_display) != 1:
+        raise ValueError(f"09/05 M15 must contain exactly one H1-owned family: {m15_display}")
+    copied = m15_display[0]
+    if copied.get("source_tf") != "H1":
+        raise ValueError(f"09/05 M15 display source is not H1: {copied}")
+    if copied.get("copied_without_reselection") is not True:
+        raise ValueError(f"09/05 H1->M15 geometry was reselected: {copied}")
+    if copied.get("geometry_signature") != h1[0].get("geometry_signature"):
+        raise ValueError(
+            f"09/05 H1/M15 geometry mismatch: h1={h1[0].get('geometry_signature')} "
+            f"m15={copied.get('geometry_signature')}"
+        )
 
     report = {
         "schema": "nvt9-0905-previsual-verification/1.0",
@@ -143,24 +167,17 @@ def main() -> int:
             }
             if m15_display else {"source_tf": "H1", "line_id": None, "state": "NO_LINE_WITH_H1"}
         ),
-        "h4_status": (
-            {
-                "line_id": h4[0].get("line_id"),
-                "generation_role": h4[0].get("generation_role"),
-                "display_reason": h4[0].get("display_reason"),
-                "reference_id": h4[0].get("reference_id"),
-            }
-            if h4 else {"line_id": None, "generation_role": "NO_LINE_PREVISUAL_ALLOWED"}
-        ),
-        "h1_status": (
-            {
-                "line_id": h1[0].get("line_id"),
-                "generation_role": h1[0].get("generation_role"),
-                "display_reason": h1[0].get("display_reason"),
-                "reference_id": h1[0].get("reference_id"),
-            }
-            if h1 else {"line_id": None, "generation_role": "NO_LINE_PREVISUAL_ALLOWED"}
-        ),
+        "h4_status": {
+            "state": h4_state.get("state"),
+            "reason_code": h4_state.get("reason_code"),
+            "display_owner_tf": "D1",
+        },
+        "h1_status": {
+            "state": h1_state.get("state"),
+            "reason_code": h1_state.get("reason_code"),
+            "line_id": h1[0].get("line_id"),
+            "display_reason": h1[0].get("display_reason"),
+        },
         "date_specific_suppressions_applied": summary.get("suppressed_source_directions"),
         "visual_adjudication_status": "PENDING_USER_0905_SCREENSHOT",
     }
