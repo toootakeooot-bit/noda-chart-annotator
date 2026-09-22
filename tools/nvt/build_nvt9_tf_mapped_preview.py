@@ -303,6 +303,53 @@ def build_revalidated_reference_family(
     return [matched[0]]
 
 
+def build_history_replay_retained_family(
+    history_state: dict,
+    source_tf: str,
+    current_price: float,
+    eval_time: datetime,
+    main_roles_only: bool,
+) -> list[dict]:
+    """Select a previously-established lifecycle line at the cutoff.
+
+    This is not a new-candidate search.  The supplied history_state was built
+    chronologically from bars strictly before the cutoff.  Break alone does not
+    delete lifecycle state, so a current line can remain as a monitoring
+    reference when the rolling 600-bar selector has no replacement candidate.
+    """
+    candidates = []
+    for _, slot in sorted((history_state.get("slots") or {}).items()):
+        state = slot.get("current")
+        if not state or state.get("timeframe") != source_tf:
+            continue
+        retained = dict(state)
+        retained["status"] = "REFERENCE_RETAINED"
+        retained["selection_version"] = (
+            str(retained.get("selection_version") or "")
+            + "|PRE_CUTOFF_HISTORY_REPLAY_RETAINED"
+        )
+        fam = family_record(
+            retained,
+            "reference",
+            source_tf,
+            current_price,
+            eval_time,
+        )
+        fam["display_reason"] = "SOURCE_TF_PRE_CUTOFF_HISTORY_REPLAY_RETAINED"
+        fam["display_roles"] = ["TL", "CH"] if main_roles_only else list(ROLES)
+        fam["history_replay_retained"] = True
+        candidates.append(fam)
+
+    return select_source_families(
+        candidates,
+        source_tf,
+        1,
+        allowed_generation_roles=("REFERENCE",),
+        display_reason="SOURCE_TF_PRE_CUTOFF_HISTORY_REPLAY_RETAINED",
+        main_roles_only=main_roles_only,
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
         description="Build a price-relevant local+parent TF research display preview."
@@ -314,6 +361,10 @@ def main() -> int:
     ap.add_argument(
         "--transition-warmup-input-dir",
         help="Optional pre-cutoff warmup bars for Turn-detector initialization. Used only when the 600-bar transition pass has zero candidates; candidate anchors remain restricted to the normal input window.",
+    )
+    ap.add_argument(
+        "--transition-history-state",
+        help="Optional chronological pre-cutoff lifecycle state. Used only to retain a TL that was already established before the cutoff when the rolling selector has zero candidates.",
     )
     ap.add_argument("--output-dir", required=True)
     ap.add_argument(
@@ -359,6 +410,10 @@ def main() -> int:
     transition_warmup_input_dir = (
         Path(args.transition_warmup_input_dir)
         if args.transition_warmup_input_dir else None
+    )
+    transition_history_state = (
+        load_json(Path(args.transition_history_state))
+        if args.transition_history_state else {}
     )
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -547,15 +602,38 @@ def main() -> int:
             candidate_anchor_floor=selection_floor,
         )
 
+        history_retained = []
+        history_used = False
+
+        # If the rolling selector has no activated N and no broken candidate,
+        # consult the chronological pre-cutoff lifecycle state.  This restores
+        # an already-established monitoring TL; it does NOT create a new TL at
+        # the cutoff.  A genuine broken-TL transition never takes this path.
+        if (
+            resolved.state == "TRANSITION_NO_TL"
+            and resolved.reason_code == "NO_ACTIVATED_N_STRUCTURE_YET"
+            and resolved.candidate_count == 0
+            and transition_history_state
+        ):
+            history_retained = build_history_replay_retained_family(
+                transition_history_state,
+                source_tf,
+                latest[source_tf]["close"],
+                latest[source_tf]["time"],
+                main_roles_only=(source_tf in main_roles_only_source_tfs),
+            )
+            if history_retained:
+                source_selection[source_tf] = history_retained
+                history_used = True
+
         warmup_used = False
         warmup_bar_count = 0
         warmup_first_bar = None
-        # Rescue only the detector-startup case.  If the 600-bar pass already
-        # contains candidates (for example a genuinely broken H4 structure),
-        # the transition conclusion is authoritative and warmup must not
-        # change it.
+        # Warmup is now only a secondary diagnostic rescue when no retained
+        # lifecycle line exists.  It may not override a proven broken-TL gap.
         if (
-            resolved.state == "TRANSITION_NO_TL"
+            not history_used
+            and resolved.state == "TRANSITION_NO_TL"
             and resolved.reason_code == "NO_ACTIVATED_N_STRUCTURE_YET"
             and resolved.candidate_count == 0
             and transition_warmup_input_dir is not None
@@ -577,22 +655,41 @@ def main() -> int:
                         resolved = rescued
                         warmup_used = True
 
-        tl_transition_states[source_tf] = resolved.to_audit_dict()
+        transition_audit = resolved.to_audit_dict()
+        if history_used:
+            retained = history_retained[0]
+            transition_audit.update({
+                "state": "REFERENCE_RETAINED",
+                "reason_code": "PRE_CUTOFF_HISTORY_LIFECYCLE_RETAINED",
+                "active_candidate": None,
+                "retained_line_id": retained.get("line_id"),
+                "retained_direction": retained.get("direction"),
+                "retained_anchor1_time": retained.get("anchor1_time"),
+                "retained_anchor2_time": retained.get("anchor2_time"),
+                "retained_generation_role": retained.get("generation_role"),
+                "history_replay_retained": True,
+            })
+        tl_transition_states[source_tf] = transition_audit
+
         transition_warmup_audit[source_tf] = {
             "attempted": bool(
-                transition_warmup_input_dir is not None
+                not history_used
+                and transition_warmup_input_dir is not None
                 and resolved.reason_code != "OLD_TL_BROKEN_NO_UNBROKEN_REPLACEMENT_N"
             ),
             "used": warmup_used,
+            "history_replay_used": history_used,
             "selection_anchor_floor": selection_floor.isoformat(),
             "selection_bar_count": len(selection_bars),
             "warmup_bar_count": warmup_bar_count,
             "warmup_first_bar": warmup_first_bar,
             "future_bars_used": False,
-            "candidate_rule": "ANCHOR1_ANCHOR2_AND_DECISION_HL_MUST_BE_AT_OR_AFTER_600_BAR_SELECTION_FLOOR",
+            "candidate_rule": "ROLLING_NEW_SELECTION_600_BARS;_PREVIOUSLY_ESTABLISHED_LIFECYCLE_REFERENCE_MAY_PREDATE_WINDOW",
         }
 
-        if resolved.state == "TRANSITION_NO_TL":
+        if history_used:
+            pass
+        elif resolved.state == "TRANSITION_NO_TL":
             source_selection[source_tf] = []
         elif resolved.active_candidate is not None:
             needs_replace = (
@@ -770,6 +867,7 @@ def main() -> int:
         "transition_warmup_input_dir": (
             str(transition_warmup_input_dir) if transition_warmup_input_dir else None
         ),
+        "transition_history_state": args.transition_history_state,
         "transition_warmup_audit": transition_warmup_audit,
         "allow_empty_source_tfs": sorted(allow_empty_source_tfs),
         "fallback_previous_source_tfs": sorted(fallback_previous_source_tfs),
@@ -840,7 +938,8 @@ def main() -> int:
             "transition_state_layer": "POST_SELECTOR_PRE_MAPPING",
             "transition_states": ["ACTIVE", "TRANSITION_NO_TL", "NEW_ACTIVE"],
             "transition_new_active_rule": "EXISTING_N_STRUCTURE_TWO_ANCHORS_PLUS_DECISION_HL_CLOSED_BAR_BREAK",
-            "transition_warmup_semantics": "OLDER_PRE_CUTOFF_BARS_MAY_INITIALIZE_TURN_DETECTOR_ONLY_WHEN_600_BAR_PASS_HAS_ZERO_CANDIDATES; ALL_SELECTED_ANCHORS_AND_DECISION_HL_REMAIN_INSIDE_600_BAR_WINDOW",
+            "transition_warmup_semantics": "SECONDARY_DIAGNOSTIC_RESCUE_ONLY_AFTER_HISTORY_REPLAY_RETENTION_IS_UNAVAILABLE",
+            "transition_history_semantics": "FULL_PRE_CUTOFF_CHRONOLOGICAL_REPLAY_MAY_RETAIN_A_PREVIOUSLY_ESTABLISHED_TL_BEYOND_THE_600_BAR_NEW_SELECTION_HORIZON",
             "suppressed_source_directions": suppress_selected_source_direction,
             "suppressed_source_semantics": "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT",
             "empty_source_semantics": "NO_LINE_NO_SYNTHETIC_FALLBACK",
