@@ -192,6 +192,12 @@ def main() -> int:
     ap.add_argument("--input-prefix", default="NVT", choices=["NVT", "NORMAL"])
     ap.add_argument("--output-dir", required=True)
     ap.add_argument(
+        "--suppress-selected-source-direction",
+        action="append",
+        default=[],
+        help="Research-only selector override in TF:DIRECTION form, e.g. H1:FALLING.",
+    )
+    ap.add_argument(
         "--allow-empty-source-tf",
         action="append",
         default=[],
@@ -206,6 +212,16 @@ def main() -> int:
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
     allow_empty_source_tfs = set(args.allow_empty_source_tf or [])
+    suppress_selected_source_direction = {}
+    for item in (args.suppress_selected_source_direction or []):
+        if ":" not in item:
+            raise ValueError(f"invalid --suppress-selected-source-direction: {item}")
+        tf, direction = item.split(":", 1)
+        tf = tf.strip().upper()
+        direction = direction.strip().upper()
+        if tf not in {"D1","H4","H1","M15"} or direction not in {"RISING","FALLING"}:
+            raise ValueError(f"invalid --suppress-selected-source-direction: {item}")
+        suppress_selected_source_direction[tf] = direction
 
     state = load_json(state_path)
     policy = load_json(policy_path)
@@ -251,6 +267,7 @@ def main() -> int:
     selected_source_counts: dict[str, Counter] = {}
     source_selection: dict[str, list[dict]] = {}
     hl_candidates: dict[str, dict] = {}
+    suppressed_source_selections: list[dict] = []
 
     slots = state.get("slots") or {}
     source_to_display = policy.get("source_to_display_tfs") or {}
@@ -282,6 +299,20 @@ def main() -> int:
             raise ValueError(
                 f"source selection missing: {source_tf} selected={len(selected)} expected={per_source}"
             )
+        suppress_direction = suppress_selected_source_direction.get(source_tf)
+        if suppress_direction and selected and selected[0]["direction"] == suppress_direction:
+            fam = selected[0]
+            suppressed_source_selections.append({
+                "source_tf": source_tf,
+                "line_id": fam["line_id"],
+                "direction": fam["direction"],
+                "structure_level": fam["structure_level"],
+                "generation": fam["generation"],
+                "reason_code": "AUDIT_SUPPRESS_SELECTED_SOURCE_DIRECTION",
+            })
+            source_selection[source_tf] = []
+            continue
+
         source_selection[source_tf] = selected
 
         selected_state = selected[0]["_state"]
@@ -370,6 +401,8 @@ def main() -> int:
         "display_sources": display_sources,
         "source_to_display_tfs": source_to_display,
         "allow_empty_source_tfs": sorted(allow_empty_source_tfs),
+        "suppress_selected_source_direction": suppress_selected_source_direction,
+        "suppressed_source_selections": suppressed_source_selections,
         "empty_source_tfs": sorted(tf for tf, fams in source_selection.items() if not fams),
         "hl_candidates": hl_candidates,
         "hl_preview_policy": {
@@ -418,6 +451,8 @@ def main() -> int:
             "generation_scope": "CURRENT_ONLY",
             "far_direction_context_max_families": context_max,
             "allowed_empty_source_tfs": sorted(allow_empty_source_tfs),
+            "suppressed_source_directions": suppress_selected_source_direction,
+            "suppressed_source_semantics": "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT",
             "empty_source_semantics": "NO_LINE_NO_SYNTHETIC_FALLBACK",
             "fixed_pip_threshold_used": False,
             "atr_threshold_used": False,
@@ -440,6 +475,8 @@ def main() -> int:
             counts = selected_source_counts.get(display_tf, Counter())
             if counts.get(source_tf, 0) < per_source:
                 if source_tf in allow_empty_source_tfs and not source_selection.get(source_tf):
+                    continue
+                if any(x["source_tf"] == source_tf for x in suppressed_source_selections):
                     continue
                 source_presence_problems.append({
                     "display_tf": display_tf,
