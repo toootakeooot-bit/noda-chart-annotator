@@ -31,7 +31,7 @@ def main() -> None:
     assert "TIGHTEST_UNBROKEN_BROAD_SUPPORT" in overlay_text
     assert "WEAKER_OVERLAP_OR_TOO_CLOSE_ZONE_SUPPRESSED" in overlay_text
     assert "build_h1_native_continuation" in overlay_text
-    assert "max_zones=3" in overlay_text
+    assert 'max_zones=(2 if case_tag == "0912" else 3)' in overlay_text
     assert "recent_anchor2_times = {p.time for p in lows[-10:]}" in overlay_text
     assert "build_d1_major_channel" in overlay_text
     assert "H1_NATIVE_FORMATION_VALID_AFTER_ANCHOR2" in overlay_text
