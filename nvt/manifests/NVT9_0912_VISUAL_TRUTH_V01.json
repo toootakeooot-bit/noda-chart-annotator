@@ -18,16 +18,16 @@
       "object_family": "X0912-D1-APPROVED-01",
       "anchor1": {
         "kind": "LOW",
-        "window_start": "2026-01-20T00:00:00",
-        "window_end": "2026-02-15T23:59:59",
-        "selection": "LOWEST_CONFIRMED_LOW_IN_WINDOW",
+        "window_start": "2026-02-01T00:00:00",
+        "window_end": "2026-02-20T23:59:59",
+        "selection": "PAIRWISE_OUTERMOST_WICK_ENVELOPE",
         "visual_marker": "yellow_circle_1"
       },
       "anchor2": {
         "kind": "LOW",
-        "window_start": "2026-04-15T00:00:00",
-        "window_end": "2026-05-10T23:59:59",
-        "selection": "LOWEST_CONFIRMED_LOW_IN_WINDOW",
+        "window_start": "2026-04-20T00:00:00",
+        "window_end": "2026-05-12T23:59:59",
+        "selection": "PAIRWISE_OUTERMOST_WICK_ENVELOPE",
         "visual_marker": "yellow_circle_2"
       },
       "lifecycle": {
@@ -41,6 +41,18 @@
       "channel": {
         "rule": "PARALLEL_CHANNEL_FROM_CONFIRMED_HIGH_REACTION",
         "allow_updated_ch_from_later_confirmed_high": true
+      },
+      "geometry_policy": {
+        "rule": "OUTERMOST_RISING_SUPPORT_NO_FORMATION_WICK_BREACH",
+        "evaluation_interval": "ANCHOR1_THROUGH_ANCHOR2",
+        "wick_basis": "BAR_LOW",
+        "allow_wick_below_tl": false,
+        "tie_break": [
+          "MORE_WICK_CONTACTS",
+          "SMALLER_MEAN_WICK_GAP",
+          "EARLIER_ANCHOR2"
+        ],
+        "rationale": "Use the outer support line shown by the user's aqua reference; reject inner lines when any formation wick falls below the TL."
       }
     }
   ],
@@ -54,6 +66,11 @@
       "rejection_id": "VT0912-RJ-002",
       "interpretation": "Treat M15/H1 lines extending to the right of the 09/12 cutoff as newly valid post-cutoff audit geometry.",
       "reason": "Historical viewer must clip audit-owned rays at the cutoff. First distinguish future-ray display from genuinely rejected pre-cutoff geometry."
+    },
+    {
+      "rejection_id": "VT0912-RJ-003",
+      "interpretation": "Resolve anchor1/anchor2 independently as the lowest confirmed LOW in broad windows.",
+      "reason": "Independent-low selection can choose an inner geometry whose TL cuts through another formation wick. The approved D1 line is the pairwise outer wick envelope."
     }
   ]
 }
