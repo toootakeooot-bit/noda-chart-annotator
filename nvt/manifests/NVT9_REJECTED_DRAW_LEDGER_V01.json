@@ -212,6 +212,35 @@
       "replacement_policy": "VT0912_D1_001_USER_ANNOTATED_2026_LOW_WINDOWS",
       "enforcement": "NVT9_0912_VISUAL_TRUTH_V01.json defines approved 2026 anchor windows and runtime verification fails if generated D1 anchors fall outside them.",
       "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-009",
+      "target_type": "AUDIT_VIEW_ISOLATION",
+      "target": "STALE_LIVE_OR_MANUAL_TL_VISIBLE_IN_0912_AUDIT",
+      "scope": [
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "reason_code": "CLEAN_0912_CHART_BEFORE_REPLAY",
+      "reason": "Stale live/manual chart objects survived the historical replay and appeared as post-cutoff TLs even after audit geometry was corrected.",
+      "replacement_policy": "DELETE_ALL_CHART_OBJECTS_THEN_DRAW_0912_AUDIT_ONLY",
+      "enforcement": "NCA_NVT9_AB_View forces clean isolation for CASE_20260912/VARIANT_OLD before drawing the base and structural overlay.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-010",
+      "target_type": "D1_ANCHOR_SELECTION",
+      "target": "INDEPENDENT_LOWEST_PIVOT_SELECTION",
+      "scope": [
+        "D1_APPROVED_TL"
+      ],
+      "reason_code": "REJECT_INNER_TL_WITH_FORMATION_WICK_OUTSIDE",
+      "reason": "Selecting the two D1 anchors independently can produce an inner rising TL that cuts through another formation wick. The user's aqua reference is the outer support envelope.",
+      "replacement_policy": "PAIRWISE_OUTERMOST_WICK_ENVELOPE_ZERO_FORMATION_WICK_BREACH",
+      "enforcement": "build_d1_visual_truth_0912 evaluates LOW/LOW pairs jointly and rejects any pair with a D1 wick below the TL between anchor1 and anchor2; runtime verifier requires zero formation wick breaches.",
+      "status": "ENFORCED"
     }
   ]
 }
