@@ -191,6 +191,13 @@ def main() -> int:
     ap.add_argument("--input-dir", required=True)
     ap.add_argument("--input-prefix", default="NVT", choices=["NVT", "NORMAL"])
     ap.add_argument("--output-dir", required=True)
+    ap.add_argument(
+        "--allow-empty-source-tf",
+        action="append",
+        default=[],
+        choices=["D1", "H4", "H1", "M15"],
+        help="Research-only: allow this source timeframe to have zero selected CURRENT families.",
+    )
     args = ap.parse_args()
 
     state_path = Path(args.state)
@@ -198,6 +205,7 @@ def main() -> int:
     input_dir = Path(args.input_dir)
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
+    allow_empty_source_tfs = set(args.allow_empty_source_tf or [])
 
     state = load_json(state_path)
     policy = load_json(policy_path)
@@ -268,6 +276,9 @@ def main() -> int:
         )
         selected = select_source_families(candidates, source_tf, per_source)
         if len(selected) < per_source:
+            if source_tf in allow_empty_source_tfs and len(selected) == 0:
+                source_selection[source_tf] = []
+                continue
             raise ValueError(
                 f"source selection missing: {source_tf} selected={len(selected)} expected={per_source}"
             )
@@ -358,6 +369,8 @@ def main() -> int:
         "display_policy": str(policy_path),
         "display_sources": display_sources,
         "source_to_display_tfs": source_to_display,
+        "allow_empty_source_tfs": sorted(allow_empty_source_tfs),
+        "empty_source_tfs": sorted(tf for tf, fams in source_selection.items() if not fams),
         "hl_candidates": hl_candidates,
         "hl_preview_policy": {
             "status": "PROVISIONAL_VIDEO_COMPARE",
@@ -404,6 +417,8 @@ def main() -> int:
             "near_price_family_per_source_tf": per_source,
             "generation_scope": "CURRENT_ONLY",
             "far_direction_context_max_families": context_max,
+            "allowed_empty_source_tfs": sorted(allow_empty_source_tfs),
+            "empty_source_semantics": "NO_LINE_NO_SYNTHETIC_FALLBACK",
             "fixed_pip_threshold_used": False,
             "atr_threshold_used": False,
             "far_direction_roles": ["TL", "CH"],
@@ -424,6 +439,8 @@ def main() -> int:
         for display_tf in display_tfs:
             counts = selected_source_counts.get(display_tf, Counter())
             if counts.get(source_tf, 0) < per_source:
+                if source_tf in allow_empty_source_tfs and not source_selection.get(source_tf):
+                    continue
                 source_presence_problems.append({
                     "display_tf": display_tf,
                     "missing_source_tf": source_tf,
