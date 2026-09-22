@@ -28,6 +28,7 @@ jobs:
           python -m py_compile \
             tools/live_draw/geometry.py \
             tools/live_draw/normal_run.py \
+            tools/live_draw/tl_transition.py \
             tools/nvt/build_cross_tf_review.py \
             tools/nvt/audit_nvt9_normal_vs_full_history.py \
             tools/nvt/build_nvt9_deep_lifecycle_state.py \
@@ -60,6 +61,7 @@ jobs:
             tests/selftest_nvt9_0912_current_package.py \
             tests/selftest_nvt9_0912_visual_truth.py \
             tests/selftest_nvt9_0905_current_package.py \
+            tests/selftest_tl_transition.py \
             tests/selftest_nvt9_cross_tf.py \
             tests/selftest_nvt9_normal_vs_full_history.py \
             tests/selftest_nvt9_deep_lifecycle_state.py \
@@ -99,6 +101,9 @@ jobs:
 
       - name: 09/05 current package self-test
         run: python tests/selftest_nvt9_0905_current_package.py
+
+      - name: TL transition lifecycle self-test
+        run: python tests/selftest_tl_transition.py
 
       - name: NormalRun lifecycle replay self-test
         run: python tests/selftest_normal_run.py
