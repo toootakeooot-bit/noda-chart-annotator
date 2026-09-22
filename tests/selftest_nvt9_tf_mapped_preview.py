@@ -258,6 +258,54 @@ def main() -> int:
         assert normal_audit["selected_source_counts"]["D1"] == {"D1": 1, "H4": 1}
         assert normal_audit["source_presence_problems"] == []
 
+        # Historical NO-LINE contract: strict mode must still fail when a
+        # source TF has no CURRENT family. Explicit research allow-mode may
+        # accept exactly that TF without synthesizing a replacement line.
+        no_line_state = json.loads(json.dumps(state))
+        no_line_state["slots"]["USDJPY#|H4|LARGE_DOW"]["current"] = None
+        no_line_state["slots"]["USDJPY#|H4|MID_DOW"]["current"] = None
+        no_line_path = root / "no_line_state.json"
+        no_line_path.write_text(json.dumps(no_line_state), encoding="utf-8")
+
+        strict_out = root / "strict_no_line_out"
+        strict_proc = subprocess.run(
+            [
+                sys.executable, str(tool),
+                "--state", str(no_line_path),
+                "--policy", str(policy),
+                "--input-dir", str(input_dir),
+                "--output-dir", str(strict_out),
+            ],
+            capture_output=True, text=True,
+        )
+        assert strict_proc.returncode != 0
+        assert "source selection missing: H4 selected=0 expected=1" in (strict_proc.stderr + strict_proc.stdout)
+
+        allowed_out = root / "allowed_no_line_out"
+        allowed_proc = subprocess.run(
+            [
+                sys.executable, str(tool),
+                "--state", str(no_line_path),
+                "--policy", str(policy),
+                "--input-dir", str(input_dir),
+                "--output-dir", str(allowed_out),
+                "--allow-empty-source-tf", "H4",
+            ],
+            capture_output=True, text=True,
+        )
+        assert allowed_proc.returncode == 0, allowed_proc.stderr + allowed_proc.stdout
+        allowed_audit = json.loads(
+            (allowed_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json").read_text(encoding="utf-8")
+        )
+        assert allowed_audit["status"] == "PASS_TF_MAPPED_PREVIEW"
+        assert allowed_audit["allow_empty_source_tfs"] == ["H4"]
+        assert allowed_audit["empty_source_tfs"] == ["H4"]
+        assert allowed_audit["source_selection"]["H4"] == []
+        assert "H4" not in allowed_audit["hl_candidates"]
+        assert allowed_audit["source_presence_problems"] == []
+        assert allowed_audit["selection_policy"]["empty_source_semantics"] == "NO_LINE_NO_SYNTHETIC_FALLBACK"
+        assert not any(x["source_tf"] == "H4" for x in allowed_audit["selected_families"])
+
     print("NVT9 TF DISPLAY MAP SELFTEST PASS")
     return 0
 
