@@ -30,6 +30,9 @@ def main() -> None:
     assert '"m15_native_selector_enabled": False' in b
     assert '"m15_structural_owner": "H1"' in b
     assert '"--transition-warmup-input-dir", str(transition_warmup_input)' in b
+    assert '"--transition-history-state", str(transition_history_state_path)' in b
+    assert 'rebuild_timeframe_from_bars(' in b
+    assert '"transition_history_future_bars_used": False' in b
     assert '"transition_warmup_future_bars_used": False' in b
     assert '"transition_warmup_selection_rule": "DETECTOR_INITIALIZATION_ONLY_CANDIDATE_ANCHORS_RESTRICTED_TO_600_BAR_WINDOW"' in b
     assert '--suppress-selected-source-direction' not in b
@@ -49,6 +52,8 @@ def main() -> None:
     assert policy["transition_inheritance"]["H4"]["when"] == ["TRANSITION_NO_TL"]
     assert policy["transition_inheritance"]["M15"]["parent_source_tf"] == "H1"
     assert policy["transition_inheritance"]["M15"]["when"] == ["NATIVE_DISABLED"]
+    assert "REFERENCE_RETAINED" in policy["lifecycle_states"]
+    assert policy["retained_lifecycle_policy"]["future_bars_used"] is False
 
     truth = json.loads(TRUTH.read_text(encoding="utf-8"))
     assert truth["case_date"] == "2026-09-05"
@@ -58,6 +63,7 @@ def main() -> None:
     assert truth["render_contract"]["selection_cutoff_exclusive"] == "2026-09-05T00:00:00"
     assert truth["render_contract"]["future_bars_used_for_selection"] is False
     assert truth["render_contract"]["extend_selected_reference_geometry_beyond_cutoff"] is True
+    assert "REFERENCE_RETAINED" in truth["transition_expectations"]["H1"]["expected_states"]
 
     o = OVERLAY.read_text(encoding="utf-8")
     assert 'build_d1_visual_truth_0912(d1, piv, visual_truth)' in o
@@ -81,7 +87,9 @@ def main() -> None:
     assert "09/05 H4 display is not inherited from D1" in verify
     assert "09/05 H4 display source is not D1" in verify
     assert "09/05 D1/H4 geometry mismatch" in verify
-    assert "09/05 H1 must be ACTIVE/NEW_ACTIVE before M15 inheritance" in verify
+    assert "09/05 H1 must be ACTIVE/NEW_ACTIVE/REFERENCE_RETAINED before M15 inheritance" in verify
+    assert "chronological history replay evidence" in verify
+    assert "history_replay_retained" in verify
     assert "09/05 M15 native source must be disabled" in verify
     assert "09/05 M15 display source is not H1" in verify
     assert "09/05 H1/M15 geometry mismatch" in verify
