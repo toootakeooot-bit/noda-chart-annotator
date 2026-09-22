@@ -307,6 +307,20 @@
       "replacement_policy": "FROZEN_REFERENCE_IDENTITY_ONLY_REBUILD_GEOMETRY_FROM_PRE_CUTOFF_BARS",
       "enforcement": "R0919 H4 anchor identity is used only as a lookup target. detect_turns/build_channel_candidates rerun on the 09/12 pre-cutoff input; the exact anchor pair must exist there as a valid candidate. CH offset, Decision HL, activation, and zone evidence come from the pre-cutoff candidate, not from 09/19 future geometry.",
       "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0905-001",
+      "target_type": "H1_REFERENCE_RECOVERY",
+      "target": "2026-09-05_H1_CURRENT_EMPTY",
+      "scope": [
+        "H1",
+        "H4_PLAN_B_COPY"
+      ],
+      "reason_code": "DO_NOT_FAIL_FIRST_0905_AUDIT_ON_EMPTY_H1_CURRENT",
+      "reason": "At the 09/05 cutoff the rebuilt state can contain no H1 CURRENT family. The first visual audit must try retained evidence before deciding the chart has no H1 line.",
+      "replacement_policy": "CURRENT_THEN_PREVIOUS_THEN_FROZEN_REFERENCE_REVALIDATED_PRE_CUTOFF_ELSE_NO_LINE",
+      "enforcement": "09/05 H1 selection now tries CURRENT, then PREVIOUS, then revalidates frozen H1 reference anchors using only pre-cutoff H1 bars. If all routes are absent, H1 NO-LINE is allowed for the first visual audit.",
+      "status": "ENFORCED"
     }
   ]
 }
