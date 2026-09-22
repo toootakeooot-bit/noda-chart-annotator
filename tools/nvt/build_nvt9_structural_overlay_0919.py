@@ -178,6 +178,106 @@ def build_d1_continuation(bars, pivots) -> ContinuationCandidate | None:
     return max(pool, key=support_rank)
 
 
+def build_d1_visual_truth_0912(bars, pivots, visual_truth: dict) -> tuple[ContinuationCandidate, datetime | None, dict] | None:
+    """Resolve the user-annotated 09/12 D1 LOW->LOW pair against real confirmed pivots.
+
+    The manifest stores windows, not guessed exact broker timestamps.  The
+    runtime data resolves each yellow circle to the lowest confirmed LOW in
+    its approved window.  A later break does NOT invalidate the historical
+    reference: the line is retained and its first closed-bar break is audited.
+    """
+    approved = [
+        row for row in (visual_truth.get("approved_families") or [])
+        if row.get("truth_id") == "VT0912-D1-001"
+    ]
+    if not approved:
+        return None
+    spec = approved[0]
+
+    lows = [p for p in pivots if p.kind == "LOW"]
+    highs = [p for p in pivots if p.kind == "HIGH"]
+    if len(lows) < 2 or not highs or not bars:
+        return None
+
+    def resolve_low(anchor_spec: dict):
+        lo = datetime.fromisoformat(anchor_spec["window_start"])
+        hi = datetime.fromisoformat(anchor_spec["window_end"])
+        pool = [p for p in lows if lo <= p.time <= hi]
+        if not pool:
+            return None
+        return min(pool, key=lambda p: (p.price, p.time))
+
+    a = resolve_low(spec["anchor1"])
+    b = resolve_low(spec["anchor2"])
+    if a is None or b is None or b.time <= a.time or b.price <= a.price:
+        return None
+
+    between = [h for h in highs if a.time < h.time < b.time]
+    if not between:
+        return None
+    decision_hl = max(between, key=lambda p: (p.price, p.time))
+    slope = slope_per_second(a.time, a.price, b.time, b.price)
+    tol = max(median_bar_range(bars) * 0.28, 1e-8)
+
+    break_time = None
+    for bar in bars:
+        if bar.time <= b.time:
+            continue
+        if bar.close < line_value(bar.time, a.time, a.price, slope) - tol:
+            break_time = bar.time
+            break
+
+    contacts = sum(
+        1
+        for p in lows
+        if p.time >= a.time
+        and abs(p.price - line_value(p.time, a.time, a.price, slope)) <= tol
+    )
+
+    # Base/updated CH is derived from confirmed HIGH reactions above the
+    # approved TL.  Because the user explicitly allows Updated CH after a new
+    # high, later confirmed highs may own the active channel boundary.
+    high_pool = [h for h in highs if h.time > a.time]
+    residuals = [
+        (h.price - line_value(h.time, a.time, a.price, slope), h)
+        for h in high_pool
+    ]
+    residuals = [(off, h) for off, h in residuals if off > 0]
+    if not residuals:
+        return None
+    ch_offset, ch_anchor = max(residuals, key=lambda x: (x[0], x[1].time))
+
+    hl_break_time = None
+    for bar in bars:
+        if bar.time <= b.time:
+            continue
+        if bar.close > decision_hl.price:
+            hl_break_time = bar.time
+            break
+
+    cand = ContinuationCandidate(
+        anchor1=a,
+        anchor2=b,
+        decision_hl=decision_hl,
+        slope=slope,
+        tl_contacts=contacts,
+        duration_days=(b.time - a.time).total_seconds() / 86400.0,
+        unbroken_close=(break_time is None),
+        hl_break_time=hl_break_time,
+        ch_anchor=ch_anchor,
+        ch_offset=ch_offset,
+        tolerance=tol,
+    )
+    resolved = {
+        "truth_id": spec["truth_id"],
+        "anchor1_window": [spec["anchor1"]["window_start"], spec["anchor1"]["window_end"]],
+        "anchor2_window": [spec["anchor2"]["window_start"], spec["anchor2"]["window_end"]],
+        "anchor_selection": "LOWEST_CONFIRMED_LOW_IN_WINDOW",
+        "retain_after_break": bool((spec.get("lifecycle") or {}).get("retain_after_closed_bar_break")),
+    }
+    return cand, break_time, resolved
+
+
 def build_d1_retained_reference_0912(bars, pivots) -> ContinuationCandidate | None:
     """Rebuild the retained D1 rising reference for the 09/12 historical audit.
 
@@ -665,6 +765,7 @@ def main() -> int:
     ap.add_argument("--symbol", default="USDJPY#")
     ap.add_argument("--cutoff", default="2026-09-19T00:00:00")
     ap.add_argument("--case-tag", default="0919")
+    ap.add_argument("--visual-truth")
     args = ap.parse_args()
 
     cutoff = datetime.fromisoformat(args.cutoff)
@@ -673,6 +774,10 @@ def main() -> int:
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
     refdoc = json.loads(Path(args.reference).read_text(encoding="utf-8-sig"))
+    visual_truth = (
+        json.loads(Path(args.visual_truth).read_text(encoding="utf-8-sig"))
+        if args.visual_truth else {}
+    )
     rows = []
     audit = {
         "schema": "nvt9-structural-overlay/0.2",
@@ -683,6 +788,7 @@ def main() -> int:
         "production_changed": False,
         "d1_continuation": {"status": "NOT_BUILT"},
         "d1_major_channel": {"status": "NOT_BUILT"},
+        "d1_visual_truth": {"status": "NOT_BUILT"},
         "h1_native_continuation": {"status": "NOT_BUILT"},
         "h1_reaction_zones": {"status": "NOT_BUILT"},
         "h1_updated_ch": {"status": "NOT_BUILT"},
@@ -695,13 +801,77 @@ def main() -> int:
         d1 = [bar for bar in d1_all if bar.time < cutoff][-600:]
         piv = detect_turns(d1).pivots
         cand = build_d1_continuation(d1, piv)
-        retained = build_d1_retained_reference_0912(d1, piv) if case_tag == "0912" else None
-        major = retained if retained is not None else (build_d1_major_channel(d1, piv) if case_tag == "0912" else None)
+        truth_result = (
+            build_d1_visual_truth_0912(d1, piv, visual_truth)
+            if case_tag == "0912" and visual_truth else None
+        )
+        retained = None
+        major = None
+        if truth_result is None:
+            retained = build_d1_retained_reference_0912(d1, piv) if case_tag == "0912" else None
+            major = retained if retained is not None else (build_d1_major_channel(d1, piv) if case_tag == "0912" else None)
         end = d1[-1].time if d1 else None
 
-        # 09/12 visual audit prefers the broad major channel and suppresses
-        # the shallow/tight continuation overlay when a valid major exists.
-        if major is not None and end is not None:
+        if truth_result is not None and end is not None:
+            approved, tl_break_time, resolved_truth = truth_result
+            tl2 = line_value(end, approved.anchor1.time, approved.anchor1.price, approved.slope)
+            ch1 = approved.anchor1.price + approved.ch_offset
+            ch2 = tl2 + approved.ch_offset
+            lifecycle_status = "REFERENCE_RETAINED_BROKEN" if tl_break_time is not None else "ACTIVE_REFERENCE"
+            write_row(rows, object_id=f"X{case_tag}-D1-APPROVED-01-TL", symbol=args.symbol, timeframe="D1",
+                      structure="D1_USER_APPROVED_REFERENCE", role="APPROVED_TL",
+                      t1=approved.anchor1.time, p1=approved.anchor1.price, t2=end, p2=tl2, status=lifecycle_status)
+            write_row(rows, object_id=f"X{case_tag}-D1-APPROVED-01-CH", symbol=args.symbol, timeframe="D1",
+                      structure="D1_USER_APPROVED_REFERENCE", role="APPROVED_CH",
+                      t1=approved.anchor1.time, p1=ch1, t2=end, p2=ch2, status=lifecycle_status)
+            write_row(rows, object_id=f"X{case_tag}-D1-APPROVED-01-HL", symbol=args.symbol, timeframe="D1",
+                      structure="D1_USER_APPROVED_REFERENCE", role="APPROVED_HL",
+                      t1=approved.decision_hl.time, p1=approved.decision_hl.price,
+                      t2=end, p2=approved.decision_hl.price, status=lifecycle_status)
+
+            audit["d1_visual_truth"] = {
+                "status": "BUILT",
+                "object_family": f"X{case_tag}-D1-APPROVED-01",
+                "reason_code": "D1_USER_APPROVED_YELLOW_CIRCLE_LOW_PAIR",
+                "anchor1": {
+                    "kind": "LOW",
+                    "time": approved.anchor1.time.isoformat(),
+                    "price": float(approved.anchor1.price),
+                    "confirmed_by_time": approved.anchor1.confirmed_by_time.isoformat(),
+                },
+                "anchor2": {
+                    "kind": "LOW",
+                    "time": approved.anchor2.time.isoformat(),
+                    "price": float(approved.anchor2.price),
+                    "confirmed_by_time": approved.anchor2.confirmed_by_time.isoformat(),
+                },
+                "decision_hl": {
+                    "time": approved.decision_hl.time.isoformat(),
+                    "price": float(approved.decision_hl.price),
+                    "break_time": approved.hl_break_time.isoformat() if approved.hl_break_time else None,
+                },
+                "tl_break_time": tl_break_time.isoformat() if tl_break_time else None,
+                "lifecycle_status": lifecycle_status,
+                "ch_anchor": {
+                    "time": approved.ch_anchor.time.isoformat(),
+                    "price": float(approved.ch_anchor.price),
+                    "confirmed_by_time": approved.ch_anchor.confirmed_by_time.isoformat(),
+                },
+                "ch_offset": approved.ch_offset,
+                "resolved_truth": resolved_truth,
+            }
+            audit["d1_major_channel"] = {
+                "status": "SUPERSEDED_BY_USER_APPROVED_D1_TRUTH",
+                "reason_code": "DO_NOT_REPLACE_USER_APPROVED_ANCHOR_PAIR",
+            }
+            audit["d1_continuation"] = {
+                "status": "SUPPRESSED_BY_USER_APPROVED_D1_TRUTH",
+                "reason_code": "DO_NOT_REPLACE_USER_APPROVED_ANCHOR_PAIR",
+            }
+
+        # 09/12 visual audit prefers a user-approved pair first; broad major
+        # channel is fallback only when no explicit visual truth is supplied.
+        elif major is not None and end is not None:
             tl2 = line_value(end, major.anchor1.time, major.anchor1.price, major.slope)
             ch1 = major.anchor1.price + major.ch_offset
             ch2 = tl2 + major.ch_offset
@@ -944,6 +1114,7 @@ def main() -> int:
         "Audit ID: ID10IQ200",
         "",
         f"D1 continuation: {audit['d1_continuation'].get('status')} {audit['d1_continuation'].get('reason_code')}",
+        f"D1 visual truth: {audit['d1_visual_truth'].get('status')} {audit['d1_visual_truth'].get('reason_code')}",
         f"D1 major channel: {audit['d1_major_channel'].get('status')} {audit['d1_major_channel'].get('reason_code')}",
         f"H1 native TL/HL: {audit['h1_native_continuation'].get('status')} {audit['h1_native_continuation'].get('reason_code')}",
         f"H1 reaction zones: {audit['h1_reaction_zones'].get('status')} count={audit['h1_reaction_zones'].get('zone_count', 0)}",
