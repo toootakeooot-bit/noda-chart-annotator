@@ -336,6 +336,21 @@
       "replacement_policy": "H1_SELECTED_FAMILY_COPIED_TO_M15_NO_RESELECTION",
       "enforcement": "NVT9_TF_DISPLAY_MAP_H1_TO_M15_V02 removes M15 from source_to_display_tfs, marks M15 native-disabled, and maps the H1-selected family to H1/H4/M15. build_nvt9_tf_mapped_preview.py rejects any native-disabled source leak.",
       "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0905-003",
+      "target_type": "TL_LIFECYCLE_STATE",
+      "target": "BROKEN_OLD_TL_WITH_NO_REPLACEMENT_N",
+      "scope": [
+        "H4",
+        "H1",
+        "M15_DISPLAY_OWNERSHIP"
+      ],
+      "reason_code": "MODEL_TRANSITION_GAP_EXPLICITLY",
+      "reason": "A valid structural gap exists after the prior TL is broken but before two replacement anchors plus the Decision-HL break establish the next TL. Treating this gap as generic NO-LINE loses the parent-TF monitoring structure.",
+      "replacement_policy": "ACTIVE_TO_TRANSITION_NO_TL_TO_NEW_ACTIVE_POST_SELECTOR_PRE_MAPPING",
+      "enforcement": "tools/live_draw/tl_transition.py resolves ACTIVE/TRANSITION_NO_TL/NEW_ACTIVE after selector output. NVT9_TF_DISPLAY_MAP_TRANSITION_V03 uses the state before mapping: H4 TRANSITION inherits D1; M15 native-disabled inherits H1. NEW_ACTIVE is permitted only from the existing activated N rules.",
+      "status": "ENFORCED"
     }
   ]
 }
