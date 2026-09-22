@@ -66,6 +66,18 @@ def main() -> int:
     if a2 <= a1:
         raise ValueError("D1 anchor2 is not later than anchor1")
 
+    resolved = actual.get("resolved_truth") or {}
+    if resolved.get("anchor_selection") != "PAIRWISE_OUTERMOST_WICK_ENVELOPE":
+        raise ValueError(
+            "D1 approved selector is not outer wick envelope: "
+            + str(resolved.get("anchor_selection"))
+        )
+    if int(resolved.get("formation_wick_breach_count", -1)) != 0:
+        raise ValueError(
+            "D1 approved TL has formation wick breach: "
+            + str(resolved.get("formation_wick_breach_count"))
+        )
+
     overlay_csv = Path(args.overlay_csv)
     overlay_text = overlay_csv.read_text(encoding="utf-8-sig")
     for oid in (
@@ -108,6 +120,10 @@ def main() -> int:
         "resolved_anchor2": actual["anchor2"],
         "tl_break_time": actual.get("tl_break_time"),
         "lifecycle_status": actual.get("lifecycle_status"),
+        "d1_anchor_selection": resolved.get("anchor_selection"),
+        "formation_wick_breach_count": resolved.get("formation_wick_breach_count"),
+        "formation_wick_contact_count": resolved.get("formation_wick_contact_count"),
+        "formation_mean_wick_gap": resolved.get("formation_mean_wick_gap"),
         "suppressed_base_selections": base.get("suppressed_source_selections") or [],
         "post_cutoff_anchor_violations": [],
         "render_contract": truth["render_contract"],
