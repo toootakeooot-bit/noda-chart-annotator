@@ -51,7 +51,31 @@ def main() -> None:
             "suppressed_source_selections": [
                 {"source_tf": "H1", "direction": "FALLING"},
                 {"source_tf": "D1", "direction": "RISING"},
-            ]
+            ],
+            "source_selection": {
+                "H4": [{
+                    "source_tf": "H4",
+                    "display_tf": "H4",
+                    "line_id": "H4_RETAINED_01",
+                    "generation_role": "PREVIOUS",
+                    "display_reason": "SOURCE_TF_RETAINED_PREVIOUS_FALLBACK",
+                    "display_roles": ["TL", "CH"],
+                }],
+                "M15": [{
+                    "source_tf": "M15",
+                    "display_tf": "M15",
+                    "line_id": "M15_CURRENT_01",
+                    "generation_role": "CURRENT",
+                    "display_reason": "SOURCE_TF_NEAREST_FAMILY",
+                    "display_roles": ["TL", "CH"],
+                }],
+            },
+            "selected_families": [
+                {"source_tf": "H4", "display_tf": "H4"},
+                {"source_tf": "H4", "display_tf": "D1"},
+                {"source_tf": "M15", "display_tf": "M15"},
+                {"source_tf": "M15", "display_tf": "H1"},
+            ],
         }), encoding="utf-8")
 
         write_csv(overlay_csv, [
@@ -79,6 +103,12 @@ def main() -> None:
         report = json.loads((root / "NVT9_0912_VISUAL_TRUTH_VERIFY.json").read_text(encoding="utf-8"))
         assert report["status"] == "PASS_0912_VISUAL_TRUTH"
         assert report["lifecycle_status"] == "REFERENCE_RETAINED_BROKEN"
+        assert report["d1_anchor_selection"] == "PAIRWISE_OUTERMOST_WICK_ENVELOPE"
+        assert report["formation_wick_breach_count"] == 0
+        assert report["h4_retained_reference"]["generation_role"] == "PREVIOUS"
+        assert report["h4_retained_reference"]["display_roles"] == ["TL", "CH"]
+        assert report["m15_display_roles"] == ["TL", "CH"]
+        assert report["render_contract"]["extend_selected_reference_geometry_beyond_cutoff"] is True
         assert report["d1_anchor_selection"] == "PAIRWISE_OUTERMOST_WICK_ENVELOPE"
         assert report["formation_wick_breach_count"] == 0
 
