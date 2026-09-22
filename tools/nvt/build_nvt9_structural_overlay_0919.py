@@ -860,7 +860,7 @@ def main() -> int:
         cand = build_d1_continuation(d1, piv)
         truth_result = (
             build_d1_visual_truth_0912(d1, piv, visual_truth)
-            if case_tag == "0912" and visual_truth else None
+            if visual_truth else None
         )
         retained = None
         major = None
@@ -889,7 +889,7 @@ def main() -> int:
             audit["d1_visual_truth"] = {
                 "status": "BUILT",
                 "object_family": f"X{case_tag}-D1-APPROVED-01",
-                "reason_code": "D1_USER_APPROVED_YELLOW_CIRCLE_LOW_PAIR",
+                "reason_code": "D1_APPROVED_OUTER_WICK_ENVELOPE",
                 "anchor1": {
                     "kind": "LOW",
                     "time": approved.anchor1.time.isoformat(),
