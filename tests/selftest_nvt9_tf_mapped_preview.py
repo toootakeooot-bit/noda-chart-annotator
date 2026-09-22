@@ -55,6 +55,7 @@ def main() -> int:
     repo = Path(__file__).resolve().parents[1]
     tool = repo / "tools" / "nvt" / "build_nvt9_tf_mapped_preview.py"
     policy = repo / "nvt" / "manifests" / "NVT9_TF_DISPLAY_MAP_0919_V01.json"
+    policy_h1_m15 = repo / "nvt" / "manifests" / "NVT9_TF_DISPLAY_MAP_H1_TO_M15_V02.json"
 
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
@@ -227,6 +228,60 @@ def main() -> int:
             assert tf_hl[0]["object_id"] == f"HL_{expected_side}_SRC_{tf}_DST_{tf}"
         assert audit["object_name_policy"]["max_full_object_name_length"] <= 63
         assert all(len("NVT9_TFMAP__" + r["object_id"]) <= 63 for r in rows)
+
+        # H1-owned M15 policy V02: M15 must not select a native family.
+        # The exact H1-selected geometry is copied to M15 without reselection.
+        h1_m15_out = root / "h1_m15_out"
+        h1_m15_proc = subprocess.run(
+            [
+                sys.executable, str(tool),
+                "--state", str(state_path),
+                "--policy", str(policy_h1_m15),
+                "--input-dir", str(input_dir),
+                "--output-dir", str(h1_m15_out),
+                "--main-roles-only-source-tf", "H1",
+            ],
+            capture_output=True, text=True,
+        )
+        assert h1_m15_proc.returncode == 0, h1_m15_proc.stderr + h1_m15_proc.stdout
+        h1_m15_audit = json.loads(
+            (h1_m15_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json").read_text(encoding="utf-8")
+        )
+        assert h1_m15_audit["native_disabled_source_tfs"] == ["M15"]
+        assert "M15" not in h1_m15_audit["source_selection"]
+        assert "M15" not in h1_m15_audit["hl_candidates"]
+        assert h1_m15_audit["semantics"]["m15_structural_owner"] == "H1"
+        assert h1_m15_audit["semantics"]["m15_native_selection"] == "DISABLED"
+        assert h1_m15_audit["source_to_display_tfs"]["H1"] == ["H1", "H4", "M15"]
+        assert "M15" not in h1_m15_audit["source_to_display_tfs"]
+        assert h1_m15_audit["display_sources"]["M15"] == ["H1"]
+        assert h1_m15_audit["selected_source_counts"]["M15"] == {"H1": 1}
+
+        h1_owner = h1_m15_audit["source_selection"]["H1"][0]
+        m15_copies = [
+            x for x in h1_m15_audit["selected_families"]
+            if x["display_tf"] == "M15"
+        ]
+        assert len(m15_copies) == 1
+        assert m15_copies[0]["source_tf"] == "H1"
+        assert m15_copies[0]["copied_without_reselection"] is True
+        assert tuple(m15_copies[0]["geometry_signature"]) == tuple(h1_owner["geometry_signature"])
+        assert not any(
+            x["source_tf"] == "M15"
+            for x in h1_m15_audit["selected_families"]
+        )
+
+        h1_m15_csv = h1_m15_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv"
+        with h1_m15_csv.open("r", encoding="utf-8", newline="") as f:
+            h1_m15_rows = list(csv.DictReader(f))
+        assert any(
+            r["timeframe"] == "M15" and r["object_id"].startswith("SRC_H1_DST_M15_")
+            for r in h1_m15_rows
+        )
+        assert not any(
+            r["object_id"].startswith("SRC_M15_")
+            for r in h1_m15_rows
+        )
 
         # Actual NormalRun live-state mode used by the local runner.
         normal_state = dict(state)
