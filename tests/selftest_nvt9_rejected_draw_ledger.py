@@ -16,6 +16,7 @@ def main() -> None:
     assert set(entries) >= {
         "RD0919-001", "RD0919-002", "RD0919-003", "RD0919-004",
         "RD0919-005", "RD0919-006", "RD0919-007", "RD0912-001",
+        "RD0912-002", "RD0912-003", "RD0912-004",
     }
 
     ref = json.loads(REFERENCE.read_text(encoding="utf-8"))
@@ -32,7 +33,9 @@ def main() -> None:
     assert "WEAKER_OVERLAP_OR_TOO_CLOSE_ZONE_SUPPRESSED" in overlay_text
     assert "build_h1_native_continuation" in overlay_text
     assert "max_zones=3" in overlay_text
-    assert "recent_anchor2_times = {p.time for p in lows[-8:]}" in overlay_text
+    assert "recent_anchor2_times = {p.time for p in lows[-10:]}" in overlay_text
+    assert "build_d1_major_channel" in overlay_text
+    assert "H1_NATIVE_FORMATION_VALID_AFTER_ANCHOR2" in overlay_text
 
     assert entries["RD0919-001"]["status"] == "ENFORCED"
     assert entries["RD0919-002"]["status"] == "ENFORCED"
@@ -42,6 +45,9 @@ def main() -> None:
     assert entries["RD0919-006"]["replacement_policy"] == "H1_NATIVE_CONFIRMED_PIVOTS"
     assert entries["RD0919-007"]["replacement_policy"] == "MAX_3_WITH_MINIMUM_CENTER_GAP_AND_STRONGER_REACTION_EVIDENCE"
     assert entries["RD0912-001"]["reason_code"] == "NO_LINE_NO_SYNTHETIC_FALLBACK"
+    assert entries["RD0912-002"]["replacement_policy"] == "SUPPRESS_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT"
+    assert entries["RD0912-003"]["replacement_policy"] == "D1_MAJOR_RISING_MULTI_MONTH_SUPPORT_CHANNEL"
+    assert entries["RD0912-004"]["replacement_policy"] == "STRICT_FIRST_THEN_POST_ANCHOR2_UNBROKEN_H1_N_STRUCTURE"
 
     print("NVT9_REJECTED_DRAW_LEDGER_SELFTEST_PASS")
 
