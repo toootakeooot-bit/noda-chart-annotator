@@ -1,0 +1,126 @@
+{
+  "schema": "nvt9-tf-display-map/0.8",
+  "status": "RESEARCH_CANDIDATE_H1_OWNS_M15_DISPLAY",
+  "audit_id": "ID10IQ200",
+  "date": "2026-09-22",
+  "symbol": "USDJPY#",
+  "semantics": {
+    "source_tf": "timeframe that creates/owns the structure",
+    "structural_owner_tf": "same as source_tf unless a separate merge/family rule is explicitly confirmed",
+    "display_tf": "source structure may be displayed on its own chart plus approved adjacent charts; M15 inherits H1 and does not create its own structure",
+    "plan_b_examples": [
+      "H4 structure -> H4 chart + D1 chart",
+      "H1 structure -> H1 chart + H4 chart + M15 chart",
+      "M15 chart -> display H1-owned structure; no M15-native structural selection"
+    ]
+  },
+  "m15_policy": {
+    "independent_m15_structure_display": false,
+    "native_m15_selector_enabled": false,
+    "m15_structure_owner": "H1",
+    "m15_display_source": "H1",
+    "h1_structure_displays_on": [
+      "H1",
+      "H4",
+      "M15"
+    ],
+    "reason": "User audit decision: M15 movement is too abrupt/noisy for stable native TL selection. M15 displays the exact H1-selected family without re-selection."
+  },
+  "scope": {
+    "include_structure_levels": [
+      "LARGE_DOW",
+      "MID_DOW"
+    ],
+    "include_generation_roles": [
+      "CURRENT"
+    ],
+    "include_roles": [
+      "TL",
+      "CH",
+      "TL_ZONE_EDGE",
+      "CH_ZONE_EDGE"
+    ]
+  },
+  "important": [
+    "M15 native structure selection is disabled for this policy.",
+    "H1 structure is selected once on H1 and copied with identical geometry to H1, H4, and M15.",
+    "H4 structure remains visible on H4 and D1; D1 structure remains on D1.",
+    "Destination charts never reselect source geometry.",
+    "M15 market bars may still be loaded for chart display/cutoff context, but they do not own TL/CH selection.",
+    "Far context remains disabled.",
+    "No trade authority or production NCA_DRAW writeback is allowed."
+  ],
+  "production_changed": false,
+  "renderer_changed": false,
+  "snapshot_changed": false,
+  "nca_draw_writeback": false,
+  "display_sources": {
+    "D1": [
+      "D1",
+      "H4"
+    ],
+    "H4": [
+      "H4",
+      "H1"
+    ],
+    "H1": [
+      "H1"
+    ],
+    "M15": [
+      "H1"
+    ]
+  },
+  "h1_h4_merge_policy": {
+    "allowed": true,
+    "reason": "When turns/adjustments/ranges are broad, H1 and H4 may represent one structural family instead of two separable structures.",
+    "automatic_exact_geometry_dedupe": true,
+    "nonexact_merge_requires_manual_or_teacher_confirmation": true
+  },
+  "visibility_policy": {
+    "objective": "Select one nearest family per enabled source TF. M15 has no native source family and displays the exact H1-selected geometry.",
+    "family_unit": "TL+CH family, not individual role",
+    "current_price_metric": "Project TL/CH to the latest closed bar of the display timeframe. Distance is zero when price lies inside the channel; otherwise use distance to the nearest channel boundary.",
+    "near_price_roles": [
+      "TL",
+      "CH",
+      "TL_ZONE_EDGE",
+      "CH_ZONE_EDGE"
+    ],
+    "far_direction_context_max_families": 0,
+    "far_direction_context_roles": [
+      "TL",
+      "CH"
+    ],
+    "fixed_pip_threshold_used": false,
+    "atr_threshold_used": false,
+    "note": "M15 native selection is disabled. H1 is the structural owner for M15 display; no M15 re-selection or fallback is permitted.",
+    "near_price_family_per_source_tf": 1,
+    "far_direction_context_policy": "MANUAL_REVIEW_ONLY_FOR_NOW",
+    "generation_scope": "CURRENT_ONLY"
+  },
+  "plan": "B_PLUS_H1_TO_M15_INHERITANCE",
+  "source_to_display_tfs": {
+    "D1": [
+      "D1"
+    ],
+    "H4": [
+      "H4",
+      "D1"
+    ],
+    "H1": [
+      "H1",
+      "H4",
+      "M15"
+    ]
+  },
+  "preview_isolation": {
+    "enabled_by_default": true,
+    "delete_scope": "ALL_MT4_CHART_OBJECTS_ON_CURRENT_CHART",
+    "reason": "User confirmed this is a drawing-only audit; all non-preview chart objects may be removed for clean visual verification.",
+    "indicators_themselves_removed": false,
+    "note": "Objects created by indicators are chart objects and may also be removed."
+  },
+  "native_disabled_source_tfs": [
+    "M15"
+  ]
+}
