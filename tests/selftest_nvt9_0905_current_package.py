@@ -29,6 +29,9 @@ def main() -> None:
     assert '"--main-roles-only-source-tf", "M15"' not in b
     assert '"m15_native_selector_enabled": False' in b
     assert '"m15_structural_owner": "H1"' in b
+    assert '"--transition-warmup-input-dir", str(transition_warmup_input)' in b
+    assert '"transition_warmup_future_bars_used": False' in b
+    assert '"transition_warmup_selection_rule": "DETECTOR_INITIALIZATION_ONLY_CANDIDATE_ANCHORS_RESTRICTED_TO_600_BAR_WINDOW"' in b
     assert '--suppress-selected-source-direction' not in b
     assert '"suppressed_source_directions": {}' in b
     assert '"NO_0905_DATE_SPECIFIC_SUPPRESSION_BEFORE_VISUAL_ADJUDICATION"' in b
@@ -82,6 +85,8 @@ def main() -> None:
     assert "09/05 M15 native source must be disabled" in verify
     assert "09/05 M15 display source is not H1" in verify
     assert "09/05 H1/M15 geometry mismatch" in verify
+    assert "transition_warmup_audit" in verify
+    assert "selection_anchor_floor" in verify
 
     run = RUN.read_text(encoding="utf-8")
     assert "2026-09-05T00:00:00" in run
