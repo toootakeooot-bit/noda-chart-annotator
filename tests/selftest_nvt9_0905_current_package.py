@@ -23,6 +23,7 @@ def main() -> None:
     assert '"--fallback-reference-source-tf", "H1"' in b
     assert '"--allow-empty-source-tf", "H4"' in b
     assert '"--allow-empty-source-tf", "H1"' in b
+    assert '"--main-roles-only-source-tf", "D1"' in b
     assert '"--main-roles-only-source-tf", "H4"' in b
     assert '"--main-roles-only-source-tf", "H1"' in b
     assert '"--main-roles-only-source-tf", "M15"' not in b
@@ -75,6 +76,8 @@ def main() -> None:
     assert "09/05 D1 approved TL has formation wick breach" in verify
     assert "09/05 H4 transition state mismatch" in verify
     assert "09/05 H4 display is not inherited from D1" in verify
+    assert "09/05 H4 display source is not D1" in verify
+    assert "09/05 D1/H4 geometry mismatch" in verify
     assert "09/05 H1 must be ACTIVE/NEW_ACTIVE before M15 inheritance" in verify
     assert "09/05 M15 native source must be disabled" in verify
     assert "09/05 M15 display source is not H1" in verify
