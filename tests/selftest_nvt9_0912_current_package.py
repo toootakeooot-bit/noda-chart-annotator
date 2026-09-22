@@ -41,19 +41,23 @@ def main() -> None:
     assert 'ap.add_argument("--visual-truth")' in o
 
     v = VIEWER.read_text(encoding="utf-8")
-    assert 'HistoryCase = CASE_20260912' in v
+    assert 'CASE_20260905 = 0' in v
+    assert 'CASE_20260912 = 1' in v
+    assert 'CASE_20260919 = 2' in v
     assert r'nvt9_reference_0912\\base\\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv' in v
     assert r'nvt9_reference_0912\\NVT9_0919_STRUCTURAL_OVERLAY.csv' in v
-    assert 'ShowCurrentStructuralOverlayOn0912Old = true' in v
+    assert 'ShowCurrentStructuralOverlayOnHistoricalOld = true' in v
+    assert 'IsDedicatedReferenceCase()' in v
+    assert 'RenderCurrentHistoricalOverlay' in v
     assert 'StringFind(n, XPREFIX, 0) == 0' in v
-    assert '09/12 NO-LINE accepted' in v
+    assert 'historical NO-LINE accepted' in v
     assert '[D1 MAJOR TL]' in v
     assert '[D1 MAJOR HL]' in v
     assert '[D1 APPROVED TL]' in v
     assert '[D1 APPROVED HL]' in v
     assert 'input bool AuditDeleteAllChartObjects = false;' in v
     assert 'DeleteHistoricalSystemObjects' in v
-    assert 'else if(isolate0912) DeleteHistoricalSystemObjects(chartId);' in v
+    assert 'else if(isolateHistorical) DeleteHistoricalSystemObjects(chartId);' in v
     assert 'drawT2 = cutoff' not in v
     assert 'PREVIOUS' in v
     assert 'SOURCE_TF_RETAINED_PREVIOUS_FALLBACK' not in v
