@@ -8,7 +8,7 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 $Common = Join-Path $env:APPDATA 'MetaQuotes\Terminal\Common\Files\noda_draw'
 $InputDir = Join-Path $Common 'nvt_input'
 $OutDir = Join-Path $Common 'live_output\nvt9_reference_0905'
-$Policy = Join-Path $RepoRoot 'nvt\manifests\NVT9_TF_DISPLAY_MAP_0919_V01.json'
+$Policy = Join-Path $RepoRoot 'nvt\manifests\NVT9_TF_DISPLAY_MAP_H1_TO_M15_V02.json'
 $Reference = Join-Path $RepoRoot 'nvt\manifests\NVT9_0919_REFERENCE_LINES_V01.json'
 $RejectedLedger = Join-Path $RepoRoot 'nvt\manifests\NVT9_REJECTED_DRAW_LEDGER_V01.json'
 $VisualTruth = Join-Path $RepoRoot 'nvt\manifests\NVT9_0905_VISUAL_TRUTH_V01.json'
@@ -19,7 +19,7 @@ Write-Host 'NVT9 09/05 CURRENT AUDIT PREPARE'
 Write-Host '==============================='
 Write-Host 'Cutoff: 2026-09-05 00:00 exclusive'
 Write-Host 'Window: last 600 closed bars per timeframe'
-Write-Host 'Mode: first 09/05 visual audit; no 09/12-specific source suppression'
+Write-Host 'Mode: 09/05 visual audit; M15 native disabled, H1 geometry copied to M15'
 Write-Host 'Production: unchanged'
 Write-Host ''
 
@@ -58,9 +58,12 @@ if ($BaseAudit.source_selection.H1.Count -gt 0) {
   $h1 = $BaseAudit.source_selection.H1[0]
   Write-Host ("H1 source: {0} role={1} reason={2} ref={3}" -f $h1.line_id,$h1.generation_role,$h1.display_reason,$h1.reference_id)
 } else { Write-Host 'H1 source: NO-LINE at 09/05 previsual replay' }
-if ($BaseAudit.source_selection.M15.Count -gt 0) {
-  $m15 = $BaseAudit.source_selection.M15[0]
-  Write-Host ("M15 main roles: {0} display={1}" -f $m15.line_id,(($m15.display_roles) -join '/'))
+if ($BaseAudit.source_selection.H1.Count -gt 0) {
+  $h1 = $BaseAudit.source_selection.H1[0]
+  Write-Host ("H1 owner family: {0} display={1}" -f $h1.line_id,(($h1.display_roles) -join '/'))
+  Write-Host 'M15 source: DISABLED - exact H1 geometry is displayed on M15'
+} else {
+  Write-Host 'M15 source: DISABLED - H1 is NO-LINE, therefore M15 is NO-LINE'
 }
 Write-Host ("D1 approved truth: {0} reason={1}" -f $Overlay.d1_visual_truth.status,$Overlay.d1_visual_truth.reason_code)
 if ($Overlay.d1_visual_truth.status -eq 'BUILT') {
