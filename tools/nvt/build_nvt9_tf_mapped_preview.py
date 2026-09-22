@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 from live_draw.geometry import build_channel_candidates
 from live_draw.market_input import load_ohlc_csv
 from live_draw.normal_run import safe_symbol_filename
+from live_draw.tl_transition import resolve_tl_transition_state
 from live_draw.turn_detector import detect_turns
 
 ROLES = ("TL", "CH", "TL_ZONE_EDGE", "CH_ZONE_EDGE")
@@ -135,6 +136,31 @@ def family_record(s: dict, gen_role: str, display_tf: str, price: float, eval_ti
         "distance_to_channel": channel_distance(price, tl, ch),
         "inside_channel": channel_distance(price, tl, ch) == 0.0,
         "_state": s,
+    }
+
+
+def transition_candidate_state(candidate, symbol: str, timeframe: str) -> dict:
+    """Serialize an already-valid N candidate selected by the transition layer."""
+    return {
+        "line_id": f"TRANS_{timeframe}_{candidate.direction}_{candidate.anchor2.time.strftime('%Y%m%d%H%M')}",
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "structure_level": "LARGE_DOW",
+        "generation": 0,
+        "status": "ACTIVE",
+        "direction": candidate.direction,
+        "anchor1_time": candidate.anchor1.time.isoformat(),
+        "anchor1_price": float(candidate.anchor1.price),
+        "anchor2_time": candidate.anchor2.time.isoformat(),
+        "anchor2_price": float(candidate.anchor2.price),
+        "ch_offset": float(candidate.ch_offset),
+        "zone_width": float(candidate.zone_width),
+        "selection_version": "POST_SELECTOR_TL_TRANSITION_V01",
+        "decision_hl_time": candidate.decision_hl.time.isoformat(),
+        "decision_hl_price": float(candidate.decision_hl.price),
+        "decision_hl_kind": candidate.decision_hl.kind,
+        "hl_break_time": candidate.hl_break_time.isoformat(),
+        "hl_break_mode": candidate.hl_break_mode,
     }
 
 
@@ -352,6 +378,8 @@ def main() -> int:
     display_sources = policy.get("display_sources") or {}
     source_to_display = policy.get("source_to_display_tfs") or {}
     native_disabled_source_tfs = set(policy.get("native_disabled_source_tfs") or [])
+    transition_state_source_tfs = set(policy.get("transition_state_source_tfs") or [])
+    transition_inheritance = policy.get("transition_inheritance") or {}
     vis = policy.get("visibility_policy") or {}
     per_source = int(vis.get("near_price_family_per_source_tf", 1))
     context_max = int(vis.get("far_direction_context_max_families", 0))
@@ -418,7 +446,7 @@ def main() -> int:
         raise ValueError("policy missing source_to_display_tfs")
 
     # 1) Select the source family on its OWN timeframe.
-    for source_tf, display_tfs in source_to_display.items():
+    for source_tf, display_tfs in effective_source_to_display.items():
         if source_tf not in latest:
             raise ValueError(f"missing latest source market data for {source_tf}")
         eval_time = latest[source_tf]["time"]
@@ -488,11 +516,111 @@ def main() -> int:
 
         source_selection[source_tf] = selected
 
-        selected_state = selected[0]["_state"]
-        hl_candidates[source_tf] = selected_line_hl_evidence(selected_state)
+    # 2) Post-selector TL lifecycle state.
+    #    ACTIVE: selected TL is still valid.
+    #    TRANSITION_NO_TL: old TL has broken and no replacement N is active.
+    #    NEW_ACTIVE: two same-side pivots + Decision-HL break already establish
+    #                a replacement N, even if the persisted selector state lags.
+    tl_transition_states = {}
+    for source_tf in sorted(transition_state_source_tfs):
+        if source_tf not in bars_by_tf:
+            raise ValueError(f"transition-state TF missing bars: {source_tf}")
+        existing = source_selection.get(source_tf) or []
+        existing_state = existing[0]["_state"] if existing else None
+        resolved = resolve_tl_transition_state(
+            bars_by_tf[source_tf],
+            symbol,
+            source_tf,
+            existing_state,
+        )
+        tl_transition_states[source_tf] = resolved.to_audit_dict()
 
-    # 2) Copy the EXACT selected source geometry to every Plan-B display TF.
-    for source_tf, display_tfs in source_to_display.items():
+        if resolved.state == "TRANSITION_NO_TL":
+            source_selection[source_tf] = []
+        elif resolved.active_candidate is not None:
+            needs_replace = (
+                not existing
+                or resolved.state == "NEW_ACTIVE"
+            )
+            if needs_replace:
+                state_row = transition_candidate_state(
+                    resolved.active_candidate, symbol, source_tf
+                )
+                fam = family_record(
+                    state_row,
+                    "current",
+                    source_tf,
+                    latest[source_tf]["close"],
+                    latest[source_tf]["time"],
+                )
+                fam["display_reason"] = (
+                    "TL_TRANSITION_NEW_ACTIVE"
+                    if resolved.state == "NEW_ACTIVE"
+                    else "TL_TRANSITION_ACTIVE"
+                )
+                fam["display_roles"] = (
+                    ["TL", "CH"]
+                    if source_tf in main_roles_only_source_tfs
+                    else list(ROLES)
+                )
+                source_selection[source_tf] = [fam]
+
+    # Rebuild HL evidence only after lifecycle resolution so a broken source
+    # cannot keep an HL and a NEW_ACTIVE source owns its own Decision HL.
+    hl_candidates = {}
+    for source_tf, selected in source_selection.items():
+        if not selected:
+            continue
+        hl_candidates[source_tf] = selected_line_hl_evidence(selected[0]["_state"])
+
+    # 3) Resolve effective display ownership.
+    # Base source_to_display_tfs contains native ownership. Transition rules may
+    # replace only the DISPLAY owner; geometry is never reselected downstream.
+    effective_source_to_display = {
+        src: list(dsts) for src, dsts in source_to_display.items()
+    }
+    transition_display_decisions = []
+
+    for display_tf, rule in transition_inheritance.items():
+        parent_tf = rule.get("parent_source_tf")
+        when = set(rule.get("when") or [])
+        if not parent_tf:
+            raise ValueError(f"transition inheritance missing parent_source_tf: {display_tf}")
+
+        apply_rule = False
+        reason = None
+        if display_tf in native_disabled_source_tfs and "NATIVE_DISABLED" in when:
+            apply_rule = True
+            reason = "NATIVE_DISABLED"
+        else:
+            child_state = (tl_transition_states.get(display_tf) or {}).get("state")
+            if child_state in when:
+                apply_rule = True
+                reason = child_state
+
+        if not apply_rule:
+            continue
+
+        # Remove native ownership of this display chart from every source,
+        # then assign the parent source exactly once.
+        for src in list(effective_source_to_display):
+            effective_source_to_display[src] = [
+                x for x in effective_source_to_display[src] if x != display_tf
+            ]
+        effective_source_to_display.setdefault(parent_tf, [])
+        if display_tf not in effective_source_to_display[parent_tf]:
+            effective_source_to_display[parent_tf].append(display_tf)
+
+        transition_display_decisions.append({
+            "display_tf": display_tf,
+            "state_or_reason": reason,
+            "parent_source_tf": parent_tf,
+            "suppress_native": bool(rule.get("suppress_native", True)),
+            "copied_without_reselection": True,
+        })
+
+    # 4) Copy the EXACT selected source geometry to each effective display TF.
+    for source_tf, display_tfs in effective_source_to_display.items():
         for fam in source_selection[source_tf]:
             s = fam["_state"]
             geometry_signature = geometry_key(s)
@@ -576,7 +704,12 @@ def main() -> int:
         "display_policy": str(policy_path),
         "display_sources": display_sources,
         "source_to_display_tfs": source_to_display,
+        "effective_source_to_display_tfs": effective_source_to_display,
         "native_disabled_source_tfs": sorted(native_disabled_source_tfs),
+        "transition_state_source_tfs": sorted(transition_state_source_tfs),
+        "tl_transition_states": tl_transition_states,
+        "transition_inheritance": transition_inheritance,
+        "transition_display_decisions": transition_display_decisions,
         "allow_empty_source_tfs": sorted(allow_empty_source_tfs),
         "fallback_previous_source_tfs": sorted(fallback_previous_source_tfs),
         "fallback_reference_source_tfs": sorted(fallback_reference_source_tfs),
@@ -643,6 +776,9 @@ def main() -> int:
             "main_roles_only_source_tfs": sorted(main_roles_only_source_tfs),
             "native_disabled_source_tfs": sorted(native_disabled_source_tfs),
             "native_disabled_semantics": "DISPLAY_ONLY_NO_SOURCE_SELECTION",
+            "transition_state_layer": "POST_SELECTOR_PRE_MAPPING",
+            "transition_states": ["ACTIVE", "TRANSITION_NO_TL", "NEW_ACTIVE"],
+            "transition_new_active_rule": "EXISTING_N_STRUCTURE_TWO_ANCHORS_PLUS_DECISION_HL_CLOSED_BAR_BREAK",
             "suppressed_source_directions": suppress_selected_source_direction,
             "suppressed_source_semantics": "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT",
             "empty_source_semantics": "NO_LINE_NO_SYNTHETIC_FALLBACK",
@@ -660,6 +796,7 @@ def main() -> int:
             "m15_native_selection": (
                 "DISABLED" if "M15" in native_disabled_source_tfs else "ENABLED"
             ),
+            "transition_display_ownership": "PARENT_TF_WHEN_CHILD_TRANSITION_NO_TL",
         },
         "production_changed": False,
         "production_snapshot_changed": False,
@@ -699,6 +836,8 @@ def main() -> int:
     print(json.dumps({
         "status": payload["status"],
         "display_sources": display_sources,
+        "effective_source_to_display_tfs": effective_source_to_display,
+        "tl_transition_states": tl_transition_states,
         "selected_family_counts": dict(selected_family_counts),
         "selected_source_counts": {
             tf: dict(counts) for tf, counts in selected_source_counts.items()
