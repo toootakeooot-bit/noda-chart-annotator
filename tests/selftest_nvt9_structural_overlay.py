@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 from live_draw.model import Bar, Pivot
 from tools.nvt.build_nvt9_structural_overlay_0919 import (
     build_d1_continuation,
+    build_d1_retained_reference_0912,
     build_d1_major_channel,
     build_h1_native_continuation,
     choose_updated_ch,
@@ -63,6 +64,28 @@ def main() -> None:
     assert tight.anchor1.time == b1.time
     assert tight.anchor2.time == a2.time
     assert tight.status == "REFERENCE_PENDING_HL_BREAK"
+
+    # 09/12 retained D1 reference: reproduce the GT_0004/NVT5
+    # evidence-window family rather than filtering it out for being old/far.
+    rt0 = datetime(2025, 4, 1)
+    retained_bars = []
+    for i in range(540):
+        t = rt0 + timedelta(days=i)
+        # Keep closes safely above the intended retained support.
+        close = 147.0 + i * 0.02
+        retained_bars.append(Bar(t, close, close + 1.0, close - 0.8, close))
+    retained = build_d1_retained_reference_0912(retained_bars, [
+        Pivot("LOW", 3, datetime(2025, 4, 4), 144.544, 6, datetime(2025, 4, 7), 0.38),
+        Pivot("HIGH", 80, datetime(2025, 6, 23), 148.0, 81, datetime(2025, 6, 24), 0.38),
+        Pivot("LOW", 161, datetime(2025, 9, 9), 146.302, 164, datetime(2025, 9, 12), 0.38),
+        Pivot("HIGH", 163, datetime(2025, 9, 11), 148.179, 166, datetime(2025, 9, 14), 0.38),
+        Pivot("LOW", 169, datetime(2025, 9, 17), 145.476, 172, datetime(2025, 9, 20), 0.38),
+    ])
+    assert retained is not None
+    assert retained.anchor1.time == datetime(2025, 4, 4)
+    assert retained.anchor2.time == datetime(2025, 9, 9)
+    assert retained.ch_anchor.time == datetime(2025, 9, 11)
+    assert retained.unbroken_close is True
 
     # 09/12 D1 major channel: a multi-month rising support family must be
     # available separately from the tight continuation selector.
