@@ -44,6 +44,8 @@ def main() -> None:
     assert '[D1 MAJOR HL]' in v
     assert '[D1 APPROVED TL]' in v
     assert '[D1 APPROVED HL]' in v
+    assert 'input bool AuditDeleteAllChartObjects = true;' in v
+    assert 'if(AuditDeleteAllChartObjects || isolate0912) DeleteAllChartObjects(chartId);' in v
     assert 'drawT2 = cutoff' in v
     assert 'OBJPROP_RAY_RIGHT, !clipAt0912' in v
     assert 'OBJPROP_RAY_RIGHT,false' in v
@@ -51,9 +53,13 @@ def main() -> None:
     truth = json.loads(TRUTH.read_text(encoding="utf-8"))
     assert truth["status"] == "ACTIVE_USER_ANNOTATED_TRUTH"
     assert truth["approved_families"][0]["truth_id"] == "VT0912-D1-001"
+    assert truth["approved_families"][0]["geometry_policy"]["rule"] == "OUTERMOST_RISING_SUPPORT_NO_FORMATION_WICK_BREACH"
+    assert truth["approved_families"][0]["anchor1"]["selection"] == "PAIRWISE_OUTERMOST_WICK_ENVELOPE"
     assert truth["render_contract"]["stop_all_audit_lines_at_cutoff"] is True
     verify_text = VERIFY.read_text(encoding="utf-8")
     assert "PASS_0912_VISUAL_TRUTH" in verify_text
+    assert "formation_wick_breach_count" in verify_text
+    assert "PAIRWISE_OUTERMOST_WICK_ENVELOPE" in verify_text
     assert "D1 anchor1 outside approved yellow-circle window" in verify_text
 
     freeze = json.loads(FREEZE.read_text(encoding="utf-8"))
