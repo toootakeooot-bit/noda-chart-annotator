@@ -98,6 +98,7 @@ def main() -> int:
         "--input-prefix", "NVT",
         "--output-dir", str(base_out),
         "--allow-empty-source-tf", "H4",
+        "--suppress-selected-source-direction", "H1:FALLING",
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
@@ -114,7 +115,9 @@ def main() -> int:
         "window_policy": "LAST_600_CLOSED_BARS_PER_TIMEFRAME",
         "future_bars_used": False,
         "allowed_empty_source_tfs": ["H4"],
+        "suppressed_source_directions": {"H1": "FALLING"},
         "empty_source_policy": "NO_LINE_NO_SYNTHETIC_FALLBACK",
+        "source_suppression_policy": "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT",
         "production_changed": False,
         "state_validation": validation,
         "input_coverage": coverage,
