@@ -47,7 +47,7 @@ The main hard/transition rules are:
 
 The canonical Stage-1 pattern metadata is stored in:
 
-`nvt/manifests/NVT9_TL_QUALITY_PATTERNS_V01.json`
+`nvt/manifests/NVT9_TL_QUALITY_PATTERNS_V02.json` (V01 is retained as the initial registry)
 
 Initial patterns:
 
@@ -233,3 +233,66 @@ BAD
 ```
 
 That loop must remain separate from the Stage-1 audit result so the system can always preserve the original decision and its failure evidence.
+
+
+## Real-history replay
+
+Stage 1 now includes a separate real-history replay builder:
+
+`tools/nvt/build_nvt9_tl_quality_history_replay.py`
+
+It intentionally separates:
+
+1. teacher / user-adjudicated expectation,
+2. generated candidate or TL Quality,
+3. audit evidence readiness.
+
+This prevents a teacher-history match from forcing a generated TL to GOOD when the line-level evidence contract is incomplete.
+
+Historical cases currently registered:
+
+- GT_0004 / 2026-09-05 D1: persistent original rising reference (`P16`).
+- USER_0905_TRANSITION / 2026-09-05 H1/M15: post-break NO-LINE/HOLD transition (`P04`), semantic-only until exact geometry is frozen.
+- GT_0005 / 2026-09-12 H1: valid but display-suppressed TURN_LINE (`P17`).
+- GT_0006 / 2026-09-12 H1: gentler-angle selector preference (`P18`); absent approximate anchor-window candidate is diagnostic HOLD (`P19`), not hard BAD.
+- NVT8 2026-09-19 held-out: strict held-out teacher assertions may be used as global context, but do not force unrelated current cross-TF line IDs to GOOD.
+- GT_0007 / 2026-08-08 H1: parent NO-LINE with M15 ownership (`P20`).
+
+The replay also detects evidence supersession. In particular, the older NVT5 GT_0005 probe interpreted the case as NO-LINE, while the later reviewed GT_0005 Ground Truth explicitly states that the turn line is structurally valid but intentionally display-suppressed. The old probe remains visible as superseded evidence.
+
+Example:
+
+```
+python tools/nvt/build_nvt9_tl_quality_history_replay.py \
+  --teacher-anchor-probe path/to/NVT5_TEACHER_ANCHOR_PROBE_USDJPY.json \
+  --cross-tf-0919 path/to/NVT9_USDJPY_CROSS_TF_0919.json \
+  --strict-heldout-0919 path/to/NVT8_STRICT_HELDOUT_COMPARISON_CORRECTED.json \
+  --output path/to/NVT9_TL_QUALITY_HISTORY_REPLAY.json
+```
+
+### AuditReadiness
+
+Every generated-line audit now also exposes:
+
+- `READY`: the core Pivot / Anchor / Structure / HL-break evidence is present.
+- `PARTIAL`: some core evidence is present, but one or more required blocks are missing.
+- `INSUFFICIENT`: core line-level evidence is largely unavailable.
+
+`missing_evidence` lists the blocks that must be persisted before the line can receive a high-quality automatic judgment.
+
+For the existing 09/19 cross-timeframe review artifact, anchor geometry and ownership-comparison data are persisted, but all per-line 38% confirmation, HL/N/Dow state and closed-bar break evidence are not co-located in that artifact. The real-history replay therefore must not upgrade those lines to GOOD merely because strict NVT8 passed elsewhere.
+
+### Next evidence-contract gate
+
+Before Stage 2 automatic correction, the live/history artifact should persist per TL:
+
+- anchor retracement / Pivot confirmation,
+- HL identity and price,
+- N / Dow structure state,
+- break event and `break_by_close`,
+- Candidate rank,
+- Selector reason,
+- source timeframe and ownership evidence,
+- lifecycle / display role.
+
+Then rerun the real-history replay and measure READY coverage before enabling any BAD -> reselect -> re-audit loop.
