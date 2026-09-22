@@ -178,6 +178,123 @@ def build_d1_continuation(bars, pivots) -> ContinuationCandidate | None:
     return max(pool, key=support_rank)
 
 
+def build_d1_retained_reference_0912(bars, pivots) -> ContinuationCandidate | None:
+    """Rebuild the retained D1 rising reference for the 09/12 historical audit.
+
+    Evidence basis is the frozen NVT5/GT_0004 visual probe:
+      - rising MAJOR monitoring reference
+      - anchor1 in the early-April-2025 window
+      - anchor2 in the late-August/September-2025 low cluster
+      - original geometry retained instead of newest re-anchoring
+
+    This is historical audit reconstruction only, not a production selector.
+    """
+    lows = [p for p in pivots if p.kind == "LOW"]
+    highs = [p for p in pivots if p.kind == "HIGH"]
+    if len(lows) < 2 or not highs or not bars:
+        return None
+
+    a1_lo = datetime.fromisoformat("2025-04-01T00:00:00")
+    a1_hi = datetime.fromisoformat("2025-04-20T23:59:59")
+    a2_lo = datetime.fromisoformat("2025-08-20T00:00:00")
+    a2_hi = datetime.fromisoformat("2025-09-25T23:59:59")
+    tol = max(median_bar_range(bars) * 0.28, 1e-8)
+    candidates: list[ContinuationCandidate] = []
+
+    anchor1s = [p for p in lows if a1_lo <= p.time <= a1_hi]
+    anchor2s = [p for p in lows if a2_lo <= p.time <= a2_hi]
+
+    for a in anchor1s:
+        for b in anchor2s:
+            if b.time <= a.time or b.price <= a.price:
+                continue
+
+            slope = slope_per_second(a.time, a.price, b.time, b.price)
+            if slope <= 0:
+                continue
+
+            # The retained reference must be a genuine confirmed-pivot
+            # structure and must remain a valid support by closed bars.
+            broken = any(
+                bar.time >= a.time
+                and bar.close < line_value(bar.time, a.time, a.price, slope) - tol
+                for bar in bars
+            )
+            if broken:
+                continue
+
+            between = [h for h in highs if a.time < h.time < b.time]
+            if not between:
+                continue
+            decision_hl = max(between, key=lambda p: (p.price, p.time))
+
+            contacts = sum(
+                1
+                for p in lows
+                if p.time >= a.time
+                and abs(p.price - line_value(p.time, a.time, a.price, slope)) <= tol
+            )
+
+            hl_break_time = None
+            for bar in bars:
+                if bar.time <= b.time:
+                    continue
+                if bar.close > decision_hl.price:
+                    hl_break_time = bar.time
+                    break
+
+            # Freeze the ORIGINAL channel geometry near formation.  Do not let
+            # a 2026 high silently re-anchor/expand the retained 2025 channel.
+            ch_window_end = b.time + timedelta(days=30)
+            high_pool = [
+                h for h in highs
+                if a.time < h.time <= ch_window_end
+            ]
+            residuals = [
+                (h.price - line_value(h.time, a.time, a.price, slope), h)
+                for h in high_pool
+            ]
+            residuals = [(off, h) for off, h in residuals if off > 0]
+            if not residuals:
+                continue
+
+            # Prefer a channel contact at/after anchor2 when available, matching
+            # the original formed channel rather than a pre-anchor2 extreme.
+            post_a2 = [(off, h) for off, h in residuals if h.time >= b.time]
+            pool = post_a2 if post_a2 else residuals
+            ch_offset, ch_anchor = max(pool, key=lambda x: (x[0], -abs((x[1].time - b.time).total_seconds())))
+
+            candidates.append(
+                ContinuationCandidate(
+                    anchor1=a,
+                    anchor2=b,
+                    decision_hl=decision_hl,
+                    slope=slope,
+                    tl_contacts=contacts,
+                    duration_days=(b.time - a.time).total_seconds() / 86400.0,
+                    unbroken_close=True,
+                    hl_break_time=hl_break_time,
+                    ch_anchor=ch_anchor,
+                    ch_offset=ch_offset,
+                    tolerance=tol,
+                )
+            )
+
+    if not candidates:
+        return None
+
+    # Within the NVT5 evidence windows, prefer the strongest still-unbroken
+    # original reference; contacts first, then gentler slope, then earlier A2.
+    return max(
+        candidates,
+        key=lambda c: (
+            c.tl_contacts,
+            -abs(c.slope),
+            -c.anchor2.time.timestamp(),
+        ),
+    )
+
+
 def build_d1_major_channel(bars, pivots) -> ContinuationCandidate | None:
     """Build the broad rising D1 support/channel family used for 09/12 audit.
 
@@ -577,7 +694,8 @@ def main() -> int:
         d1 = [bar for bar in d1_all if bar.time < cutoff][-600:]
         piv = detect_turns(d1).pivots
         cand = build_d1_continuation(d1, piv)
-        major = build_d1_major_channel(d1, piv) if case_tag == "0912" else None
+        retained = build_d1_retained_reference_0912(d1, piv) if case_tag == "0912" else None
+        major = retained if retained is not None else (build_d1_major_channel(d1, piv) if case_tag == "0912" else None)
         end = d1[-1].time if d1 else None
 
         # 09/12 visual audit prefers the broad major channel and suppresses
@@ -599,7 +717,11 @@ def main() -> int:
             audit["d1_major_channel"] = {
                 "status": "BUILT",
                 "object_family": f"X{case_tag}-D1-MAJOR-01",
-                "reason_code": "D1_MAJOR_RISING_MULTI_MONTH_SUPPORT_CHANNEL",
+                "reason_code": (
+                    "D1_RETAINED_REFERENCE_GT0004_NVT5_WINDOW"
+                    if retained is not None
+                    else "D1_MAJOR_RISING_MULTI_MONTH_SUPPORT_CHANNEL"
+                ),
                 "anchor1": {"time": major.anchor1.time.isoformat(), "price": float(major.anchor1.price)},
                 "anchor2": {"time": major.anchor2.time.isoformat(), "price": float(major.anchor2.price)},
                 "decision_hl": {
@@ -611,7 +733,20 @@ def main() -> int:
                 "duration_days": major.duration_days,
                 "ch_anchor": {"time": major.ch_anchor.time.isoformat(), "price": float(major.ch_anchor.price)},
                 "ch_offset": major.ch_offset,
-                "selector_policy": "MULTI_MONTH_RISING_SUPPORT_REPEATED_CONTACTS_THEN_SPAN",
+                "selector_policy": (
+                    "GT0004_RETAINED_REFERENCE_WINDOW_CONTACTS_GENTLER_SLOPE"
+                    if retained is not None
+                    else "MULTI_MONTH_RISING_SUPPORT_REPEATED_CONTACTS_THEN_SPAN"
+                ),
+                "historical_evidence_windows": (
+                    {
+                        "anchor1": ["2025-04-01T00:00:00", "2025-04-20T23:59:59"],
+                        "anchor2": ["2025-08-20T00:00:00", "2025-09-25T23:59:59"],
+                        "source": "NVT5_GT_0004_VISUAL_PROBE",
+                        "production_generalization": False,
+                    }
+                    if retained is not None else None
+                ),
             }
             audit["d1_continuation"] = {
                 "status": "SUPPRESSED_BY_0912_MAJOR_CHANNEL",
