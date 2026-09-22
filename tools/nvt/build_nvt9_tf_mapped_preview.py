@@ -350,9 +350,29 @@ def main() -> int:
     state = load_json(state_path)
     policy = load_json(policy_path)
     display_sources = policy.get("display_sources") or {}
+    source_to_display = policy.get("source_to_display_tfs") or {}
+    native_disabled_source_tfs = set(policy.get("native_disabled_source_tfs") or [])
     vis = policy.get("visibility_policy") or {}
     per_source = int(vis.get("near_price_family_per_source_tf", 1))
     context_max = int(vis.get("far_direction_context_max_families", 0))
+
+    # A disabled source TF may still be a DISPLAY chart, but it must not own
+    # structural selection or appear as an input source for another chart.
+    invalid_disabled_sources = sorted(tf for tf in native_disabled_source_tfs if tf in source_to_display)
+    if invalid_disabled_sources:
+        raise ValueError(
+            f"native-disabled source TF present in source_to_display_tfs: {invalid_disabled_sources}"
+        )
+    disabled_leaks = sorted({
+        src
+        for sources in display_sources.values()
+        for src in (sources or [])
+        if src in native_disabled_source_tfs
+    })
+    if disabled_leaks:
+        raise ValueError(
+            f"native-disabled source TF leaked into display_sources: {disabled_leaks}"
+        )
 
     if state.get("schema") != "nca-live-state/1.0":
         raise ValueError(f"unexpected state schema: {state.get('schema')}")
@@ -394,7 +414,6 @@ def main() -> int:
     suppressed_source_selections: list[dict] = []
 
     slots = state.get("slots") or {}
-    source_to_display = policy.get("source_to_display_tfs") or {}
     if not source_to_display:
         raise ValueError("policy missing source_to_display_tfs")
 
@@ -557,6 +576,7 @@ def main() -> int:
         "display_policy": str(policy_path),
         "display_sources": display_sources,
         "source_to_display_tfs": source_to_display,
+        "native_disabled_source_tfs": sorted(native_disabled_source_tfs),
         "allow_empty_source_tfs": sorted(allow_empty_source_tfs),
         "fallback_previous_source_tfs": sorted(fallback_previous_source_tfs),
         "fallback_reference_source_tfs": sorted(fallback_reference_source_tfs),
@@ -621,6 +641,8 @@ def main() -> int:
             "fallback_reference_source_tfs": sorted(fallback_reference_source_tfs),
             "fallback_reference_semantics": "REVALIDATE_FROZEN_REFERENCE_ANCHORS_AGAINST_PRE_CUTOFF_CANDIDATES_ONLY",
             "main_roles_only_source_tfs": sorted(main_roles_only_source_tfs),
+            "native_disabled_source_tfs": sorted(native_disabled_source_tfs),
+            "native_disabled_semantics": "DISPLAY_ONLY_NO_SOURCE_SELECTION",
             "suppressed_source_directions": suppress_selected_source_direction,
             "suppressed_source_semantics": "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT",
             "empty_source_semantics": "NO_LINE_NO_SYNTHETIC_FALLBACK",
@@ -632,6 +654,12 @@ def main() -> int:
             "structural_owner_tf": "SOURCE_TF",
             "display_tf": "CHART_TF",
             "h1_h4_nonexact_merge": "NOT_AUTOMATIC",
+            "m15_structural_owner": (
+                "H1" if "M15" in native_disabled_source_tfs else "M15"
+            ),
+            "m15_native_selection": (
+                "DISABLED" if "M15" in native_disabled_source_tfs else "ENABLED"
+            ),
         },
         "production_changed": False,
         "production_snapshot_changed": False,
