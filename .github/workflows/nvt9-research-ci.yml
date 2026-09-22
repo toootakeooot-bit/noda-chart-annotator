@@ -43,6 +43,7 @@ jobs:
             tools/nvt/diagnose_nvt9_reference_0919.py \
             tools/nvt/build_nvt9_structural_overlay_0919.py \
             tools/nvt/build_nvt9_reference_0912.py \
+            tools/nvt/verify_nvt9_0912_visual_truth.py \
             tools/nvt/build_nvt9_v4_visibility_decision.py \
             tools/nvt/build_nvt9_v4_display_template.py \
             tools/nvt/build_nvt9_v6_visibility_preview.py \
@@ -55,6 +56,7 @@ jobs:
             tests/selftest_nvt9_structural_overlay.py \
             tests/selftest_nvt9_rejected_draw_ledger.py \
             tests/selftest_nvt9_0912_current_package.py \
+            tests/selftest_nvt9_0912_visual_truth.py \
             tests/selftest_nvt9_cross_tf.py \
             tests/selftest_nvt9_normal_vs_full_history.py \
             tests/selftest_nvt9_deep_lifecycle_state.py \
@@ -88,6 +90,9 @@ jobs:
 
       - name: 09/12 current package self-test
         run: python tests/selftest_nvt9_0912_current_package.py
+
+      - name: 09/12 visual truth runtime self-test
+        run: python tests/selftest_nvt9_0912_visual_truth.py
 
       - name: NormalRun lifecycle replay self-test
         run: python tests/selftest_normal_run.py
