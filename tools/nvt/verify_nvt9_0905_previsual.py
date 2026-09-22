@@ -62,10 +62,10 @@ def main() -> int:
         raise ValueError("09/05 generated anchor at/after cutoff: " + json.dumps(violations, ensure_ascii=False))
 
     # Carry forward only the generalized D1 outer-support rule.
-    d1 = overlay.get("d1_visual_truth") or {}
-    if d1.get("status") != "BUILT":
-        raise ValueError(f"09/05 D1 approved outer support not built: {d1}")
-    resolved = d1.get("resolved_truth") or {}
+    d1_truth = overlay.get("d1_visual_truth") or {}
+    if d1_truth.get("status") != "BUILT":
+        raise ValueError(f"09/05 D1 approved outer support not built: {d1_truth}")
+    resolved = d1_truth.get("resolved_truth") or {}
     if resolved.get("anchor_selection") != "PAIRWISE_OUTERMOST_WICK_ENVELOPE":
         raise ValueError(f"09/05 D1 selector changed: {resolved}")
     if int(resolved.get("formation_wick_breach_count", -1)) != 0:
@@ -105,11 +105,11 @@ def main() -> int:
     if h4_decision[0].get("state_or_reason") != "TRANSITION_NO_TL":
         raise ValueError(f"09/05 H4 ownership reason mismatch: {h4_decision}")
 
-    d1 = source_selection.get("D1") or []
-    if len(d1) != 1:
-        raise ValueError(f"09/05 D1 parent family missing for H4 transition: {d1}")
-    if d1[0].get("display_roles") != ["TL", "CH"]:
-        raise ValueError(f"09/05 D1 parent family must use main TL/CH only: {d1[0]}")
+    d1_source = source_selection.get("D1") or []
+    if len(d1_source) != 1:
+        raise ValueError(f"09/05 D1 parent family missing for H4 transition: {d1_source}")
+    if d1_source[0].get("display_roles") != ["TL", "CH"]:
+        raise ValueError(f"09/05 D1 parent family must use main TL/CH only: {d1_source[0]}")
     h4_display = [
         x for x in (base.get("selected_families") or [])
         if x.get("display_tf") == "H4"
@@ -120,9 +120,9 @@ def main() -> int:
         raise ValueError(f"09/05 H4 display source is not D1: {h4_display[0]}")
     if h4_display[0].get("copied_without_reselection") is not True:
         raise ValueError(f"09/05 D1->H4 geometry was reselected: {h4_display[0]}")
-    if h4_display[0].get("geometry_signature") != d1[0].get("geometry_signature"):
+    if h4_display[0].get("geometry_signature") != d1_source[0].get("geometry_signature"):
         raise ValueError(
-            f"09/05 D1/H4 geometry mismatch: d1={d1[0].get('geometry_signature')} "
+            f"09/05 D1/H4 geometry mismatch: d1={d1_source[0].get('geometry_signature')} "
             f"h4={h4_display[0].get('geometry_signature')}"
         )
 
@@ -200,8 +200,8 @@ def main() -> int:
         "status": "PASS_0905_PREVISUAL_NO_LOOKAHEAD",
         "cutoff_exclusive": cutoff.isoformat(),
         "d1_truth_id": resolved.get("truth_id"),
-        "d1_anchor1": d1.get("anchor1"),
-        "d1_anchor2": d1.get("anchor2"),
+        "d1_anchor1": d1_truth.get("anchor1"),
+        "d1_anchor2": d1_truth.get("anchor2"),
         "d1_formation_wick_breach_count": resolved.get("formation_wick_breach_count"),
         "m15_native_selector_enabled": False,
         "m15_structural_owner": "H1",
@@ -218,7 +218,7 @@ def main() -> int:
             "state": h4_state.get("state"),
             "reason_code": h4_state.get("reason_code"),
             "display_owner_tf": "D1",
-            "parent_line_id": d1[0].get("line_id"),
+            "parent_line_id": d1_source[0].get("line_id"),
             "geometry_signature": h4_display[0].get("geometry_signature"),
             "copied_without_reselection": h4_display[0].get("copied_without_reselection"),
         },
