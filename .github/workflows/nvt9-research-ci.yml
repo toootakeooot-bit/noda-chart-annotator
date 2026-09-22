@@ -46,6 +46,7 @@ jobs:
             tools/nvt/validate_nvt9_visibility_invariants.py \
             tools/nvt/prepare_nvt9_v7_preview_ready.py \
             tools/nvt/tl_quality_auditor.py \
+            tools/nvt/build_nvt9_tl_quality_history_replay.py \
             tests/selftest_normal_run.py \
             tests/selftest_nvt9_cross_tf.py \
             tests/selftest_nvt9_normal_vs_full_history.py \
@@ -62,7 +63,8 @@ jobs:
             tests/selftest_nvt9_visibility_invariants.py \
             tests/selftest_nvt9_preview_renderer_safety.py \
             tests/selftest_nvt9_v7_preview_ready.py \
-            tests/selftest_nvt9_tl_quality_auditor.py
+            tests/selftest_nvt9_tl_quality_auditor.py \
+            tests/selftest_nvt9_tl_quality_history_replay.py
 
       - name: NormalRun lifecycle replay self-test
         run: python tests/selftest_normal_run.py
@@ -111,3 +113,6 @@ jobs:
 
       - name: TL quality auditor self-test
         run: python tests/selftest_nvt9_tl_quality_auditor.py
+
+      - name: TL quality real-history replay self-test
+        run: python tests/selftest_nvt9_tl_quality_history_replay.py
