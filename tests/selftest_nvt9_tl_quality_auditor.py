@@ -170,6 +170,63 @@ def main() -> int:
     assert bad_pivot["Quality"] == "BAD"
     assert "PIVOT_ERROR" in reason_codes(bad_pivot)
 
+    # Persistent monitoring reference can remain structurally important.
+    persistent = base_record()
+    persistent["lifecycle_evidence"] = {"persistent_reference_retained": True}
+    persistent_result = mod.audit_line(persistent)
+    assert "P16" in persistent_result["matched_patterns"]
+
+    # Valid TURN_LINE may be intentionally display-suppressed.
+    suppressed = base_record()
+    suppressed["lifecycle_evidence"] = {
+        "candidate_valid": True,
+        "display_suppressed": True,
+        "line_role": "TURN_LINE",
+    }
+    suppressed_result = mod.audit_line(suppressed)
+    assert "P17" in suppressed_result["matched_patterns"]
+
+    # Gentler-angle preference is a Selector rule only when multiple valid alternatives exist.
+    gentler = base_record()
+    gentler["selector"] = {
+        "multiple_valid_alternatives": True,
+        "gentler_preference_satisfied": True,
+    }
+    gentler_result = mod.audit_line(gentler)
+    assert "P18" in gentler_result["matched_patterns"]
+
+    missed_gentler = base_record()
+    missed_gentler["selector"] = {
+        "multiple_valid_alternatives": True,
+        "gentler_preference_satisfied": False,
+    }
+    missed_gentler_result = mod.audit_line(missed_gentler)
+    assert missed_gentler_result["Quality"] == "BAD"
+    assert "GENTLER_PREFERENCE_MISMATCH" in reason_codes(missed_gentler_result)
+
+    # Approximate teacher-window absence is diagnostic HOLD, not hard BAD.
+    window_gap = base_record()
+    window_gap["candidate"] = {"teacher_window_absent_diagnostic": True}
+    window_gap_result = mod.audit_line(window_gap)
+    assert window_gap_result["Quality"] == "HOLD"
+    assert "TEACHER_WINDOW_ABSENT_DIAGNOSTIC" in reason_codes(window_gap_result)
+
+    # AuditReadiness distinguishes missing evidence from a market-structure HOLD.
+    sparse = {
+        "line_id": "SPARSE",
+        "direction": "FALLING",
+        "source_tf": "H4",
+        "owner_tf": "H4",
+        "anchor1_time": "2026-01-01T00:00:00",
+        "anchor1_price": 160.0,
+        "anchor2_time": "2026-02-01T00:00:00",
+        "anchor2_price": 159.0,
+    }
+    sparse_result = mod.audit_line(sparse)
+    assert sparse_result["Quality"] == "HOLD"
+    assert sparse_result["AuditReadiness"] in {"PARTIAL", "INSUFFICIENT"}
+    assert sparse_result["missing_evidence"]
+
     # Repeated input must be deterministic.
     first = mod.audit_line(case_0919)
     second = mod.audit_line(json.loads(json.dumps(case_0919)))
