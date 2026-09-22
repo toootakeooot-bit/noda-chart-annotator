@@ -34,6 +34,7 @@ def main() -> int:
     ap.add_argument("--input-dir", required=True)
     ap.add_argument("--output-dir", required=True)
     ap.add_argument("--policy", required=True)
+    ap.add_argument("--reference-manifest", required=True)
     ap.add_argument("--symbol", default="USDJPY#")
     ap.add_argument("--cutoff", default="2026-09-12T00:00:00")
     args = ap.parse_args()
@@ -98,6 +99,8 @@ def main() -> int:
         "--input-prefix", "NVT",
         "--output-dir", str(base_out),
         "--fallback-previous-source-tf", "H4",
+        "--fallback-reference-source-tf", "H4",
+        "--fallback-reference-manifest", str(Path(args.reference_manifest)),
         "--main-roles-only-source-tf", "H4",
         "--main-roles-only-source-tf", "M15",
         "--suppress-selected-source-direction", "H1:FALLING",
@@ -119,10 +122,12 @@ def main() -> int:
         "future_bars_used": False,
         "allowed_empty_source_tfs": [],
         "fallback_previous_source_tfs": ["H4"],
+        "fallback_reference_source_tfs": ["H4"],
+        "fallback_reference_manifest": str(Path(args.reference_manifest)),
         "main_roles_only_source_tfs": ["H4", "M15"],
         "suppressed_source_directions": {"H1": "FALLING", "D1": "RISING"},
         "empty_source_policy": "FAIL_IF_CURRENT_AND_RETAINED_PREVIOUS_ARE_BOTH_MISSING",
-        "retained_reference_policy": "H4_CURRENT_ABSENT_THEN_PREVIOUS_REFERENCE_RETAINED",
+        "retained_reference_policy": "H4_CURRENT_THEN_PREVIOUS_THEN_FROZEN_REFERENCE_REVALIDATED_PRE_CUTOFF",
         "source_suppression_policy": "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT",
         "production_changed": False,
         "state_validation": validation,
