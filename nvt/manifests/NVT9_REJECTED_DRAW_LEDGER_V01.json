@@ -135,7 +135,9 @@
       "reason": "09/12 visual audit showed the selected D1 rising base family as a shallow/duplicate structure while the broad multi-month rising TL/CH was missing.",
       "replacement_policy": "D1_MAJOR_RISING_MULTI_MONTH_SUPPORT_CHANNEL",
       "enforcement": "09/12 base preview suppresses D1:RISING and structural overlay emits X0912-D1-MAJOR-01 TL/CH/HL when the major channel passes.",
-      "status": "ENFORCED"
+      "status": "SUPERSEDED_BY_VISUAL_TRUTH",
+      "superseded_by": "VT0912-D1-001",
+      "superseded_reason": "The user later marked the exact D1 LOW/LOW pair. Generic major-channel selection is no longer authoritative for this 09/12 target."
     },
     {
       "rejection_id": "RD0912-004",
@@ -165,7 +167,9 @@
       "reason": "The prior 09/12 major-channel attempt incorrectly required anchor1 age <=480 days and a near-current-price support gap. Those generic filters can exclude the retained 2025 D1 reference identified by GT_0004/NVT5 evidence.",
       "replacement_policy": "GT0004_NVT5_EVIDENCE_WINDOWS_RETAIN_ORIGINAL_GEOMETRY",
       "enforcement": "09/12 first calls build_d1_retained_reference_0912 using the NVT5 GT_0004 anchor windows; generic major selection is fallback only.",
-      "status": "ENFORCED"
+      "status": "SUPERSEDED_WRONG_INTERPRETATION",
+      "superseded_by": "VT0912-D1-001",
+      "superseded_reason": "GT_0004 2025 retained-reference windows describe a different D1 reference and were incorrectly applied to the yellow-circle 09/12 target."
     },
     {
       "rejection_id": "RD0912-006",
@@ -178,6 +182,35 @@
       "reason": "The retained D1 reference must preserve its original formed channel geometry. A later 2026 high must not silently expand/re-anchor the historical 2025 CH.",
       "replacement_policy": "CHANNEL_ANCHOR_FROM_ORIGINAL_FORMATION_WINDOW",
       "enforcement": "For the retained 09/12 D1 reference, CH candidates are limited to anchor1 through 30 days after anchor2 and prefer post-anchor2 formation contacts.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-007",
+      "target_type": "HISTORICAL_RENDER_CONTRACT",
+      "target": "AUDIT_LINE_RAY_RIGHT_BEYOND_2026_09_12_CUTOFF",
+      "scope": [
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "reason_code": "STOP_AUDIT_LINES_AT_HISTORICAL_CUTOFF",
+      "reason": "The 09/12 historical viewer previously rendered audit TL/CH/HL with RAY_RIGHT, making valid pre-cutoff lines look like new post-09/12 geometry. This must not be interpreted as a separate valid future line.",
+      "replacement_policy": "PROJECT_TO_CUTOFF_THEN_RAY_RIGHT_FALSE",
+      "enforcement": "NCA_NVT9_AB_View projects base-preview geometry to the 09/12 cutoff and renders it with RAY_RIGHT=false; 09/12 structural overlay is also non-ray.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-008",
+      "target_type": "REFERENCE_IDENTITY",
+      "target": "GT0004_2025_REFERENCE_USED_AS_ANNOTATED_0912_D1_LOW_PAIR",
+      "scope": [
+        "D1"
+      ],
+      "reason_code": "REJECT_DIFFERENT_REFERENCE_AS_USER_APPROVED_D1_TARGET",
+      "reason": "The previous correction incorrectly treated the GT_0004 2025 retained D1 reference as the line identified by the user's two yellow circles. The annotated target is a different 2026 LOW->LOW line.",
+      "replacement_policy": "VT0912_D1_001_USER_ANNOTATED_2026_LOW_WINDOWS",
+      "enforcement": "NVT9_0912_VISUAL_TRUTH_V01.json defines approved 2026 anchor windows and runtime verification fails if generated D1 anchors fall outside them.",
       "status": "ENFORCED"
     }
   ]
