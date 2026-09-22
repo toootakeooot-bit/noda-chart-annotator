@@ -311,6 +311,10 @@ def main() -> int:
     ap.add_argument("--policy", required=True)
     ap.add_argument("--input-dir", required=True)
     ap.add_argument("--input-prefix", default="NVT", choices=["NVT", "NORMAL"])
+    ap.add_argument(
+        "--transition-warmup-input-dir",
+        help="Optional pre-cutoff warmup bars for Turn-detector initialization. Used only when the 600-bar transition pass has zero candidates; candidate anchors remain restricted to the normal input window.",
+    )
     ap.add_argument("--output-dir", required=True)
     ap.add_argument(
         "--fallback-previous-source-tf",
@@ -352,6 +356,10 @@ def main() -> int:
     state_path = Path(args.state)
     policy_path = Path(args.policy)
     input_dir = Path(args.input_dir)
+    transition_warmup_input_dir = (
+        Path(args.transition_warmup_input_dir)
+        if args.transition_warmup_input_dir else None
+    )
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
     allow_empty_source_tfs = set(args.allow_empty_source_tf or [])
@@ -522,18 +530,67 @@ def main() -> int:
     #    NEW_ACTIVE: two same-side pivots + Decision-HL break already establish
     #                a replacement N, even if the persisted selector state lags.
     tl_transition_states = {}
+    transition_warmup_audit = {}
     for source_tf in sorted(transition_state_source_tfs):
         if source_tf not in bars_by_tf:
             raise ValueError(f"transition-state TF missing bars: {source_tf}")
         existing = source_selection.get(source_tf) or []
         existing_state = existing[0]["_state"] if existing else None
+        selection_bars = bars_by_tf[source_tf]
+        selection_floor = selection_bars[0].time
+
         resolved = resolve_tl_transition_state(
-            bars_by_tf[source_tf],
+            selection_bars,
             symbol,
             source_tf,
             existing_state,
+            candidate_anchor_floor=selection_floor,
         )
+
+        warmup_used = False
+        warmup_bar_count = 0
+        warmup_first_bar = None
+        # Rescue only the detector-startup case.  If the 600-bar pass already
+        # contains candidates (for example a genuinely broken H4 structure),
+        # the transition conclusion is authoritative and warmup must not
+        # change it.
+        if (
+            resolved.state == "TRANSITION_NO_TL"
+            and resolved.reason_code == "NO_ACTIVATED_N_STRUCTURE_YET"
+            and resolved.candidate_count == 0
+            and transition_warmup_input_dir is not None
+        ):
+            warmup_path = transition_warmup_input_dir / f"{args.input_prefix}_{safe}_{source_tf}.csv"
+            if warmup_path.exists():
+                warmup_bars = load_ohlc_csv(warmup_path)
+                if warmup_bars:
+                    warmup_bar_count = len(warmup_bars)
+                    warmup_first_bar = warmup_bars[0].time.isoformat()
+                    rescued = resolve_tl_transition_state(
+                        warmup_bars,
+                        symbol,
+                        source_tf,
+                        existing_state,
+                        candidate_anchor_floor=selection_floor,
+                    )
+                    if rescued.active_candidate is not None:
+                        resolved = rescued
+                        warmup_used = True
+
         tl_transition_states[source_tf] = resolved.to_audit_dict()
+        transition_warmup_audit[source_tf] = {
+            "attempted": bool(
+                transition_warmup_input_dir is not None
+                and resolved.reason_code != "OLD_TL_BROKEN_NO_UNBROKEN_REPLACEMENT_N"
+            ),
+            "used": warmup_used,
+            "selection_anchor_floor": selection_floor.isoformat(),
+            "selection_bar_count": len(selection_bars),
+            "warmup_bar_count": warmup_bar_count,
+            "warmup_first_bar": warmup_first_bar,
+            "future_bars_used": False,
+            "candidate_rule": "ANCHOR1_ANCHOR2_AND_DECISION_HL_MUST_BE_AT_OR_AFTER_600_BAR_SELECTION_FLOOR",
+        }
 
         if resolved.state == "TRANSITION_NO_TL":
             source_selection[source_tf] = []
@@ -710,6 +767,10 @@ def main() -> int:
         "tl_transition_states": tl_transition_states,
         "transition_inheritance": transition_inheritance,
         "transition_display_decisions": transition_display_decisions,
+        "transition_warmup_input_dir": (
+            str(transition_warmup_input_dir) if transition_warmup_input_dir else None
+        ),
+        "transition_warmup_audit": transition_warmup_audit,
         "allow_empty_source_tfs": sorted(allow_empty_source_tfs),
         "fallback_previous_source_tfs": sorted(fallback_previous_source_tfs),
         "fallback_reference_source_tfs": sorted(fallback_reference_source_tfs),
@@ -779,6 +840,7 @@ def main() -> int:
             "transition_state_layer": "POST_SELECTOR_PRE_MAPPING",
             "transition_states": ["ACTIVE", "TRANSITION_NO_TL", "NEW_ACTIVE"],
             "transition_new_active_rule": "EXISTING_N_STRUCTURE_TWO_ANCHORS_PLUS_DECISION_HL_CLOSED_BAR_BREAK",
+            "transition_warmup_semantics": "OLDER_PRE_CUTOFF_BARS_MAY_INITIALIZE_TURN_DETECTOR_ONLY_WHEN_600_BAR_PASS_HAS_ZERO_CANDIDATES; ALL_SELECTED_ANCHORS_AND_DECISION_HL_REMAIN_INSIDE_600_BAR_WINDOW",
             "suppressed_source_directions": suppress_selected_source_direction,
             "suppressed_source_semantics": "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT",
             "empty_source_semantics": "NO_LINE_NO_SYNTHETIC_FALLBACK",
