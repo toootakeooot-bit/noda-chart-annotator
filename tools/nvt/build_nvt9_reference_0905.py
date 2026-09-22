@@ -105,6 +105,7 @@ def main() -> int:
         "--fallback-reference-manifest", str(Path(args.reference_manifest)),
         "--allow-empty-source-tf", "H4",
         "--allow-empty-source-tf", "H1",
+        "--main-roles-only-source-tf", "D1",
         "--main-roles-only-source-tf", "H4",
         "--main-roles-only-source-tf", "H1",
     ]
@@ -126,7 +127,7 @@ def main() -> int:
         "fallback_previous_source_tfs": ["H4", "H1"],
         "fallback_reference_source_tfs": ["H4", "H1"],
         "fallback_reference_manifest": str(Path(args.reference_manifest)),
-        "main_roles_only_source_tfs": ["H4", "H1"],
+        "main_roles_only_source_tfs": ["D1", "H4", "H1"],
         "m15_native_selector_enabled": False,
         "m15_structural_owner": "H1",
         "m15_display_policy": "COPY_EXACT_H1_SELECTED_GEOMETRY_NO_RESELECTION",
