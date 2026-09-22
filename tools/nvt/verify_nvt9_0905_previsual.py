@@ -132,7 +132,7 @@ def main() -> int:
     h1_state = transition_states.get("H1") or {}
     if h1_state.get("state") not in set(h1_expect.get("expected_states") or []):
         raise ValueError(
-            f"09/05 H1 must be ACTIVE/NEW_ACTIVE before M15 inheritance: {h1_state}"
+            f"09/05 H1 must be ACTIVE/NEW_ACTIVE/REFERENCE_RETAINED before M15 inheritance: {h1_state}"
         )
     h1 = source_selection.get("H1") or []
     if len(h1) != 1:
@@ -144,16 +144,27 @@ def main() -> int:
     h1_warmup = transition_warmup_audit.get("H1") or {}
     selection_anchor_floor = h1_warmup.get("selection_anchor_floor")
     if not selection_anchor_floor:
-        raise ValueError(f"09/05 H1 transition warmup audit missing selection_anchor_floor: {h1_warmup}")
-    floor_dt = datetime.fromisoformat(selection_anchor_floor)
+        raise ValueError(f"09/05 H1 transition audit missing selection_anchor_floor: {h1_warmup}")
     if h1_warmup.get("future_bars_used") is not False:
-        raise ValueError(f"09/05 H1 transition warmup used future bars: {h1_warmup}")
-    for field in ("anchor1_time", "anchor2_time"):
-        value = fam.get(field)
-        if not value or datetime.fromisoformat(value) < floor_dt:
+        raise ValueError(f"09/05 H1 transition support used future bars: {h1_warmup}")
+
+    if h1_state.get("state") == "REFERENCE_RETAINED":
+        if h1_warmup.get("history_replay_used") is not True:
             raise ValueError(
-                f"09/05 H1 warmup leaked an anchor before 600-bar floor: field={field} value={value} floor={selection_anchor_floor}"
+                f"09/05 H1 REFERENCE_RETAINED lacks chronological history replay evidence: {h1_warmup}"
             )
+        if fam.get("generation_role") != "REFERENCE":
+            raise ValueError(f"09/05 retained H1 is not REFERENCE generation: {fam}")
+        if fam.get("history_replay_retained") is not True:
+            raise ValueError(f"09/05 retained H1 lacks replay-retained marker: {fam}")
+    else:
+        floor_dt = datetime.fromisoformat(selection_anchor_floor)
+        for field in ("anchor1_time", "anchor2_time"):
+            value = fam.get(field)
+            if not value or datetime.fromisoformat(value) < floor_dt:
+                raise ValueError(
+                    f"09/05 newly-selected H1 anchor predates 600-bar floor: field={field} value={value} floor={selection_anchor_floor}"
+                )
 
     # M15 must never own a native source. It receives the exact H1 geometry.
     m15_expect = expectations.get("M15") or {}
@@ -217,6 +228,7 @@ def main() -> int:
             "line_id": h1[0].get("line_id"),
             "display_reason": h1[0].get("display_reason"),
             "transition_warmup_audit": h1_warmup,
+            "history_replay_retained": bool(h1_warmup.get("history_replay_used")),
             "selection_anchor_floor": selection_anchor_floor,
         },
         "date_specific_suppressions_applied": summary.get("suppressed_source_directions"),
