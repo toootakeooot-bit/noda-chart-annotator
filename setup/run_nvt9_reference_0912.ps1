@@ -53,6 +53,14 @@ foreach ($tf in 'D1','H4','H1','M15') {
 }
 Write-Host ("Suppressed base selections: {0}" -f (($BaseAudit.suppressed_source_selections | ForEach-Object { "$($_.source_tf):$($_.direction):$($_.line_id)" }) -join ', '))
 Write-Host ("Empty source TFs:           {0}" -f (($BaseAudit.empty_source_tfs) -join ', '))
+if ($BaseAudit.source_selection.H4.Count -gt 0) {
+  $h4 = $BaseAudit.source_selection.H4[0]
+  Write-Host ("H4 retained: {0} role={1} reason={2} display={3}" -f $h4.line_id,$h4.generation_role,$h4.display_reason,(($h4.display_roles) -join '/'))
+}
+if ($BaseAudit.source_selection.M15.Count -gt 0) {
+  $m15 = $BaseAudit.source_selection.M15[0]
+  Write-Host ("M15 main roles: {0} display={1}" -f $m15.line_id,(($m15.display_roles) -join '/'))
+}
 Write-Host ("D1 approved truth: {0} reason={1}" -f $Overlay.d1_visual_truth.status,$Overlay.d1_visual_truth.reason_code)
 if ($Overlay.d1_visual_truth.status -eq 'BUILT') {
   Write-Host ("  APPROVED D1 A1={0} {1}" -f $Overlay.d1_visual_truth.anchor1.time,$Overlay.d1_visual_truth.anchor1.price)
