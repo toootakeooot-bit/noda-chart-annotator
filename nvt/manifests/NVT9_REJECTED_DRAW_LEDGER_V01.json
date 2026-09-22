@@ -96,6 +96,19 @@
       "replacement_policy": "MAX_3_WITH_MINIMUM_CENTER_GAP_AND_STRONGER_REACTION_EVIDENCE",
       "enforcement": "H1 zones are capped at three; centers must be at least 1.25 median H1 bar ranges apart; each zone needs at least four reacting bars and body-weight >= 6.0.",
       "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-001",
+      "target_type": "HISTORICAL_NO_LINE_GUARDRAIL",
+      "target": "2026-09-12_H4_ZERO_SELECTED_CURRENT_FAMILY",
+      "scope": [
+        "H4",
+        "PLAN_B_H4_SOURCE_COPIES"
+      ],
+      "reason_code": "NO_LINE_NO_SYNTHETIC_FALLBACK",
+      "reason": "At the 2026-09-12 cutoff, the 600-closed-bar replay produces zero selected CURRENT H4 families. Do not invent or borrow a replacement H4 source line solely to satisfy a one-family preview assumption.",
+      "enforcement": "build_nvt9_reference_0912.py opts H4 into --allow-empty-source-tf; build_nvt9_tf_mapped_preview.py records H4 as an empty source selection and skips its source-copy/HL rows.",
+      "status": "ENFORCED"
     }
   ]
 }
