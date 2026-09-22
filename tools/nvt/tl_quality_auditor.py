@@ -524,6 +524,21 @@ def audit_line(record: dict[str, Any]) -> dict[str, Any]:
         "History Match": history_state,
     }
 
+    core_readiness = {
+        "Pivot": pivot_state,
+        "Anchor": anchor_state,
+        "Structure": structure_state,
+        "HL Break": hl_break_state,
+    }
+    missing_evidence = [name for name, state in core_readiness.items() if state == "UNKNOWN"]
+    known_core_count = sum(state != "UNKNOWN" for state in core_readiness.values())
+    if not missing_evidence:
+        audit_readiness = "READY"
+    elif known_core_count:
+        audit_readiness = "PARTIAL"
+    else:
+        audit_readiness = "INSUFFICIENT"
+
     return {
         "schema": QUALITY_SCHEMA,
         "auditor_version": AUDITOR_VERSION,
@@ -534,6 +549,8 @@ def audit_line(record: dict[str, Any]) -> dict[str, Any]:
         "structure_level": level,
         "Quality": quality,
         "Confidence": confidence,
+        "AuditReadiness": audit_readiness,
+        "missing_evidence": missing_evidence,
         "cause_layer": primary,
         "checks": checks,
         "matched_patterns": matched_patterns,
