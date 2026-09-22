@@ -87,8 +87,24 @@ def resolve_tl_transition_from_candidates(
     candidates,
     confirmed_pivot_count: int,
     selected_state: dict | None = None,
+    candidate_anchor_floor: datetime | None = None,
 ) -> TLTransitionResolution:
-    """Pure post-selector state resolution over an already-built candidate set."""
+    """Pure post-selector state resolution over an already-built candidate set.
+
+    candidate_anchor_floor limits STRUCTURE SELECTION to the requested window.
+    Older bars may be present only to initialize the Turn detector; a candidate
+    whose first or second TL anchor predates the floor is never eligible.
+    """
+    if candidate_anchor_floor is not None:
+        candidates = [
+            c for c in candidates
+            if c.anchor1.time >= candidate_anchor_floor
+            and c.anchor2.time >= candidate_anchor_floor
+            and (
+                c.decision_hl is None
+                or c.decision_hl.time >= candidate_anchor_floor
+            )
+        ]
     large, _, _ = select_large_mid(symbol, timeframe, candidates)
     active_candidate = large.candidate if large is not None else None
 
@@ -155,6 +171,7 @@ def resolve_tl_transition_state(
     symbol: str,
     timeframe: str,
     selected_state: dict | None = None,
+    candidate_anchor_floor: datetime | None = None,
 ) -> TLTransitionResolution:
     """Resolve ACTIVE -> TRANSITION_NO_TL -> NEW_ACTIVE after normal selection.
 
@@ -175,4 +192,5 @@ def resolve_tl_transition_state(
         candidates,
         len(turns.pivots),
         selected_state,
+        candidate_anchor_floor,
     )
