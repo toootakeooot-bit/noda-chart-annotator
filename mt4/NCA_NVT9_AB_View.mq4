@@ -28,7 +28,7 @@ enum NVT9_AB_VARIANT
 input NVT9_AB_CASE HistoryCase = CASE_20260912;
 input NVT9_AB_VARIANT Variant = VARIANT_OLD;
 input bool ApplyToAllOpenTargetCharts = true;
-input bool AuditDeleteAllChartObjects = false;
+input bool AuditDeleteAllChartObjects = true;
 input bool ShowCurrentStructuralOverlayOn0912Old = true;
 
 input color D1TLColor = clrYellow;
@@ -419,7 +419,8 @@ bool ApplyHistoryToChart(long chartId, string symbol, string path, datetime cuto
    if(!IsTargetPeriod(period)) return false;
 
    string tf = TFNameFromPeriod(period);
-   if(AuditDeleteAllChartObjects) DeleteAllChartObjects(chartId);
+   bool isolate0912 = (HistoryCase == CASE_20260912 && Variant == VARIANT_OLD);
+   if(AuditDeleteAllChartObjects || isolate0912) DeleteAllChartObjects(chartId);
    else DeleteAuditOwnedObjects(chartId);
 
    int rendered = RenderRowsOnChart(path, chartId, symbol, tf, cutoff);
