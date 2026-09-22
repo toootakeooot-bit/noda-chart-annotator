@@ -1,0 +1,27 @@
+{
+  "schema": "nvt9-0919-visual-audit-freeze/1.0",
+  "status": "FROZEN_VISUAL_AUDIT_COMPLETE",
+  "audit_id": "ID10IQ200",
+  "case_date": "2026-09-19",
+  "confirmed_on": "2026-09-22",
+  "frozen_semantic_head": "e06d6ea8d9e224dafafd70075897385028871fc7",
+  "user_disposition": "Complete for now; proceed to 2026-09-12 drawing using the current audit rules.",
+  "scope": {
+    "visual_reference_frozen": true,
+    "rejected_draw_ledger_frozen_as_guardrail": true,
+    "production_promotion": false,
+    "production_writeback": false,
+    "trade_authority": false
+  },
+  "preserved_artifacts": [
+    "nvt/manifests/NVT9_0919_REFERENCE_LINES_V01.json",
+    "nvt/manifests/NVT9_REJECTED_DRAW_LEDGER_V01.json",
+    "tools/nvt/build_nvt9_structural_overlay_0919.py",
+    "mt4/NCA_NVT9_Reference0919_View.mq4"
+  ],
+  "continuation_policy": {
+    "reopen_only_by_explicit_audit_decision": true,
+    "downstream_cases_must_not_silently_redefine_0919": true,
+    "rejected_draw_rules_may_be_generalized_but_0919_evidence_must_remain_traceable": true
+  }
+}
