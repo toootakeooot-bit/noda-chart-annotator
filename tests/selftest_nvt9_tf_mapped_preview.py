@@ -306,6 +306,59 @@ def main() -> int:
         assert allowed_audit["selection_policy"]["empty_source_semantics"] == "NO_LINE_NO_SYNTHETIC_FALLBACK"
         assert not any(x["source_tf"] == "H4" for x in allowed_audit["selected_families"])
 
+        # Historical retained-reference contract: when H4 CURRENT is empty,
+        # an explicit fallback may select PREVIOUS and copy the same geometry
+        # to H4 + D1.  Main-only mode suppresses zone-edge clutter.
+        retained_out = root / "retained_h4_out"
+        retained_proc = subprocess.run(
+            [
+                sys.executable, str(tool),
+                "--state", str(no_line_path),
+                "--policy", str(policy),
+                "--input-dir", str(input_dir),
+                "--output-dir", str(retained_out),
+                "--fallback-previous-source-tf", "H4",
+                "--main-roles-only-source-tf", "H4",
+                "--main-roles-only-source-tf", "M15",
+            ],
+            capture_output=True, text=True,
+        )
+        assert retained_proc.returncode == 0, retained_proc.stderr + retained_proc.stdout
+        retained_audit = json.loads(
+            (retained_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json").read_text(encoding="utf-8")
+        )
+        assert retained_audit["status"] == "PASS_TF_MAPPED_PREVIEW"
+        assert retained_audit["selection_policy"]["generation_scope"] == "CURRENT_WITH_EXPLICIT_PREVIOUS_FALLBACK"
+        assert retained_audit["fallback_previous_source_tfs"] == ["H4"]
+        assert retained_audit["main_roles_only_source_tfs"] == ["H4", "M15"]
+        h4_retained = retained_audit["source_selection"]["H4"]
+        assert len(h4_retained) == 1
+        assert h4_retained[0]["generation_role"] == "PREVIOUS"
+        assert h4_retained[0]["display_reason"] == "SOURCE_TF_RETAINED_PREVIOUS_FALLBACK"
+        assert h4_retained[0]["display_roles"] == ["TL", "CH"]
+        assert retained_audit["source_selection"]["M15"][0]["display_roles"] == ["TL", "CH"]
+        h4_copies = [
+            x for x in retained_audit["selected_families"]
+            if x["source_tf"] == "H4"
+        ]
+        assert {x["display_tf"] for x in h4_copies} == {"H4", "D1"}
+        assert all(x["generation_role"] == "PREVIOUS" for x in h4_copies)
+        assert retained_audit["source_presence_problems"] == []
+
+        retained_csv = retained_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv"
+        with retained_csv.open("r", encoding="utf-8", newline="") as f:
+            retained_rows = list(csv.DictReader(f))
+        assert any(r["object_id"].startswith("SRC_H4_DST_H4_") for r in retained_rows)
+        assert any(r["object_id"].startswith("SRC_H4_DST_D1_") for r in retained_rows)
+        assert not any(
+            r["object_id"].startswith("SRC_H4_") and r["role"] in {"TL_ZONE_EDGE", "CH_ZONE_EDGE"}
+            for r in retained_rows
+        )
+        assert not any(
+            r["object_id"].startswith("SRC_M15_") and r["role"] in {"TL_ZONE_EDGE", "CH_ZONE_EDGE"}
+            for r in retained_rows
+        )
+
         # Explicit source-direction suppression removes the selected source,
         # its source HL, and every Plan-B copy without selecting a replacement.
         suppress_state = json.loads(json.dumps(state))
