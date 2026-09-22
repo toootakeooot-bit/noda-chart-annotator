@@ -152,6 +152,33 @@
       "replacement_policy": "STRICT_FIRST_THEN_POST_ANCHOR2_UNBROKEN_H1_N_STRUCTURE",
       "enforcement": "build_h1_native_continuation prefers full-life strict candidates, otherwise accepts an H1-native higher-low N structure only if no closed H1 bar breaks the line after anchor2; Decision HL remains tied to that same family.",
       "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-005",
+      "target_type": "D1_RETAINED_REFERENCE_GATE",
+      "target": "ANCHOR_AGE_480D_AND_NEAR_PRICE_GAP_GATE",
+      "scope": [
+        "2026-09-12_D1_MAJOR_TL",
+        "2026-09-12_D1_MAJOR_CH"
+      ],
+      "reason_code": "REJECT_FILTERS_THAT_EXCLUDE_GT0004_RETAINED_REFERENCE",
+      "reason": "The prior 09/12 major-channel attempt incorrectly required anchor1 age <=480 days and a near-current-price support gap. Those generic filters can exclude the retained 2025 D1 reference identified by GT_0004/NVT5 evidence.",
+      "replacement_policy": "GT0004_NVT5_EVIDENCE_WINDOWS_RETAIN_ORIGINAL_GEOMETRY",
+      "enforcement": "09/12 first calls build_d1_retained_reference_0912 using the NVT5 GT_0004 anchor windows; generic major selection is fallback only.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-006",
+      "target_type": "D1_CHANNEL_LIFECYCLE",
+      "target": "LATE_HIGH_REANCHORS_RETAINED_2025_CHANNEL",
+      "scope": [
+        "2026-09-12_D1_MAJOR_CH"
+      ],
+      "reason_code": "REJECT_LATE_HIGH_REANCHOR_OF_RETAINED_CHANNEL",
+      "reason": "The retained D1 reference must preserve its original formed channel geometry. A later 2026 high must not silently expand/re-anchor the historical 2025 CH.",
+      "replacement_policy": "CHANNEL_ANCHOR_FROM_ORIGINAL_FORMATION_WINDOW",
+      "enforcement": "For the retained 09/12 D1 reference, CH candidates are limited to anchor1 through 30 days after anchor2 and prefer post-anchor2 formation contacts.",
+      "status": "ENFORCED"
     }
   ]
 }
