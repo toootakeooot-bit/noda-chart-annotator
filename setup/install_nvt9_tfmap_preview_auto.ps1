@@ -7,6 +7,7 @@ $Sources = @(
   'NCA_NVT9_TFMap_Preview_Renderer.mq4',
   'NCA_NVT9_History_View.mq4',
   'NCA_NVT9_AB_View.mq4',
+  'NCA_NVT9_Reference0919_View.mq4',
   'NCA_NVT9_Return_Live.mq4'
 ) | ForEach-Object {
   Join-Path $RepoRoot ("mt4\{0}" -f $_)
@@ -105,6 +106,7 @@ Write-Host '  NCA_NVT_HistoryExporter'
 Write-Host '  NCA_NVT9_TFMap_Preview_Renderer'
 Write-Host '  NCA_NVT9_History_View'
 Write-Host '  NCA_NVT9_AB_View'
+Write-Host '  NCA_NVT9_Reference0919_View'
 Write-Host '  NCA_NVT9_Return_Live'
 Write-Host ''
 Write-Host 'History_View reads historical cases directly and does NOT overwrite the current live preview.'

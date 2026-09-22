@@ -15,8 +15,9 @@
 
 enum NVT9_AB_CASE
 {
-   CASE_20260912 = 0,
-   CASE_20260919 = 1
+   CASE_20260905 = 0,
+   CASE_20260912 = 1,
+   CASE_20260919 = 2
 };
 
 enum NVT9_AB_VARIANT
@@ -25,10 +26,11 @@ enum NVT9_AB_VARIANT
    VARIANT_NEW = 1
 };
 
-input NVT9_AB_CASE HistoryCase = CASE_20260912;
-input NVT9_AB_VARIANT Variant = VARIANT_NEW;
+input NVT9_AB_CASE HistoryCase = CASE_20260905;
+input NVT9_AB_VARIANT Variant = VARIANT_OLD;
 input bool ApplyToAllOpenTargetCharts = true;
-input bool AuditDeleteAllChartObjects = true;
+input bool AuditDeleteAllChartObjects = false;
+input bool ShowCurrentStructuralOverlayOnHistoricalOld = true;
 
 input color D1TLColor = clrYellow;
 input color D1CHColor = clrOrange;
@@ -46,12 +48,16 @@ input int CaseMarkerWidth = 2;
 input ENUM_LINE_STYLE CaseMarkerStyle = STYLE_DASH;
 
 string PREFIX = "NVT9_TFMAP__";
+string XPREFIX = "NVT9_X0912__";
 string BASE_DIR = "noda_draw\\live_output\\nvt9_ab_0912_0919";
+string OVERLAY_0905_PATH = "noda_draw\\live_output\\nvt9_reference_0905\\NVT9_0919_STRUCTURAL_OVERLAY.csv";
+string OVERLAY_0912_PATH = "noda_draw\\live_output\\nvt9_reference_0912\\NVT9_0919_STRUCTURAL_OVERLAY.csv";
 
 string CaseKey()
 {
    if(HistoryCase == CASE_20260919) return "20260919";
-   return "20260912";
+   if(HistoryCase == CASE_20260912) return "20260912";
+   return "20260905";
 }
 
 string VariantKey()
@@ -63,13 +69,34 @@ string VariantKey()
 datetime CaseCutoff()
 {
    if(HistoryCase == CASE_20260919) return StringToTime("2026.09.19 00:00");
-   return StringToTime("2026.09.12 00:00");
+   if(HistoryCase == CASE_20260912) return StringToTime("2026.09.12 00:00");
+   return StringToTime("2026.09.05 00:00");
 }
 
 string HistoryPreviewPath()
 {
+   if(Variant == VARIANT_OLD && HistoryCase == CASE_20260905)
+      return "noda_draw\\live_output\\nvt9_reference_0905\\base\\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv";
+   if(Variant == VARIANT_OLD && HistoryCase == CASE_20260912)
+      return "noda_draw\\live_output\\nvt9_reference_0912\\base\\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv";
    return BASE_DIR + "\\" + CaseKey() + "\\" + VariantKey() +
           "\\output\\NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv";
+}
+
+bool IsDedicatedReferenceCase()
+{
+   return (
+      Variant == VARIANT_OLD &&
+      (HistoryCase == CASE_20260905 || HistoryCase == CASE_20260912)
+   );
+}
+
+string HistoricalOverlayPath()
+{
+   if(Variant != VARIANT_OLD) return "";
+   if(HistoryCase == CASE_20260905) return OVERLAY_0905_PATH;
+   if(HistoryCase == CASE_20260912) return OVERLAY_0912_PATH;
+   return "";
 }
 
 string TFNameFromPeriod(int p)
@@ -146,6 +173,49 @@ int DeleteAllChartObjects(long chartId)
    return deleted;
 }
 
+int DeleteAuditOwnedObjects(long chartId)
+{
+   int deleted = 0;
+   int total = ObjectsTotal(chartId, -1, -1);
+   for(int i=total-1; i>=0; i--)
+   {
+      string n = ObjectName(chartId, i, -1, -1);
+      if(n == "") continue;
+      if(StringFind(n, PREFIX, 0) == 0 || StringFind(n, XPREFIX, 0) == 0 || StringFind(n, "NVT9_AB_CUTOFF__", 0) == 0)
+      {
+         if(ObjectDelete(chartId, n)) deleted++;
+      }
+   }
+   return deleted;
+}
+
+int DeleteHistoricalSystemObjects(long chartId)
+{
+   int deleted = 0;
+   int total = ObjectsTotal(chartId, -1, -1);
+   for(int i=total-1; i>=0; i--)
+   {
+      string n = ObjectName(chartId, i, -1, -1);
+      if(n == "") continue;
+
+      bool auditOwned =
+         StringFind(n, PREFIX, 0) == 0 ||
+         StringFind(n, XPREFIX, 0) == 0 ||
+         StringFind(n, "NVT9_", 0) == 0;
+
+      bool liveGenerated =
+         StringFind(n, "NCA_", 0) == 0 ||
+         StringFind(n, "NCA_DRAW__", 0) == 0;
+
+      if(auditOwned || liveGenerated)
+      {
+         if(ObjectDelete(chartId, n)) deleted++;
+      }
+   }
+   return deleted;
+}
+
+
 
 bool DrawCaseMarker(long chartId, datetime cutoff)
 {
@@ -190,7 +260,17 @@ void SourceColors(string objectId, color &tlColor, color &chColor)
    else if(isM15) { tlColor = M15TLColor; chColor = M15CHColor; }
 }
 
-int RenderRowsOnChart(string path, long chartId, string symbol, string tf)
+
+void ColorsForTF(string tf, color &tlColor, color &chColor)
+{
+   tlColor = D1TLColor;
+   chColor = D1CHColor;
+   if(tf == "H4") { tlColor = H4TLColor; chColor = H4CHColor; }
+   else if(tf == "H1") { tlColor = H1TLColor; chColor = H1CHColor; }
+   else if(tf == "M15") { tlColor = M15TLColor; chColor = M15CHColor; }
+}
+
+int RenderRowsOnChart(string path, long chartId, string symbol, string tf, datetime cutoff)
 {
    int h = FileOpen(path, FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON, ',');
    if(h == INVALID_HANDLE) return -1;
@@ -217,6 +297,8 @@ int RenderRowsOnChart(string path, long chartId, string symbol, string tf)
       string name = PREFIX + objectId;
       if(StringLen(name) > 63) continue;
 
+      bool projectHistorical0912 = (HistoryCase == CASE_20260912 && Variant == VARIANT_OLD);
+
       ResetLastError();
       if(!ObjectCreate(chartId, name, OBJ_TREND, 0, t1, p1, t2, p2))
       {
@@ -225,6 +307,9 @@ int RenderRowsOnChart(string path, long chartId, string symbol, string tf)
          continue;
       }
 
+      // 09/12 is a selection cutoff, not a visual line-termination point.
+      // The geometry is selected only from pre-cutoff bars, then projected
+      // right as the monitoring reference that existed at that time.
       ObjectSetInteger(chartId, name, OBJPROP_RAY_RIGHT, true);
       ObjectSetInteger(chartId, name, OBJPROP_BACK, false);
 
@@ -245,8 +330,16 @@ int RenderRowsOnChart(string path, long chartId, string symbol, string tf)
       else if(previous)
       {
          c = (role == "CH") ? chColor : tlColor;
-         style = STYLE_DOT;
-         width = PreviewPreviousWidth;
+         if(IsDedicatedReferenceCase())
+         {
+            style = STYLE_SOLID;
+            width = PreviewCurrentWidth;
+         }
+         else
+         {
+            style = STYLE_DOT;
+            width = PreviewPreviousWidth;
+         }
       }
       else if(role == "CH")
       {
@@ -267,6 +360,86 @@ int RenderRowsOnChart(string path, long chartId, string symbol, string tf)
    FileClose(h);
    return rendered;
 }
+
+
+int RenderCurrentHistoricalOverlay(long chartId,string symbol,string tf)
+{
+   if(!ShowCurrentStructuralOverlayOnHistoricalOld) return 0;
+   if(!IsDedicatedReferenceCase()) return 0;
+
+   string overlayPath=HistoricalOverlayPath();
+   if(overlayPath=="") return 0;
+   int h=FileOpen(overlayPath,FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON,',');
+   if(h==INVALID_HANDLE) return 0;
+   if(!ReadAndValidateHeader(h)) { FileClose(h); return -2; }
+
+   int rendered=0;
+   while(!FileIsEnding(h))
+   {
+      string objectId,rowSymbol,rowTf,structure,role,t1s,p1s,t2s,p2s,genRole,generation,status,extent;
+      if(!ReadRow(h,objectId,rowSymbol,rowTf,structure,role,t1s,p1s,t2s,p2s,genRole,generation,status,extent)) break;
+      if(rowSymbol!=symbol || rowTf!=tf) continue;
+
+      datetime t1=StringToTime(t1s), t2=StringToTime(t2s);
+      double p1=StrToDouble(p1s), p2=StrToDouble(p2s);
+      if(t1<=0 || t2<=t1 || p1<=0 || p2<=0) continue;
+
+      string name=XPREFIX+objectId;
+      if(StringLen(name)>63) continue;
+      if(!ObjectCreate(chartId,name,OBJ_TREND,0,t1,p1,t2,p2)) continue;
+      bool approvedReference = (role=="APPROVED_TL" || role=="APPROVED_CH" || role=="APPROVED_HL");
+      ObjectSetInteger(chartId,name,OBJPROP_RAY_RIGHT,approvedReference);
+      ObjectSetInteger(chartId,name,OBJPROP_BACK,false);
+      ObjectSetInteger(chartId,name,OBJPROP_SELECTABLE,false);
+
+      color tlColor,chColor;
+      ColorsForTF(rowTf,tlColor,chColor);
+      color c=tlColor;
+      int style=STYLE_SOLID;
+      int width=2;
+
+      if(role=="CONT_TL") { c=tlColor; width=3; }
+      else if(role=="CONT_CH") { c=chColor; width=2; }
+      else if(role=="CONT_HL") { c=tlColor; style=STYLE_DASH; width=2; }
+      else if(role=="MAJOR_TL") { c=D1TLColor; width=4; }
+      else if(role=="MAJOR_CH") { c=D1CHColor; width=3; }
+      else if(role=="MAJOR_HL") { c=D1TLColor; style=STYLE_DASH; width=2; }
+      else if(role=="APPROVED_TL") { c=D1TLColor; width=4; }
+      else if(role=="APPROVED_CH") { c=D1CHColor; width=3; }
+      else if(role=="APPROVED_HL") { c=D1TLColor; style=STYLE_DASH; width=2; }
+      else if(role=="REACTION_ZONE_LOW" || role=="REACTION_ZONE_HIGH") { c=H1TLColor; width=1; }
+      else if(role=="UPDATED_CH") { c=H1CHColor; width=3; }
+
+      ObjectSetInteger(chartId,name,OBJPROP_COLOR,c);
+      ObjectSetInteger(chartId,name,OBJPROP_STYLE,style);
+      ObjectSetInteger(chartId,name,OBJPROP_WIDTH,width);
+      rendered++;
+
+      if(role=="CONT_TL" || role=="CONT_HL" || role=="MAJOR_TL" || role=="MAJOR_HL" || role=="APPROVED_TL" || role=="APPROVED_HL" || role=="UPDATED_CH" || role=="REACTION_ZONE_HIGH")
+      {
+         string lname=XPREFIX+"LBL_"+objectId;
+         if(ObjectFind(chartId,lname)>=0) ObjectDelete(chartId,lname);
+         if(ObjectCreate(chartId,lname,OBJ_TEXT,0,t2,p2))
+         {
+            string labelText=objectId;
+            if(role=="UPDATED_CH") labelText=objectId+" [UPDATED CH]";
+            else if(role=="CONT_TL") labelText=objectId+" ["+rowTf+" CONT TL]";
+            else if(role=="CONT_HL") labelText=objectId+" ["+rowTf+" DECISION HL]";
+            else if(role=="MAJOR_TL") labelText=objectId+" [D1 MAJOR TL]";
+            else if(role=="MAJOR_HL") labelText=objectId+" [D1 MAJOR HL]";
+            else if(role=="APPROVED_TL") labelText=objectId+" [D1 APPROVED TL]";
+            else if(role=="APPROVED_HL") labelText=objectId+" [D1 APPROVED HL]";
+            else if(role=="REACTION_ZONE_HIGH") labelText=objectId+" [ZONE]";
+            ObjectSetText(lname,labelText,8,"Arial",c);
+            ObjectSetInteger(chartId,lname,OBJPROP_SELECTABLE,false);
+            ObjectSetInteger(chartId,lname,OBJPROP_BACK,false);
+         }
+      }
+   }
+   FileClose(h);
+   return rendered;
+}
+
 
 bool MoveChartToCase(long chartId, string symbol, int period, datetime cutoff)
 {
@@ -294,13 +467,28 @@ bool ApplyHistoryToChart(long chartId, string symbol, string path, datetime cuto
    if(!IsTargetPeriod(period)) return false;
 
    string tf = TFNameFromPeriod(period);
+   bool isolateHistorical = IsDedicatedReferenceCase();
    if(AuditDeleteAllChartObjects) DeleteAllChartObjects(chartId);
+   else if(isolateHistorical) DeleteHistoricalSystemObjects(chartId);
+   else DeleteAuditOwnedObjects(chartId);
 
-   int rendered = RenderRowsOnChart(path, chartId, symbol, tf);
-   if(rendered <= 0)
+   int rendered = RenderRowsOnChart(path, chartId, symbol, tf, cutoff);
+   int overlayRendered = RenderCurrentHistoricalOverlay(chartId, symbol, tf);
+   bool allowNoLineHistorical = IsDedicatedReferenceCase();
+   if(rendered < 0)
+   {
+      Print("NVT9 A-B VIEW: preview read failed chart=", chartId, " tf=", tf, " code=", rendered);
+      return false;
+   }
+   if(rendered == 0 && overlayRendered <= 0 && !allowNoLineHistorical)
    {
       Print("NVT9 A-B VIEW: no rows rendered chart=", chartId, " tf=", tf, " code=", rendered);
       return false;
+   }
+   if(rendered == 0 && allowNoLineHistorical)
+   {
+      Print("NVT9 A-B VIEW: historical NO-LINE accepted chart=", chartId, " tf=", tf,
+            " case=", CaseKey(), " overlay=", overlayRendered);
    }
 
    if(!MoveChartToCase(chartId, symbol, period, cutoff))
@@ -319,7 +507,7 @@ bool ApplyHistoryToChart(long chartId, string symbol, string path, datetime cuto
    Print("NVT9 A-B VIEW PASS chart=", chartId, " tf=", tf, " case=", CaseKey(),
          " variant=", VariantKey(),
          " cutoff=", TimeToString(cutoff, TIME_DATE|TIME_MINUTES),
-         " objects=", rendered, " marker=YES");
+         " objects=", rendered, " overlay=", overlayRendered, " marker=YES");
    return true;
 }
 

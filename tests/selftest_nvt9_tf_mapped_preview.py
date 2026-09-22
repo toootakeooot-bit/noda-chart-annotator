@@ -55,6 +55,7 @@ def main() -> int:
     repo = Path(__file__).resolve().parents[1]
     tool = repo / "tools" / "nvt" / "build_nvt9_tf_mapped_preview.py"
     policy = repo / "nvt" / "manifests" / "NVT9_TF_DISPLAY_MAP_0919_V01.json"
+    policy_h1_m15 = repo / "nvt" / "manifests" / "NVT9_TF_DISPLAY_MAP_H1_TO_M15_V02.json"
 
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
@@ -228,6 +229,60 @@ def main() -> int:
         assert audit["object_name_policy"]["max_full_object_name_length"] <= 63
         assert all(len("NVT9_TFMAP__" + r["object_id"]) <= 63 for r in rows)
 
+        # H1-owned M15 policy V02: M15 must not select a native family.
+        # The exact H1-selected geometry is copied to M15 without reselection.
+        h1_m15_out = root / "h1_m15_out"
+        h1_m15_proc = subprocess.run(
+            [
+                sys.executable, str(tool),
+                "--state", str(state_path),
+                "--policy", str(policy_h1_m15),
+                "--input-dir", str(input_dir),
+                "--output-dir", str(h1_m15_out),
+                "--main-roles-only-source-tf", "H1",
+            ],
+            capture_output=True, text=True,
+        )
+        assert h1_m15_proc.returncode == 0, h1_m15_proc.stderr + h1_m15_proc.stdout
+        h1_m15_audit = json.loads(
+            (h1_m15_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json").read_text(encoding="utf-8")
+        )
+        assert h1_m15_audit["native_disabled_source_tfs"] == ["M15"]
+        assert "M15" not in h1_m15_audit["source_selection"]
+        assert "M15" not in h1_m15_audit["hl_candidates"]
+        assert h1_m15_audit["semantics"]["m15_structural_owner"] == "H1"
+        assert h1_m15_audit["semantics"]["m15_native_selection"] == "DISABLED"
+        assert h1_m15_audit["source_to_display_tfs"]["H1"] == ["H1", "H4", "M15"]
+        assert "M15" not in h1_m15_audit["source_to_display_tfs"]
+        assert h1_m15_audit["display_sources"]["M15"] == ["H1"]
+        assert h1_m15_audit["selected_source_counts"]["M15"] == {"H1": 1}
+
+        h1_owner = h1_m15_audit["source_selection"]["H1"][0]
+        m15_copies = [
+            x for x in h1_m15_audit["selected_families"]
+            if x["display_tf"] == "M15"
+        ]
+        assert len(m15_copies) == 1
+        assert m15_copies[0]["source_tf"] == "H1"
+        assert m15_copies[0]["copied_without_reselection"] is True
+        assert tuple(m15_copies[0]["geometry_signature"]) == tuple(h1_owner["geometry_signature"])
+        assert not any(
+            x["source_tf"] == "M15"
+            for x in h1_m15_audit["selected_families"]
+        )
+
+        h1_m15_csv = h1_m15_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv"
+        with h1_m15_csv.open("r", encoding="utf-8", newline="") as f:
+            h1_m15_rows = list(csv.DictReader(f))
+        assert any(
+            r["timeframe"] == "M15" and r["object_id"].startswith("SRC_H1_DST_M15_")
+            for r in h1_m15_rows
+        )
+        assert not any(
+            r["object_id"].startswith("SRC_M15_")
+            for r in h1_m15_rows
+        )
+
         # Actual NormalRun live-state mode used by the local runner.
         normal_state = dict(state)
         normal_state.pop("research_status", None)
@@ -257,6 +312,138 @@ def main() -> int:
         assert normal_audit["hl_preview_policy"]["always_draw"] is True
         assert normal_audit["selected_source_counts"]["D1"] == {"D1": 1, "H4": 1}
         assert normal_audit["source_presence_problems"] == []
+
+        # Historical NO-LINE contract: strict mode must still fail when a
+        # source TF has no CURRENT family. Explicit research allow-mode may
+        # accept exactly that TF without synthesizing a replacement line.
+        no_line_state = json.loads(json.dumps(state))
+        no_line_state["slots"]["USDJPY#|H4|LARGE_DOW"]["current"] = None
+        no_line_state["slots"]["USDJPY#|H4|MID_DOW"]["current"] = None
+        no_line_path = root / "no_line_state.json"
+        no_line_path.write_text(json.dumps(no_line_state), encoding="utf-8")
+
+        strict_out = root / "strict_no_line_out"
+        strict_proc = subprocess.run(
+            [
+                sys.executable, str(tool),
+                "--state", str(no_line_path),
+                "--policy", str(policy),
+                "--input-dir", str(input_dir),
+                "--output-dir", str(strict_out),
+            ],
+            capture_output=True, text=True,
+        )
+        assert strict_proc.returncode != 0
+        assert "source selection missing: H4 selected=0 expected=1" in (strict_proc.stderr + strict_proc.stdout)
+
+        allowed_out = root / "allowed_no_line_out"
+        allowed_proc = subprocess.run(
+            [
+                sys.executable, str(tool),
+                "--state", str(no_line_path),
+                "--policy", str(policy),
+                "--input-dir", str(input_dir),
+                "--output-dir", str(allowed_out),
+                "--allow-empty-source-tf", "H4",
+            ],
+            capture_output=True, text=True,
+        )
+        assert allowed_proc.returncode == 0, allowed_proc.stderr + allowed_proc.stdout
+        allowed_audit = json.loads(
+            (allowed_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json").read_text(encoding="utf-8")
+        )
+        assert allowed_audit["status"] == "PASS_TF_MAPPED_PREVIEW"
+        assert allowed_audit["allow_empty_source_tfs"] == ["H4"]
+        assert allowed_audit["empty_source_tfs"] == ["H4"]
+        assert allowed_audit["source_selection"]["H4"] == []
+        assert "H4" not in allowed_audit["hl_candidates"]
+        assert allowed_audit["source_presence_problems"] == []
+        assert allowed_audit["selection_policy"]["empty_source_semantics"] == "NO_LINE_NO_SYNTHETIC_FALLBACK"
+        assert not any(x["source_tf"] == "H4" for x in allowed_audit["selected_families"])
+
+        # Historical retained-reference contract: when H4 CURRENT is empty,
+        # an explicit fallback may select PREVIOUS and copy the same geometry
+        # to H4 + D1.  Main-only mode suppresses zone-edge clutter.
+        retained_out = root / "retained_h4_out"
+        retained_proc = subprocess.run(
+            [
+                sys.executable, str(tool),
+                "--state", str(no_line_path),
+                "--policy", str(policy),
+                "--input-dir", str(input_dir),
+                "--output-dir", str(retained_out),
+                "--fallback-previous-source-tf", "H4",
+                "--main-roles-only-source-tf", "H4",
+                "--main-roles-only-source-tf", "M15",
+            ],
+            capture_output=True, text=True,
+        )
+        assert retained_proc.returncode == 0, retained_proc.stderr + retained_proc.stdout
+        retained_audit = json.loads(
+            (retained_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json").read_text(encoding="utf-8")
+        )
+        assert retained_audit["status"] == "PASS_TF_MAPPED_PREVIEW"
+        assert retained_audit["selection_policy"]["generation_scope"] == "CURRENT_WITH_EXPLICIT_RETAINED_FALLBACK"
+        assert retained_audit["fallback_previous_source_tfs"] == ["H4"]
+        assert retained_audit["main_roles_only_source_tfs"] == ["H4", "M15"]
+        h4_retained = retained_audit["source_selection"]["H4"]
+        assert len(h4_retained) == 1
+        assert h4_retained[0]["generation_role"] == "PREVIOUS"
+        assert h4_retained[0]["display_reason"] == "SOURCE_TF_RETAINED_PREVIOUS_FALLBACK"
+        assert h4_retained[0]["display_roles"] == ["TL", "CH"]
+        assert retained_audit["source_selection"]["M15"][0]["display_roles"] == ["TL", "CH"]
+        h4_copies = [
+            x for x in retained_audit["selected_families"]
+            if x["source_tf"] == "H4"
+        ]
+        assert {x["display_tf"] for x in h4_copies} == {"H4", "D1"}
+        assert all(x["generation_role"] == "PREVIOUS" for x in h4_copies)
+        assert retained_audit["source_presence_problems"] == []
+
+        retained_csv = retained_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919.csv"
+        with retained_csv.open("r", encoding="utf-8", newline="") as f:
+            retained_rows = list(csv.DictReader(f))
+        assert any(r["object_id"].startswith("SRC_H4_DST_H4_") for r in retained_rows)
+        assert any(r["object_id"].startswith("SRC_H4_DST_D1_") for r in retained_rows)
+        assert not any(
+            r["object_id"].startswith("SRC_H4_") and r["role"] in {"TL_ZONE_EDGE", "CH_ZONE_EDGE"}
+            for r in retained_rows
+        )
+        assert not any(
+            r["object_id"].startswith("SRC_M15_") and r["role"] in {"TL_ZONE_EDGE", "CH_ZONE_EDGE"}
+            for r in retained_rows
+        )
+
+        # Explicit source-direction suppression removes the selected source,
+        # its source HL, and every Plan-B copy without selecting a replacement.
+        suppress_state = json.loads(json.dumps(state))
+        suppress_state["slots"]["USDJPY#|H1|LARGE_DOW"]["current"]["direction"] = "FALLING"
+        suppress_state["slots"]["USDJPY#|H1|MID_DOW"]["current"]["direction"] = "FALLING"
+        suppress_path = root / "suppress_state.json"
+        suppress_path.write_text(json.dumps(suppress_state), encoding="utf-8")
+        suppress_out = root / "suppress_out"
+        suppress_proc = subprocess.run(
+            [
+                sys.executable, str(tool),
+                "--state", str(suppress_path),
+                "--policy", str(policy),
+                "--input-dir", str(input_dir),
+                "--output-dir", str(suppress_out),
+                "--suppress-selected-source-direction", "H1:FALLING",
+            ],
+            capture_output=True, text=True,
+        )
+        assert suppress_proc.returncode == 0, suppress_proc.stderr + suppress_proc.stdout
+        suppress_audit = json.loads(
+            (suppress_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json").read_text(encoding="utf-8")
+        )
+        assert suppress_audit["source_selection"]["H1"] == []
+        assert suppress_audit["suppressed_source_selections"][0]["source_tf"] == "H1"
+        assert suppress_audit["suppressed_source_selections"][0]["direction"] == "FALLING"
+        assert "H1" not in suppress_audit["hl_candidates"]
+        assert suppress_audit["source_presence_problems"] == []
+        assert not any(x["source_tf"] == "H1" for x in suppress_audit["selected_families"])
+        assert suppress_audit["selection_policy"]["suppressed_source_semantics"] == "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT"
 
     print("NVT9 TF DISPLAY MAP SELFTEST PASS")
     return 0

@@ -1,0 +1,356 @@
+{
+  "schema": "nvt9-rejected-draw-ledger/0.1",
+  "status": "ACTIVE_RESEARCH_GUARDRAIL",
+  "audit_id": "ID10IQ200",
+  "purpose": "Preserve explicitly rejected line families and rejected draw-selection patterns so visual mistakes are not silently reintroduced.",
+  "entries": [
+    {
+      "rejection_id": "RD0919-001",
+      "target_type": "REFERENCE_LINE_FAMILY",
+      "target": "R0919-06",
+      "scope": [
+        "H1",
+        "H4_PLAN_B_COPY"
+      ],
+      "reason_code": "USER_CONFIRMED_UNNECESSARY_0919_VISUAL",
+      "reason": "H1 MID_DOW FALLING family was visually reviewed and confirmed unnecessary for the 09/19 reference. Its mapped H4 copy is also unnecessary.",
+      "enforcement": "NVT9_0919_REFERENCE_LINES_V01.json display_override=SUPPRESSED",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0919-002",
+      "target_type": "RENDER_PATTERN",
+      "target": "ZERO_WIDTH_ZONE_EDGE",
+      "scope": [
+        "TL_ZONE_EDGE",
+        "CH_ZONE_EDGE"
+      ],
+      "reason_code": "ZERO_WIDTH_DUPLICATE_EDGE_SUPPRESSED",
+      "reason": "When zone_width is zero, the dashed zone edge is identical to the solid TL/CH and visually overwrites it.",
+      "enforcement": "build_nvt9_0919_reference.py omits zone edges when abs(zone_width)<=1e-12",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0919-003",
+      "target_type": "SELECTOR_POLICY",
+      "target": "D1_CONTINUATION_LONGEST_DURATION_FIRST",
+      "scope": [
+        "D1_CONTINUATION_SUPPORT"
+      ],
+      "reason_code": "REJECT_OBSOLETE_SHALLOW_CONTINUATION_SUPPORT",
+      "reason": "Visual audit showed the duration-first selector can choose a long but obsolete shallow D1 support line below the intended active broad support.",
+      "replacement_policy": "TIGHTEST_UNBROKEN_BROAD_SUPPORT",
+      "enforcement": "build_nvt9_structural_overlay_0919.py requires broad structural duration when available, then selects the tightest unbroken support at the cutoff.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0919-004",
+      "target_type": "ZONE_PATTERN",
+      "target": "OVERLAPPING_PARALLEL_REACTION_ZONE",
+      "scope": [
+        "H1_PARALLEL_REACTION_ZONE"
+      ],
+      "reason_code": "SUPPRESSED_OVERLAP",
+      "reason": "Parallel reaction zones must not overlap; when overlap occurs, the weaker-scoring zone is rejected rather than merged into a wider ambiguous band.",
+      "enforcement": "cluster_reaction_zones keeps only the strongest non-overlapping zones.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0919-005",
+      "target_type": "SELECTOR_CONSTRAINT",
+      "target": "D1_CONTINUATION_LAST4_ANCHOR2_ONLY",
+      "scope": [
+        "D1_CONTINUATION_SUPPORT"
+      ],
+      "reason_code": "REJECT_RECENT_ANCHOR2_ONLY_FOR_BROAD_D1",
+      "reason": "Restricting D1 continuation anchor2 to only the latest four lows can exclude an older major pullback low that still owns the broad support structure.",
+      "replacement_policy": "SEARCH_ALL_CONFIRMED_D1_LOWS_THEN_REQUIRE_BROAD_UNBROKEN_SUPPORT",
+      "enforcement": "build_d1_continuation no longer applies the last-four-low anchor2 gate and validates closed-bar support for the whole candidate life.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0919-006",
+      "target_type": "TIMEFRAME_OWNERSHIP",
+      "target": "M15_R0919_08_USED_AS_H1_NATIVE_BASE",
+      "scope": [
+        "H1_TL",
+        "H1_HL",
+        "H1_REACTION_ZONE",
+        "H1_UPDATED_CH"
+      ],
+      "reason_code": "REJECT_MAPPED_M15_AS_H1_NATIVE_STRUCTURE",
+      "reason": "A mapped M15 line may be displayed on H1, but it must not substitute for the H1-native TL/HL structure or own H1 reaction zones and Updated CH.",
+      "replacement_policy": "H1_NATIVE_CONFIRMED_PIVOTS",
+      "enforcement": "H1 overlay now builds X0919-H1-CONT-01 from H1 bars/pivots; zones and Updated CH use that family only.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0919-007",
+      "target_type": "ZONE_DENSITY",
+      "target": "H1_REACTION_ZONE_TOO_DENSE",
+      "scope": [
+        "H1_PARALLEL_REACTION_ZONE"
+      ],
+      "reason_code": "REJECT_TOO_DENSE_REACTION_ZONES",
+      "reason": "Four non-overlapping bands can still be visually too dense. H1 zones must be structurally separated, not merely mathematically non-overlapping.",
+      "replacement_policy": "MAX_3_WITH_MINIMUM_CENTER_GAP_AND_STRONGER_REACTION_EVIDENCE",
+      "enforcement": "H1 zones are capped at three; centers must be at least 1.25 median H1 bar ranges apart; each zone needs at least four reacting bars and body-weight >= 6.0.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-001",
+      "target_type": "HISTORICAL_NO_LINE_GUARDRAIL",
+      "target": "2026-09-12_H4_ZERO_SELECTED_CURRENT_FAMILY",
+      "scope": [
+        "H4",
+        "PLAN_B_H4_SOURCE_COPIES"
+      ],
+      "reason_code": "NO_LINE_NO_SYNTHETIC_FALLBACK",
+      "reason": "At the 2026-09-12 cutoff, the 600-closed-bar replay produces zero selected CURRENT H4 families. Do not invent or borrow a replacement H4 source line solely to satisfy a one-family preview assumption.",
+      "enforcement": "build_nvt9_reference_0912.py opts H4 into --allow-empty-source-tf; build_nvt9_tf_mapped_preview.py records H4 as an empty source selection and skips its source-copy/HL rows.",
+      "status": "SUPERSEDED_BY_RETAINED_REFERENCE",
+      "superseded_by": "RD0912-011",
+      "superseded_reason": "CURRENT=0 does not mean structural history disappears. For 09/12, the last retained H4 PREVIOUS family must remain visible and map to D1."
+    },
+    {
+      "rejection_id": "RD0912-002",
+      "target_type": "REFERENCE_LINE_FAMILY",
+      "target": "2026-09-12_H1_SELECTED_FALLING_SOURCE",
+      "scope": [
+        "H1",
+        "H4_PLAN_B_COPY"
+      ],
+      "reason_code": "USER_REJECTED_H1_FALLING_AND_MAPPED_H4_COPY",
+      "reason": "09/12 visual audit identified the selected H1 FALLING source family and its mapped H4 copy as unnecessary compared with the frozen 09/19 structure.",
+      "replacement_policy": "SUPPRESS_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT",
+      "enforcement": "build_nvt9_reference_0912.py passes --suppress-selected-source-direction H1:FALLING; preview removes the source, its mapped copies, and its source Decision-HL.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-003",
+      "target_type": "D1_DISPLAY_FAMILY",
+      "target": "2026-09-12_SHALLOW_D1_RISING_BASE_FAMILY",
+      "scope": [
+        "D1"
+      ],
+      "reason_code": "REJECT_SHALLOW_D1_BASE_WHEN_MAJOR_CHANNEL_AVAILABLE",
+      "reason": "09/12 visual audit showed the selected D1 rising base family as a shallow/duplicate structure while the broad multi-month rising TL/CH was missing.",
+      "replacement_policy": "D1_MAJOR_RISING_MULTI_MONTH_SUPPORT_CHANNEL",
+      "enforcement": "09/12 base preview suppresses D1:RISING and structural overlay emits X0912-D1-MAJOR-01 TL/CH/HL when the major channel passes.",
+      "status": "SUPERSEDED_BY_VISUAL_TRUTH",
+      "superseded_by": "VT0912-D1-001",
+      "superseded_reason": "The user later marked the exact D1 LOW/LOW pair. Generic major-channel selection is no longer authoritative for this 09/12 target."
+    },
+    {
+      "rejection_id": "RD0912-004",
+      "target_type": "H1_NATIVE_GATE",
+      "target": "H1_FULL_LIFE_UNBROKEN_ONLY",
+      "scope": [
+        "H1_TL",
+        "H1_DECISION_HL",
+        "H1_UPDATED_CH",
+        "H1_REACTION_ZONE"
+      ],
+      "reason_code": "REJECT_PRE_ANCHOR2_BREAK_AS_HARD_H1_GATE",
+      "reason": "A two-anchor H1 TL does not exist as an actionable line before anchor2 forms. Requiring the projected line to remain untouched from anchor1 can suppress the H1-native TL and its Decision HL even when the formed structure is valid after anchor2.",
+      "replacement_policy": "STRICT_FIRST_THEN_POST_ANCHOR2_UNBROKEN_H1_N_STRUCTURE",
+      "enforcement": "build_h1_native_continuation prefers full-life strict candidates, otherwise accepts an H1-native higher-low N structure only if no closed H1 bar breaks the line after anchor2; Decision HL remains tied to that same family.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-005",
+      "target_type": "D1_RETAINED_REFERENCE_GATE",
+      "target": "ANCHOR_AGE_480D_AND_NEAR_PRICE_GAP_GATE",
+      "scope": [
+        "2026-09-12_D1_MAJOR_TL",
+        "2026-09-12_D1_MAJOR_CH"
+      ],
+      "reason_code": "REJECT_FILTERS_THAT_EXCLUDE_GT0004_RETAINED_REFERENCE",
+      "reason": "The prior 09/12 major-channel attempt incorrectly required anchor1 age <=480 days and a near-current-price support gap. Those generic filters can exclude the retained 2025 D1 reference identified by GT_0004/NVT5 evidence.",
+      "replacement_policy": "GT0004_NVT5_EVIDENCE_WINDOWS_RETAIN_ORIGINAL_GEOMETRY",
+      "enforcement": "09/12 first calls build_d1_retained_reference_0912 using the NVT5 GT_0004 anchor windows; generic major selection is fallback only.",
+      "status": "SUPERSEDED_WRONG_INTERPRETATION",
+      "superseded_by": "VT0912-D1-001",
+      "superseded_reason": "GT_0004 2025 retained-reference windows describe a different D1 reference and were incorrectly applied to the yellow-circle 09/12 target."
+    },
+    {
+      "rejection_id": "RD0912-006",
+      "target_type": "D1_CHANNEL_LIFECYCLE",
+      "target": "LATE_HIGH_REANCHORS_RETAINED_2025_CHANNEL",
+      "scope": [
+        "2026-09-12_D1_MAJOR_CH"
+      ],
+      "reason_code": "REJECT_LATE_HIGH_REANCHOR_OF_RETAINED_CHANNEL",
+      "reason": "The retained D1 reference must preserve its original formed channel geometry. A later 2026 high must not silently expand/re-anchor the historical 2025 CH.",
+      "replacement_policy": "CHANNEL_ANCHOR_FROM_ORIGINAL_FORMATION_WINDOW",
+      "enforcement": "For the retained 09/12 D1 reference, CH candidates are limited to anchor1 through 30 days after anchor2 and prefer post-anchor2 formation contacts.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-007",
+      "target_type": "HISTORICAL_RENDER_CONTRACT",
+      "target": "AUDIT_LINE_RAY_RIGHT_BEYOND_2026_09_12_CUTOFF",
+      "scope": [
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "reason_code": "STOP_AUDIT_LINES_AT_HISTORICAL_CUTOFF",
+      "reason": "The 09/12 historical viewer previously rendered audit TL/CH/HL with RAY_RIGHT, making valid pre-cutoff lines look like new post-09/12 geometry. This must not be interpreted as a separate valid future line.",
+      "replacement_policy": "PROJECT_TO_CUTOFF_THEN_RAY_RIGHT_FALSE",
+      "enforcement": "NCA_NVT9_AB_View projects base-preview geometry to the 09/12 cutoff and renders it with RAY_RIGHT=false; 09/12 structural overlay is also non-ray.",
+      "status": "SUPERSEDED_SELECTION_DISPLAY_CONFLATION",
+      "superseded_by": "RD0912-012",
+      "superseded_reason": "The no-lookahead cutoff constrains data used to select anchors, not the rightward display projection of an already-established TL/CH."
+    },
+    {
+      "rejection_id": "RD0912-008",
+      "target_type": "REFERENCE_IDENTITY",
+      "target": "GT0004_2025_REFERENCE_USED_AS_ANNOTATED_0912_D1_LOW_PAIR",
+      "scope": [
+        "D1"
+      ],
+      "reason_code": "REJECT_DIFFERENT_REFERENCE_AS_USER_APPROVED_D1_TARGET",
+      "reason": "The previous correction incorrectly treated the GT_0004 2025 retained D1 reference as the line identified by the user's two yellow circles. The annotated target is a different 2026 LOW->LOW line.",
+      "replacement_policy": "VT0912_D1_001_USER_ANNOTATED_2026_LOW_WINDOWS",
+      "enforcement": "NVT9_0912_VISUAL_TRUTH_V01.json defines approved 2026 anchor windows and runtime verification fails if generated D1 anchors fall outside them.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-009",
+      "target_type": "AUDIT_VIEW_ISOLATION",
+      "target": "STALE_LIVE_OR_MANUAL_TL_VISIBLE_IN_0912_AUDIT",
+      "scope": [
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "reason_code": "CLEAN_0912_CHART_BEFORE_REPLAY",
+      "reason": "Stale live/manual chart objects survived the historical replay and appeared as post-cutoff TLs even after audit geometry was corrected.",
+      "replacement_policy": "DELETE_ALL_CHART_OBJECTS_THEN_DRAW_0912_AUDIT_ONLY",
+      "enforcement": "NCA_NVT9_AB_View forces clean isolation for CASE_20260912/VARIANT_OLD before drawing the base and structural overlay.",
+      "status": "SUPERSEDED_BY_SCOPED_SYSTEM_CLEANUP",
+      "superseded_by": "RD0912-013",
+      "superseded_reason": "Deleting every chart object was stronger than necessary. Historical replay now removes NCA/NVT9 generated objects while preserving unrelated/manual objects."
+    },
+    {
+      "rejection_id": "RD0912-010",
+      "target_type": "D1_ANCHOR_SELECTION",
+      "target": "INDEPENDENT_LOWEST_PIVOT_SELECTION",
+      "scope": [
+        "D1_APPROVED_TL"
+      ],
+      "reason_code": "REJECT_INNER_TL_WITH_FORMATION_WICK_OUTSIDE",
+      "reason": "Selecting the two D1 anchors independently can produce an inner rising TL that cuts through another formation wick. The user's aqua reference is the outer support envelope.",
+      "replacement_policy": "PAIRWISE_OUTERMOST_WICK_ENVELOPE_ZERO_FORMATION_WICK_BREACH",
+      "enforcement": "build_d1_visual_truth_0912 evaluates LOW/LOW pairs jointly and rejects any pair with a D1 wick below the TL between anchor1 and anchor2; runtime verifier requires zero formation wick breaches.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-011",
+      "target_type": "H4_LIFECYCLE_FALLBACK",
+      "target": "2026-09-12_H4_CURRENT_EMPTY_WITH_RETAINED_PREVIOUS",
+      "scope": [
+        "H4",
+        "D1_PLAN_B_COPY"
+      ],
+      "reason_code": "RESTORE_RETAINED_PREVIOUS_WHEN_CURRENT_ABSENT",
+      "reason": "At the 09/12 cutoff, H4 can have no CURRENT family while an older valid monitoring structure still exists. That retained family must not disappear solely because CURRENT is empty.",
+      "replacement_policy": "CURRENT_THEN_PREVIOUS_THEN_FROZEN_REFERENCE_REVALIDATED_PRE_CUTOFF",
+      "enforcement": "09/12 first uses CURRENT. If absent, PREVIOUS may be retained. If both are absent, the frozen 09/19 H4 anchor pair is accepted only when the exact pair rebuilds as a valid ChannelCandidate from 09/12 pre-cutoff bars; Decision HL and CH are recomputed from those bars.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-012",
+      "target_type": "HISTORICAL_PROJECTION_SEMANTICS",
+      "target": "VALID_PRE_CUTOFF_TL_CH_RIGHTWARD_PROJECTION",
+      "scope": [
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "reason_code": "SEPARATE_SELECTION_CUTOFF_FROM_DISPLAY_PROJECTION",
+      "reason": "Future bars must not participate in selecting the 09/12 structure, but the TL/CH that already existed at 09/12 remains a monitoring reference projected to the right.",
+      "replacement_policy": "PRE_CUTOFF_ANCHORS_ONLY_PLUS_RAY_RIGHT_DISPLAY",
+      "enforcement": "09/12 package is built from pre-cutoff bars only; NCA_NVT9_AB_View renders selected base references and approved D1 references with RAY_RIGHT.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-013",
+      "target_type": "AUDIT_VIEW_CLEANUP_SCOPE",
+      "target": "HISTORICAL_REPLAY_OBJECT_CLEANUP",
+      "scope": [
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "reason_code": "DELETE_GENERATED_SYSTEM_OBJECTS_NOT_ALL_OBJECTS",
+      "reason": "A clean historical replay must remove stale NCA/NVT9 generated geometry without treating unrelated/manual chart objects as structural history.",
+      "replacement_policy": "SCOPED_NCA_NVT9_CLEANUP_THEN_COMPLETE_REBUILD",
+      "enforcement": "For 09/12 OLD, the viewer removes NCA_/NCA_DRAW__/NVT9-generated objects, preserves unrelated manual objects, then redraws base and overlay geometry.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-014",
+      "target_type": "H4_REFERENCE_RECOVERY",
+      "target": "H4_STATE_CURRENT_AND_PREVIOUS_BOTH_EMPTY",
+      "scope": [
+        "H4",
+        "D1_PLAN_B_COPY"
+      ],
+      "reason_code": "REVALIDATE_FROZEN_REFERENCE_ANCHORS_PRE_CUTOFF",
+      "reason": "The 09/12 600-bar lifecycle state can contain no H4 CURRENT/PREVIOUS even though the earlier frozen visual reference used an H4 structure whose anchors predate 09/12.",
+      "replacement_policy": "FROZEN_REFERENCE_IDENTITY_ONLY_REBUILD_GEOMETRY_FROM_PRE_CUTOFF_BARS",
+      "enforcement": "R0919 H4 anchor identity is used only as a lookup target. detect_turns/build_channel_candidates rerun on the 09/12 pre-cutoff input; the exact anchor pair must exist there as a valid candidate. CH offset, Decision HL, activation, and zone evidence come from the pre-cutoff candidate, not from 09/19 future geometry.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0905-001",
+      "target_type": "H1_REFERENCE_RECOVERY",
+      "target": "2026-09-05_H1_CURRENT_EMPTY",
+      "scope": [
+        "H1",
+        "H4_PLAN_B_COPY"
+      ],
+      "reason_code": "DO_NOT_FAIL_FIRST_0905_AUDIT_ON_EMPTY_H1_CURRENT",
+      "reason": "At the 09/05 cutoff the rebuilt state can contain no H1 CURRENT family. The first visual audit must try retained evidence before deciding the chart has no H1 line.",
+      "replacement_policy": "CURRENT_THEN_PREVIOUS_THEN_FROZEN_REFERENCE_REVALIDATED_PRE_CUTOFF_ELSE_NO_LINE",
+      "enforcement": "09/05 H1 selection now tries CURRENT, then PREVIOUS, then revalidates frozen H1 reference anchors using only pre-cutoff H1 bars. If all routes are absent, H1 NO-LINE is allowed for the first visual audit.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0905-002",
+      "target_type": "TIMEFRAME_OWNERSHIP",
+      "target": "M15_NATIVE_TL_CH_SELECTION",
+      "scope": [
+        "M15_TL",
+        "M15_CH",
+        "M15_DISPLAY"
+      ],
+      "reason_code": "DISABLE_M15_NATIVE_USE_H1_OWNER",
+      "reason": "User audit decision: M15 movement is too abrupt/noisy for stable native TL/CH selection. M15 should show the same structural family as H1 rather than create a separate M15 geometry.",
+      "replacement_policy": "H1_SELECTED_FAMILY_COPIED_TO_M15_NO_RESELECTION",
+      "enforcement": "NVT9_TF_DISPLAY_MAP_H1_TO_M15_V02 removes M15 from source_to_display_tfs, marks M15 native-disabled, and maps the H1-selected family to H1/H4/M15. build_nvt9_tf_mapped_preview.py rejects any native-disabled source leak.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0905-003",
+      "target_type": "TL_LIFECYCLE_STATE",
+      "target": "BROKEN_OLD_TL_WITH_NO_REPLACEMENT_N",
+      "scope": [
+        "H4",
+        "H1",
+        "M15_DISPLAY_OWNERSHIP"
+      ],
+      "reason_code": "MODEL_TRANSITION_GAP_EXPLICITLY",
+      "reason": "A valid structural gap exists after the prior TL is broken but before two replacement anchors plus the Decision-HL break establish the next TL. Treating this gap as generic NO-LINE loses the parent-TF monitoring structure.",
+      "replacement_policy": "ACTIVE_TO_TRANSITION_NO_TL_TO_NEW_ACTIVE_POST_SELECTOR_PRE_MAPPING",
+      "enforcement": "tools/live_draw/tl_transition.py resolves ACTIVE/TRANSITION_NO_TL/NEW_ACTIVE after selector output. NVT9_TF_DISPLAY_MAP_TRANSITION_V03 uses the state before mapping: H4 TRANSITION inherits D1; M15 native-disabled inherits H1. NEW_ACTIVE is permitted only from the existing activated N rules.",
+      "status": "ENFORCED"
+    }
+  ]
+}

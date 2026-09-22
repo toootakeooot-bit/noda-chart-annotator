@@ -12,8 +12,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 
+from live_draw.geometry import build_channel_candidates
 from live_draw.market_input import load_ohlc_csv
 from live_draw.normal_run import safe_symbol_filename
+from live_draw.tl_transition import resolve_tl_transition_state
 from live_draw.turn_detector import detect_turns
 
 ROLES = ("TL", "CH", "TL_ZONE_EDGE", "CH_ZONE_EDGE")
@@ -137,10 +139,38 @@ def family_record(s: dict, gen_role: str, display_tf: str, price: float, eval_ti
     }
 
 
+def transition_candidate_state(candidate, symbol: str, timeframe: str) -> dict:
+    """Serialize an already-valid N candidate selected by the transition layer."""
+    return {
+        "line_id": f"TRANS_{timeframe}_{candidate.direction}_{candidate.anchor2.time.strftime('%Y%m%d%H%M')}",
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "structure_level": "LARGE_DOW",
+        "generation": 0,
+        "status": "ACTIVE",
+        "direction": candidate.direction,
+        "anchor1_time": candidate.anchor1.time.isoformat(),
+        "anchor1_price": float(candidate.anchor1.price),
+        "anchor2_time": candidate.anchor2.time.isoformat(),
+        "anchor2_price": float(candidate.anchor2.price),
+        "ch_offset": float(candidate.ch_offset),
+        "zone_width": float(candidate.zone_width),
+        "selection_version": "POST_SELECTOR_TL_TRANSITION_V01",
+        "decision_hl_time": candidate.decision_hl.time.isoformat(),
+        "decision_hl_price": float(candidate.decision_hl.price),
+        "decision_hl_kind": candidate.decision_hl.kind,
+        "hl_break_time": candidate.hl_break_time.isoformat(),
+        "hl_break_mode": candidate.hl_break_mode,
+    }
+
+
 def select_source_families(
     candidates: list[dict],
     source_tf: str,
     per_source: int,
+    allowed_generation_roles: tuple[str, ...] = ("CURRENT",),
+    display_reason: str = "SOURCE_TF_NEAREST_FAMILY",
+    main_roles_only: bool = False,
 ) -> list[dict]:
     # Selection is made ONCE on the SOURCE timeframe using the source
     # timeframe's own latest closed bar / current price. The chosen geometry
@@ -149,9 +179,7 @@ def select_source_families(
     for c in candidates:
         if c["source_tf"] != source_tf:
             continue
-        # Audit preview reproduces the source chart's aqua CURRENT structure.
-        # PREVIOUS is intentionally excluded from this visual verification.
-        if c["generation_role"] != "CURRENT":
+        if c["generation_role"] not in allowed_generation_roles:
             continue
         by_geom[geometry_key(c["_state"])].append(c)
 
@@ -177,10 +205,150 @@ def select_source_families(
     selected = []
     for c in ranked[:per_source]:
         item = dict(c)
-        item["display_reason"] = "SOURCE_TF_NEAREST_FAMILY"
-        item["display_roles"] = list(ROLES)
+        item["display_reason"] = display_reason
+        item["display_roles"] = ["TL", "CH"] if main_roles_only else list(ROLES)
         selected.append(item)
     return selected
+
+def build_revalidated_reference_family(
+    reference_manifest: dict,
+    source_tf: str,
+    bars: list,
+    symbol: str,
+    current_price: float,
+    eval_time: datetime,
+    main_roles_only: bool,
+) -> list[dict]:
+    """Revalidate a frozen reference anchor pair using ONLY supplied bars.
+
+    The frozen manifest contributes identity/anchor expectations only.
+    Geometry evidence (confirmed pivots, decision HL, activation, CH offset,
+    zone width) is rebuilt from the pre-cutoff bars.  If the exact reference
+    anchor pair is not a valid candidate in those bars, no fallback is emitted.
+    """
+    turns = detect_turns(bars)
+    candidates = build_channel_candidates(bars, turns.pivots)
+    refs = [
+        x for x in (reference_manifest.get("lines") or [])
+        if x.get("timeframe") == source_tf
+        and x.get("status") in {"ACTIVE", "REFERENCE_RETAINED", "RETIRED"}
+    ]
+    refs.sort(key=lambda x: (
+        0 if x.get("structure_level") == "LARGE_DOW" else 1,
+        int(x.get("reference_no", 9999)),
+    ))
+
+    matched = []
+    for ref in refs:
+        ra1t = datetime.fromisoformat(ref["anchor1_time"])
+        ra2t = datetime.fromisoformat(ref["anchor2_time"])
+        ra1p = float(ref["anchor1_price"])
+        ra2p = float(ref["anchor2_price"])
+        direction = ref["direction"]
+
+        for c in candidates:
+            if c.direction != direction:
+                continue
+            if c.anchor1.time != ra1t or c.anchor2.time != ra2t:
+                continue
+            if abs(float(c.anchor1.price) - ra1p) > 1e-9:
+                continue
+            if abs(float(c.anchor2.price) - ra2p) > 1e-9:
+                continue
+            # All confirmation/activation evidence comes from the supplied
+            # pre-cutoff bar set because build_channel_candidates() ran only
+            # on those bars.
+            state = {
+                "line_id": f"REF0912_{ref['reference_id']}",
+                "symbol": symbol,
+                "timeframe": source_tf,
+                "structure_level": ref["structure_level"],
+                "generation": int(ref.get("generation", 0)),
+                "status": "REFERENCE_RETAINED",
+                "direction": c.direction,
+                "anchor1_time": c.anchor1.time.isoformat(),
+                "anchor1_price": float(c.anchor1.price),
+                "anchor2_time": c.anchor2.time.isoformat(),
+                "anchor2_price": float(c.anchor2.price),
+                "ch_offset": float(c.ch_offset),
+                "zone_width": float(c.zone_width),
+                "selection_version": "FROZEN_REFERENCE_ANCHORS_REVALIDATED_PRE_CUTOFF",
+                "decision_hl_time": c.decision_hl.time.isoformat(),
+                "decision_hl_price": float(c.decision_hl.price),
+                "decision_hl_kind": c.decision_hl.kind,
+                "hl_break_time": c.hl_break_time.isoformat(),
+                "hl_break_mode": c.hl_break_mode,
+                "reference_id": ref["reference_id"],
+                "reference_anchor_revalidated": True,
+                "anchor1_confirmed_by_time": c.anchor1.confirmed_by_time.isoformat(),
+                "anchor2_confirmed_by_time": c.anchor2.confirmed_by_time.isoformat(),
+                "decision_hl_confirmed_by_time": c.decision_hl.confirmed_by_time.isoformat(),
+            }
+            fam = family_record(state, "reference", source_tf, current_price, eval_time)
+            fam["display_reason"] = "SOURCE_TF_FROZEN_REFERENCE_REVALIDATED"
+            fam["display_roles"] = ["TL", "CH"] if main_roles_only else list(ROLES)
+            fam["reference_id"] = ref["reference_id"]
+            fam["reference_anchor_revalidated"] = True
+            matched.append(fam)
+            break
+
+    if not matched:
+        return []
+
+    matched.sort(key=lambda x: (
+        x["distance_to_channel"],
+        0 if x["structure_level"] == "LARGE_DOW" else 1,
+        x["reference_id"],
+    ))
+    return [matched[0]]
+
+
+def build_history_replay_retained_family(
+    history_state: dict,
+    source_tf: str,
+    current_price: float,
+    eval_time: datetime,
+    main_roles_only: bool,
+) -> list[dict]:
+    """Select a previously-established lifecycle line at the cutoff.
+
+    This is not a new-candidate search.  The supplied history_state was built
+    chronologically from bars strictly before the cutoff.  Break alone does not
+    delete lifecycle state, so a current line can remain as a monitoring
+    reference when the rolling 600-bar selector has no replacement candidate.
+    """
+    candidates = []
+    for _, slot in sorted((history_state.get("slots") or {}).items()):
+        state = slot.get("current")
+        if not state or state.get("timeframe") != source_tf:
+            continue
+        retained = dict(state)
+        retained["status"] = "REFERENCE_RETAINED"
+        retained["selection_version"] = (
+            str(retained.get("selection_version") or "")
+            + "|PRE_CUTOFF_HISTORY_REPLAY_RETAINED"
+        )
+        fam = family_record(
+            retained,
+            "reference",
+            source_tf,
+            current_price,
+            eval_time,
+        )
+        fam["display_reason"] = "SOURCE_TF_PRE_CUTOFF_HISTORY_REPLAY_RETAINED"
+        fam["display_roles"] = ["TL", "CH"] if main_roles_only else list(ROLES)
+        fam["history_replay_retained"] = True
+        candidates.append(fam)
+
+    return select_source_families(
+        candidates,
+        source_tf,
+        1,
+        allowed_generation_roles=("REFERENCE",),
+        display_reason="SOURCE_TF_PRE_CUTOFF_HISTORY_REPLAY_RETAINED",
+        main_roles_only=main_roles_only,
+    )
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(
@@ -190,21 +358,112 @@ def main() -> int:
     ap.add_argument("--policy", required=True)
     ap.add_argument("--input-dir", required=True)
     ap.add_argument("--input-prefix", default="NVT", choices=["NVT", "NORMAL"])
+    ap.add_argument(
+        "--transition-warmup-input-dir",
+        help="Optional pre-cutoff warmup bars for Turn-detector initialization. Used only when the 600-bar transition pass has zero candidates; candidate anchors remain restricted to the normal input window.",
+    )
+    ap.add_argument(
+        "--transition-history-state",
+        help="Optional chronological pre-cutoff lifecycle state. Used only to retain a TL that was already established before the cutoff when the rolling selector has zero candidates.",
+    )
     ap.add_argument("--output-dir", required=True)
+    ap.add_argument(
+        "--fallback-previous-source-tf",
+        action="append",
+        default=[],
+        choices=["D1", "H4", "H1", "M15"],
+        help="Research-only: if CURRENT is absent, select the nearest PREVIOUS family for this source TF.",
+    )
+    ap.add_argument("--fallback-reference-manifest")
+    ap.add_argument(
+        "--fallback-reference-source-tf",
+        action="append",
+        default=[],
+        choices=["D1", "H4", "H1", "M15"],
+        help="Research-only: if CURRENT/PREVIOUS are absent, revalidate frozen reference anchors using pre-cutoff bars.",
+    )
+    ap.add_argument(
+        "--main-roles-only-source-tf",
+        action="append",
+        default=[],
+        choices=["D1", "H4", "H1", "M15"],
+        help="Research-only: draw only TL/CH for this source TF; suppress zone edges.",
+    )
+    ap.add_argument(
+        "--suppress-selected-source-direction",
+        action="append",
+        default=[],
+        help="Research-only selector override in TF:DIRECTION form, e.g. H1:FALLING.",
+    )
+    ap.add_argument(
+        "--allow-empty-source-tf",
+        action="append",
+        default=[],
+        choices=["D1", "H4", "H1", "M15"],
+        help="Research-only: allow this source timeframe to have zero selected CURRENT families.",
+    )
     args = ap.parse_args()
 
     state_path = Path(args.state)
     policy_path = Path(args.policy)
     input_dir = Path(args.input_dir)
+    transition_warmup_input_dir = (
+        Path(args.transition_warmup_input_dir)
+        if args.transition_warmup_input_dir else None
+    )
+    transition_history_state = (
+        load_json(Path(args.transition_history_state))
+        if args.transition_history_state else {}
+    )
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
+    allow_empty_source_tfs = set(args.allow_empty_source_tf or [])
+    fallback_previous_source_tfs = set(args.fallback_previous_source_tf or [])
+    fallback_reference_source_tfs = set(args.fallback_reference_source_tf or [])
+    fallback_reference_manifest = (
+        load_json(Path(args.fallback_reference_manifest))
+        if args.fallback_reference_manifest else {}
+    )
+    main_roles_only_source_tfs = set(args.main_roles_only_source_tf or [])
+    suppress_selected_source_direction = {}
+    for item in (args.suppress_selected_source_direction or []):
+        if ":" not in item:
+            raise ValueError(f"invalid --suppress-selected-source-direction: {item}")
+        tf, direction = item.split(":", 1)
+        tf = tf.strip().upper()
+        direction = direction.strip().upper()
+        if tf not in {"D1","H4","H1","M15"} or direction not in {"RISING","FALLING"}:
+            raise ValueError(f"invalid --suppress-selected-source-direction: {item}")
+        suppress_selected_source_direction[tf] = direction
 
     state = load_json(state_path)
     policy = load_json(policy_path)
     display_sources = policy.get("display_sources") or {}
+    source_to_display = policy.get("source_to_display_tfs") or {}
+    native_disabled_source_tfs = set(policy.get("native_disabled_source_tfs") or [])
+    transition_state_source_tfs = set(policy.get("transition_state_source_tfs") or [])
+    transition_inheritance = policy.get("transition_inheritance") or {}
     vis = policy.get("visibility_policy") or {}
     per_source = int(vis.get("near_price_family_per_source_tf", 1))
     context_max = int(vis.get("far_direction_context_max_families", 0))
+
+    # A disabled source TF may still be a DISPLAY chart, but it must not own
+    # structural selection or appear as an input source for another chart.
+    invalid_disabled_sources = sorted(tf for tf in native_disabled_source_tfs if tf in source_to_display)
+    if invalid_disabled_sources:
+        raise ValueError(
+            f"native-disabled source TF present in source_to_display_tfs: {invalid_disabled_sources}"
+        )
+    disabled_leaks = sorted({
+        src
+        for sources in display_sources.values()
+        for src in (sources or [])
+        if src in native_disabled_source_tfs
+    })
+    if disabled_leaks:
+        raise ValueError(
+            f"native-disabled source TF leaked into display_sources: {disabled_leaks}"
+        )
 
     if state.get("schema") != "nca-live-state/1.0":
         raise ValueError(f"unexpected state schema: {state.get('schema')}")
@@ -243,9 +502,9 @@ def main() -> int:
     selected_source_counts: dict[str, Counter] = {}
     source_selection: dict[str, list[dict]] = {}
     hl_candidates: dict[str, dict] = {}
+    suppressed_source_selections: list[dict] = []
 
     slots = state.get("slots") or {}
-    source_to_display = policy.get("source_to_display_tfs") or {}
     if not source_to_display:
         raise ValueError("policy missing source_to_display_tfs")
 
@@ -266,18 +525,256 @@ def main() -> int:
         candidate_counts[source_tf] = sum(
             1 for x in candidates if x["generation_role"] == "CURRENT"
         )
-        selected = select_source_families(candidates, source_tf, per_source)
+        selected = select_source_families(
+            candidates,
+            source_tf,
+            per_source,
+            allowed_generation_roles=("CURRENT",),
+            display_reason="SOURCE_TF_NEAREST_FAMILY",
+            main_roles_only=(source_tf in main_roles_only_source_tfs),
+        )
+        if len(selected) < per_source and source_tf in fallback_previous_source_tfs:
+            selected = select_source_families(
+                candidates,
+                source_tf,
+                per_source,
+                allowed_generation_roles=("PREVIOUS",),
+                display_reason="SOURCE_TF_RETAINED_PREVIOUS_FALLBACK",
+                main_roles_only=(source_tf in main_roles_only_source_tfs),
+            )
+        if len(selected) < per_source and source_tf in fallback_reference_source_tfs:
+            if not fallback_reference_manifest:
+                raise ValueError(
+                    f"fallback reference requested for {source_tf} but no manifest was provided"
+                )
+            selected = build_revalidated_reference_family(
+                fallback_reference_manifest,
+                source_tf,
+                bars_by_tf[source_tf],
+                symbol,
+                current_price,
+                eval_time,
+                main_roles_only=(source_tf in main_roles_only_source_tfs),
+            )
         if len(selected) < per_source:
+            if source_tf in allow_empty_source_tfs and len(selected) == 0:
+                source_selection[source_tf] = []
+                continue
             raise ValueError(
                 f"source selection missing: {source_tf} selected={len(selected)} expected={per_source}"
             )
+        suppress_direction = suppress_selected_source_direction.get(source_tf)
+        if suppress_direction and selected and selected[0]["direction"] == suppress_direction:
+            fam = selected[0]
+            suppressed_source_selections.append({
+                "source_tf": source_tf,
+                "line_id": fam["line_id"],
+                "direction": fam["direction"],
+                "structure_level": fam["structure_level"],
+                "generation": fam["generation"],
+                "reason_code": "AUDIT_SUPPRESS_SELECTED_SOURCE_DIRECTION",
+            })
+            source_selection[source_tf] = []
+            continue
+
         source_selection[source_tf] = selected
 
-        selected_state = selected[0]["_state"]
-        hl_candidates[source_tf] = selected_line_hl_evidence(selected_state)
+    # 2) Post-selector TL lifecycle state.
+    #    ACTIVE: selected TL is still valid.
+    #    TRANSITION_NO_TL: old TL has broken and no replacement N is active.
+    #    NEW_ACTIVE: two same-side pivots + Decision-HL break already establish
+    #                a replacement N, even if the persisted selector state lags.
+    tl_transition_states = {}
+    transition_warmup_audit = {}
+    for source_tf in sorted(transition_state_source_tfs):
+        if source_tf not in bars_by_tf:
+            raise ValueError(f"transition-state TF missing bars: {source_tf}")
+        existing = source_selection.get(source_tf) or []
+        existing_state = existing[0]["_state"] if existing else None
+        selection_bars = bars_by_tf[source_tf]
+        selection_floor = selection_bars[0].time
 
-    # 2) Copy the EXACT selected source geometry to every Plan-B display TF.
-    for source_tf, display_tfs in source_to_display.items():
+        resolved = resolve_tl_transition_state(
+            selection_bars,
+            symbol,
+            source_tf,
+            existing_state,
+            candidate_anchor_floor=selection_floor,
+        )
+
+        history_retained = []
+        history_used = False
+
+        # If the rolling selector has no activated N and no broken candidate,
+        # consult the chronological pre-cutoff lifecycle state.  This restores
+        # an already-established monitoring TL; it does NOT create a new TL at
+        # the cutoff.  A genuine broken-TL transition never takes this path.
+        if (
+            resolved.state == "TRANSITION_NO_TL"
+            and resolved.reason_code == "NO_ACTIVATED_N_STRUCTURE_YET"
+            and resolved.candidate_count == 0
+            and transition_history_state
+        ):
+            history_retained = build_history_replay_retained_family(
+                transition_history_state,
+                source_tf,
+                latest[source_tf]["close"],
+                latest[source_tf]["time"],
+                main_roles_only=(source_tf in main_roles_only_source_tfs),
+            )
+            if history_retained:
+                source_selection[source_tf] = history_retained
+                history_used = True
+
+        warmup_used = False
+        warmup_bar_count = 0
+        warmup_first_bar = None
+        # Warmup is now only a secondary diagnostic rescue when no retained
+        # lifecycle line exists.  It may not override a proven broken-TL gap.
+        if (
+            not history_used
+            and resolved.state == "TRANSITION_NO_TL"
+            and resolved.reason_code == "NO_ACTIVATED_N_STRUCTURE_YET"
+            and resolved.candidate_count == 0
+            and transition_warmup_input_dir is not None
+        ):
+            warmup_path = transition_warmup_input_dir / f"{args.input_prefix}_{safe}_{source_tf}.csv"
+            if warmup_path.exists():
+                warmup_bars = load_ohlc_csv(warmup_path)
+                if warmup_bars:
+                    warmup_bar_count = len(warmup_bars)
+                    warmup_first_bar = warmup_bars[0].time.isoformat()
+                    rescued = resolve_tl_transition_state(
+                        warmup_bars,
+                        symbol,
+                        source_tf,
+                        existing_state,
+                        candidate_anchor_floor=selection_floor,
+                    )
+                    if rescued.active_candidate is not None:
+                        resolved = rescued
+                        warmup_used = True
+
+        transition_audit = resolved.to_audit_dict()
+        if history_used:
+            retained = history_retained[0]
+            transition_audit.update({
+                "state": "REFERENCE_RETAINED",
+                "reason_code": "PRE_CUTOFF_HISTORY_LIFECYCLE_RETAINED",
+                "active_candidate": None,
+                "retained_line_id": retained.get("line_id"),
+                "retained_direction": retained.get("direction"),
+                "retained_anchor1_time": retained.get("anchor1_time"),
+                "retained_anchor2_time": retained.get("anchor2_time"),
+                "retained_generation_role": retained.get("generation_role"),
+                "history_replay_retained": True,
+            })
+        tl_transition_states[source_tf] = transition_audit
+
+        transition_warmup_audit[source_tf] = {
+            "attempted": bool(
+                not history_used
+                and transition_warmup_input_dir is not None
+                and resolved.reason_code != "OLD_TL_BROKEN_NO_UNBROKEN_REPLACEMENT_N"
+            ),
+            "used": warmup_used,
+            "history_replay_used": history_used,
+            "selection_anchor_floor": selection_floor.isoformat(),
+            "selection_bar_count": len(selection_bars),
+            "warmup_bar_count": warmup_bar_count,
+            "warmup_first_bar": warmup_first_bar,
+            "future_bars_used": False,
+            "candidate_rule": "ROLLING_NEW_SELECTION_600_BARS;_PREVIOUSLY_ESTABLISHED_LIFECYCLE_REFERENCE_MAY_PREDATE_WINDOW",
+        }
+
+        if history_used:
+            pass
+        elif resolved.state == "TRANSITION_NO_TL":
+            source_selection[source_tf] = []
+        elif resolved.active_candidate is not None:
+            needs_replace = (
+                not existing
+                or resolved.state == "NEW_ACTIVE"
+            )
+            if needs_replace:
+                state_row = transition_candidate_state(
+                    resolved.active_candidate, symbol, source_tf
+                )
+                fam = family_record(
+                    state_row,
+                    "current",
+                    source_tf,
+                    latest[source_tf]["close"],
+                    latest[source_tf]["time"],
+                )
+                fam["display_reason"] = (
+                    "TL_TRANSITION_NEW_ACTIVE"
+                    if resolved.state == "NEW_ACTIVE"
+                    else "TL_TRANSITION_ACTIVE"
+                )
+                fam["display_roles"] = (
+                    ["TL", "CH"]
+                    if source_tf in main_roles_only_source_tfs
+                    else list(ROLES)
+                )
+                source_selection[source_tf] = [fam]
+
+    # Rebuild HL evidence only after lifecycle resolution so a broken source
+    # cannot keep an HL and a NEW_ACTIVE source owns its own Decision HL.
+    hl_candidates = {}
+    for source_tf, selected in source_selection.items():
+        if not selected:
+            continue
+        hl_candidates[source_tf] = selected_line_hl_evidence(selected[0]["_state"])
+
+    # 3) Resolve effective display ownership.
+    # Base source_to_display_tfs contains native ownership. Transition rules may
+    # replace only the DISPLAY owner; geometry is never reselected downstream.
+    effective_source_to_display = {
+        src: list(dsts) for src, dsts in source_to_display.items()
+    }
+    transition_display_decisions = []
+
+    for display_tf, rule in transition_inheritance.items():
+        parent_tf = rule.get("parent_source_tf")
+        when = set(rule.get("when") or [])
+        if not parent_tf:
+            raise ValueError(f"transition inheritance missing parent_source_tf: {display_tf}")
+
+        apply_rule = False
+        reason = None
+        if display_tf in native_disabled_source_tfs and "NATIVE_DISABLED" in when:
+            apply_rule = True
+            reason = "NATIVE_DISABLED"
+        else:
+            child_state = (tl_transition_states.get(display_tf) or {}).get("state")
+            if child_state in when:
+                apply_rule = True
+                reason = child_state
+
+        if not apply_rule:
+            continue
+
+        # Remove native ownership of this display chart from every source,
+        # then assign the parent source exactly once.
+        for src in list(effective_source_to_display):
+            effective_source_to_display[src] = [
+                x for x in effective_source_to_display[src] if x != display_tf
+            ]
+        effective_source_to_display.setdefault(parent_tf, [])
+        if display_tf not in effective_source_to_display[parent_tf]:
+            effective_source_to_display[parent_tf].append(display_tf)
+
+        transition_display_decisions.append({
+            "display_tf": display_tf,
+            "state_or_reason": reason,
+            "parent_source_tf": parent_tf,
+            "suppress_native": bool(rule.get("suppress_native", True)),
+            "copied_without_reselection": True,
+        })
+
+    # 4) Copy the EXACT selected source geometry to each effective display TF.
+    for source_tf, display_tfs in effective_source_to_display.items():
         for fam in source_selection[source_tf]:
             s = fam["_state"]
             geometry_signature = geometry_key(s)
@@ -289,7 +786,10 @@ def main() -> int:
                 for role in fam["display_roles"]:
                     p1, p2 = line_points(s, role)
                     level_code = "L" if s["structure_level"] == "LARGE_DOW" else "M"
-                    gen_role_code = "C" if fam["generation_role"] == "CURRENT" else "P"
+                    gen_role_code = (
+                        "C" if fam["generation_role"] == "CURRENT"
+                        else ("P" if fam["generation_role"] == "PREVIOUS" else "R")
+                    )
                     oid = (
                         f"SRC_{source_tf}_DST_{display_tf}_"
                         f"{level_code}_G{s['generation']}_{gen_role_code}_{role}"
@@ -358,6 +858,25 @@ def main() -> int:
         "display_policy": str(policy_path),
         "display_sources": display_sources,
         "source_to_display_tfs": source_to_display,
+        "effective_source_to_display_tfs": effective_source_to_display,
+        "native_disabled_source_tfs": sorted(native_disabled_source_tfs),
+        "transition_state_source_tfs": sorted(transition_state_source_tfs),
+        "tl_transition_states": tl_transition_states,
+        "transition_inheritance": transition_inheritance,
+        "transition_display_decisions": transition_display_decisions,
+        "transition_warmup_input_dir": (
+            str(transition_warmup_input_dir) if transition_warmup_input_dir else None
+        ),
+        "transition_history_state": args.transition_history_state,
+        "transition_warmup_audit": transition_warmup_audit,
+        "allow_empty_source_tfs": sorted(allow_empty_source_tfs),
+        "fallback_previous_source_tfs": sorted(fallback_previous_source_tfs),
+        "fallback_reference_source_tfs": sorted(fallback_reference_source_tfs),
+        "fallback_reference_manifest": args.fallback_reference_manifest,
+        "main_roles_only_source_tfs": sorted(main_roles_only_source_tfs),
+        "suppress_selected_source_direction": suppress_selected_source_direction,
+        "suppressed_source_selections": suppressed_source_selections,
+        "empty_source_tfs": sorted(tf for tf, fams in source_selection.items() if not fams),
         "hl_candidates": hl_candidates,
         "hl_preview_policy": {
             "status": "PROVISIONAL_VIDEO_COMPARE",
@@ -402,8 +921,28 @@ def main() -> int:
         },
         "selection_policy": {
             "near_price_family_per_source_tf": per_source,
-            "generation_scope": "CURRENT_ONLY",
+            "generation_scope": (
+                "CURRENT_WITH_EXPLICIT_RETAINED_FALLBACK"
+                if (fallback_previous_source_tfs or fallback_reference_source_tfs)
+                else "CURRENT_ONLY"
+            ),
             "far_direction_context_max_families": context_max,
+            "allowed_empty_source_tfs": sorted(allow_empty_source_tfs),
+            "fallback_previous_source_tfs": sorted(fallback_previous_source_tfs),
+            "fallback_previous_semantics": "USE_RETAINED_PREVIOUS_ONLY_WHEN_CURRENT_ABSENT",
+            "fallback_reference_source_tfs": sorted(fallback_reference_source_tfs),
+            "fallback_reference_semantics": "REVALIDATE_FROZEN_REFERENCE_ANCHORS_AGAINST_PRE_CUTOFF_CANDIDATES_ONLY",
+            "main_roles_only_source_tfs": sorted(main_roles_only_source_tfs),
+            "native_disabled_source_tfs": sorted(native_disabled_source_tfs),
+            "native_disabled_semantics": "DISPLAY_ONLY_NO_SOURCE_SELECTION",
+            "transition_state_layer": "POST_SELECTOR_PRE_MAPPING",
+            "transition_states": ["ACTIVE", "TRANSITION_NO_TL", "NEW_ACTIVE"],
+            "transition_new_active_rule": "EXISTING_N_STRUCTURE_TWO_ANCHORS_PLUS_DECISION_HL_CLOSED_BAR_BREAK",
+            "transition_warmup_semantics": "SECONDARY_DIAGNOSTIC_RESCUE_ONLY_AFTER_HISTORY_REPLAY_RETENTION_IS_UNAVAILABLE",
+            "transition_history_semantics": "FULL_PRE_CUTOFF_CHRONOLOGICAL_REPLAY_MAY_RETAIN_A_PREVIOUSLY_ESTABLISHED_TL_BEYOND_THE_600_BAR_NEW_SELECTION_HORIZON",
+            "suppressed_source_directions": suppress_selected_source_direction,
+            "suppressed_source_semantics": "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT",
+            "empty_source_semantics": "NO_LINE_NO_SYNTHETIC_FALLBACK",
             "fixed_pip_threshold_used": False,
             "atr_threshold_used": False,
             "far_direction_roles": ["TL", "CH"],
@@ -412,6 +951,13 @@ def main() -> int:
             "structural_owner_tf": "SOURCE_TF",
             "display_tf": "CHART_TF",
             "h1_h4_nonexact_merge": "NOT_AUTOMATIC",
+            "m15_structural_owner": (
+                "H1" if "M15" in native_disabled_source_tfs else "M15"
+            ),
+            "m15_native_selection": (
+                "DISABLED" if "M15" in native_disabled_source_tfs else "ENABLED"
+            ),
+            "transition_display_ownership": "PARENT_TF_WHEN_CHILD_TRANSITION_NO_TL",
         },
         "production_changed": False,
         "production_snapshot_changed": False,
@@ -420,10 +966,14 @@ def main() -> int:
         "trade_authority": False,
     }
     source_presence_problems = []
-    for source_tf, display_tfs in source_to_display.items():
+    for source_tf, display_tfs in effective_source_to_display.items():
         for display_tf in display_tfs:
             counts = selected_source_counts.get(display_tf, Counter())
             if counts.get(source_tf, 0) < per_source:
+                if source_tf in allow_empty_source_tfs and not source_selection.get(source_tf):
+                    continue
+                if any(x["source_tf"] == source_tf for x in suppressed_source_selections):
+                    continue
                 source_presence_problems.append({
                     "display_tf": display_tf,
                     "missing_source_tf": source_tf,
@@ -447,6 +997,8 @@ def main() -> int:
     print(json.dumps({
         "status": payload["status"],
         "display_sources": display_sources,
+        "effective_source_to_display_tfs": effective_source_to_display,
+        "tl_transition_states": tl_transition_states,
         "selected_family_counts": dict(selected_family_counts),
         "selected_source_counts": {
             tf: dict(counts) for tf, counts in selected_source_counts.items()

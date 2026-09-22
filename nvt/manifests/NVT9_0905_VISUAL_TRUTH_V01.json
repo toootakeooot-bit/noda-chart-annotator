@@ -1,0 +1,92 @@
+{
+  "schema": "nvt9-0905-visual-truth/1.0",
+  "status": "PROVISIONAL_CARRY_FORWARD_RULES_PENDING_0905_VISUAL_AUDIT",
+  "audit_id": "ID10IQ200",
+  "case_date": "2026-09-05",
+  "source": "carry_forward_from_accepted_0912_generalized_rules",
+  "production_generalization": false,
+  "render_contract": {
+    "selection_cutoff_exclusive": "2026-09-05T00:00:00",
+    "future_bars_used_for_selection": false,
+    "extend_selected_reference_geometry_beyond_cutoff": true,
+    "projection_mode": "RAY_RIGHT_FROM_PRE_CUTOFF_ANCHORS",
+    "reason": "09/12 selects structures using only pre-cutoff data, but already-established TL/CH references remain projected to the right for monitoring. Selection-time no-lookahead and display projection are separate concerns."
+  },
+  "approved_families": [
+    {
+      "truth_id": "VT0905-D1-001",
+      "timeframe": "D1",
+      "role": "RISING_TL_RETAINED_AFTER_BREAK",
+      "object_family": "X0912-D1-APPROVED-01",
+      "anchor1": {
+        "kind": "LOW",
+        "window_start": "2026-02-01T00:00:00",
+        "window_end": "2026-02-20T23:59:59",
+        "selection": "PAIRWISE_OUTERMOST_WICK_ENVELOPE",
+        "visual_marker": "yellow_circle_1"
+      },
+      "anchor2": {
+        "kind": "LOW",
+        "window_start": "2026-04-20T00:00:00",
+        "window_end": "2026-05-12T23:59:59",
+        "selection": "PAIRWISE_OUTERMOST_WICK_ENVELOPE",
+        "visual_marker": "yellow_circle_2"
+      },
+      "lifecycle": {
+        "retain_after_closed_bar_break": true,
+        "state_after_break": "REFERENCE_RETAINED_BROKEN",
+        "do_not_require_unbroken_at_cutoff": true
+      },
+      "decision_hl": {
+        "rule": "HIGHEST_CONFIRMED_HIGH_BETWEEN_ANCHOR1_AND_ANCHOR2"
+      },
+      "channel": {
+        "rule": "PARALLEL_CHANNEL_FROM_CONFIRMED_HIGH_REACTION",
+        "allow_updated_ch_from_later_confirmed_high": true
+      },
+      "geometry_policy": {
+        "rule": "OUTERMOST_RISING_SUPPORT_NO_FORMATION_WICK_BREACH",
+        "evaluation_interval": "ANCHOR1_THROUGH_ANCHOR2",
+        "wick_basis": "BAR_LOW",
+        "allow_wick_below_tl": false,
+        "tie_break": [
+          "MORE_WICK_CONTACTS",
+          "SMALLER_MEAN_WICK_GAP",
+          "EARLIER_ANCHOR2"
+        ],
+        "rationale": "Use the outer support line shown by the user's aqua reference; reject inner lines when any formation wick falls below the TL."
+      }
+    }
+  ],
+  "rejected_interpretations": [
+    {
+      "rejection_id": "VT0905-RJ-001",
+      "interpretation": "Carry 09/12-specific delete/suppress decisions backward to 09/05 without fresh visual evidence.",
+      "reason": "09/05 must first be replayed from pre-cutoff data. Only generalized geometry/lifecycle rules are carried backward; date-specific suppressions require 09/05 review."
+    }
+  ],
+  "transition_expectations": {
+    "lifecycle_layer": "POST_SELECTOR_PRE_MAPPING",
+    "H4": {
+      "expected_state": "TRANSITION_NO_TL",
+      "display_owner_tf": "D1",
+      "reason": "09/05 is between the broken prior H4 TL and the next activated H4 N; H4 displays the parent D1 structure during the gap."
+    },
+    "H1": {
+      "expected_states": [
+        "ACTIVE",
+        "NEW_ACTIVE",
+        "REFERENCE_RETAINED"
+      ],
+      "source_required": true,
+      "reason": "H1 must provide the structural family used on H1 and inherited by M15. If the rolling 600-bar selector cannot reconstruct it but chronological pre-cutoff replay shows it was already established, REFERENCE_RETAINED is valid.",
+      "retained_reference_policy": "FULL_PRE_CUTOFF_CHRONOLOGICAL_REPLAY_ONLY_NO_POST_CUTOFF_DATA"
+    },
+    "M15": {
+      "native_selector_enabled": false,
+      "display_owner_tf": "H1",
+      "copied_without_reselection": true,
+      "reason": "M15 is transition/noise-prone and does not own a native TL in this audit."
+    }
+  }
+}

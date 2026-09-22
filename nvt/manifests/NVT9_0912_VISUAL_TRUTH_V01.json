@@ -1,0 +1,83 @@
+{
+  "schema": "nvt9-0912-visual-truth/1.0",
+  "status": "ACTIVE_USER_ANNOTATED_TRUTH",
+  "audit_id": "ID10IQ200",
+  "case_date": "2026-09-12",
+  "source": "user_annotated_screenshot_2026-09-22",
+  "production_generalization": false,
+  "render_contract": {
+    "selection_cutoff_exclusive": "2026-09-12T00:00:00",
+    "future_bars_used_for_selection": false,
+    "extend_selected_reference_geometry_beyond_cutoff": true,
+    "projection_mode": "RAY_RIGHT_FROM_PRE_CUTOFF_ANCHORS",
+    "reason": "09/12 selects structures using only pre-cutoff data, but already-established TL/CH references remain projected to the right for monitoring. Selection-time no-lookahead and display projection are separate concerns."
+  },
+  "approved_families": [
+    {
+      "truth_id": "VT0912-D1-001",
+      "timeframe": "D1",
+      "role": "RISING_TL_RETAINED_AFTER_BREAK",
+      "object_family": "X0912-D1-APPROVED-01",
+      "anchor1": {
+        "kind": "LOW",
+        "window_start": "2026-02-01T00:00:00",
+        "window_end": "2026-02-20T23:59:59",
+        "selection": "PAIRWISE_OUTERMOST_WICK_ENVELOPE",
+        "visual_marker": "yellow_circle_1"
+      },
+      "anchor2": {
+        "kind": "LOW",
+        "window_start": "2026-04-20T00:00:00",
+        "window_end": "2026-05-12T23:59:59",
+        "selection": "PAIRWISE_OUTERMOST_WICK_ENVELOPE",
+        "visual_marker": "yellow_circle_2"
+      },
+      "lifecycle": {
+        "retain_after_closed_bar_break": true,
+        "state_after_break": "REFERENCE_RETAINED_BROKEN",
+        "do_not_require_unbroken_at_cutoff": true
+      },
+      "decision_hl": {
+        "rule": "HIGHEST_CONFIRMED_HIGH_BETWEEN_ANCHOR1_AND_ANCHOR2"
+      },
+      "channel": {
+        "rule": "PARALLEL_CHANNEL_FROM_CONFIRMED_HIGH_REACTION",
+        "allow_updated_ch_from_later_confirmed_high": true
+      },
+      "geometry_policy": {
+        "rule": "OUTERMOST_RISING_SUPPORT_NO_FORMATION_WICK_BREACH",
+        "evaluation_interval": "ANCHOR1_THROUGH_ANCHOR2",
+        "wick_basis": "BAR_LOW",
+        "allow_wick_below_tl": false,
+        "tie_break": [
+          "MORE_WICK_CONTACTS",
+          "SMALLER_MEAN_WICK_GAP",
+          "EARLIER_ANCHOR2"
+        ],
+        "rationale": "Use the outer support line shown by the user's aqua reference; reject inner lines when any formation wick falls below the TL."
+      }
+    }
+  ],
+  "rejected_interpretations": [
+    {
+      "rejection_id": "VT0912-RJ-001",
+      "interpretation": "Use GT_0004 2025-04 / 2025-09 anchor windows as the D1 line marked by the user's two yellow circles.",
+      "reason": "That is a different retained D1 reference. The annotated 09/12 target explicitly identifies two 2026 lows."
+    },
+    {
+      "rejection_id": "VT0912-RJ-002",
+      "interpretation": "Treat M15/H1 lines extending to the right of the 09/12 cutoff as newly valid post-cutoff audit geometry.",
+      "reason": "Historical viewer must clip audit-owned rays at the cutoff. First distinguish future-ray display from genuinely rejected pre-cutoff geometry."
+    },
+    {
+      "rejection_id": "VT0912-RJ-003",
+      "interpretation": "Resolve anchor1/anchor2 independently as the lowest confirmed LOW in broad windows.",
+      "reason": "Independent-low selection can choose an inner geometry whose TL cuts through another formation wick. The approved D1 line is the pairwise outer wick envelope."
+    },
+    {
+      "rejection_id": "VT0912-RJ-004",
+      "interpretation": "Stop every valid 09/12 TL/CH at the white cutoff marker.",
+      "reason": "The white cutoff limits information used to select the structure; it does not terminate the rightward projection of an already-established monitoring line."
+    }
+  ]
+}

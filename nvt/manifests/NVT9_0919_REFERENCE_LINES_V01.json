@@ -1,0 +1,189 @@
+{
+  "schema": "nvt9-0919-reference-lines/1.0",
+  "status": "FROZEN_HISTORICAL_REFERENCE",
+  "audit_id": "ID10IQ200",
+  "symbol": "USDJPY#",
+  "source_evidence": "NVT9_USDJPY_CROSS_TF_0919.json saved 2026-09-19",
+  "reference_purpose": "Restore the exact eight CURRENT source-TF line families saved on 2026-09-19. Historical reference only; not a selector gate.",
+  "cutoff_context": {
+    "D1": "2026-09-17T00:00:00",
+    "H4": "2026-09-18T16:00:00",
+    "H1": "2026-09-18T22:00:00",
+    "M15": "2026-09-18T23:30:00"
+  },
+  "numbering_policy": "R0919-01..08 fixed by TF order D1,H4,H1,M15 then LARGE,MID",
+  "lines": [
+    {
+      "reference_no": 1,
+      "reference_id": "R0919-01",
+      "timeframe": "D1",
+      "structure_level": "LARGE_DOW",
+      "line_id": "NCA_USDJPY#_D1_LARGE_DOW_G036",
+      "generation": 36,
+      "status": "ACTIVE",
+      "direction": "RISING",
+      "anchor1_time": "2024-09-16T00:00:00",
+      "anchor1_price": 139.574,
+      "anchor2_time": "2026-09-08T00:00:00",
+      "anchor2_price": 152.883,
+      "ch_offset": 1.9689335180055423,
+      "zone_width": 1.0269999999999868,
+      "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+    },
+    {
+      "reference_no": 2,
+      "reference_id": "R0919-02",
+      "timeframe": "D1",
+      "structure_level": "MID_DOW",
+      "line_id": "NCA_USDJPY#_D1_MID_DOW_G040",
+      "generation": 40,
+      "status": "ACTIVE",
+      "direction": "RISING",
+      "anchor1_time": "2025-04-22T00:00:00",
+      "anchor1_price": 139.88,
+      "anchor2_time": "2026-09-08T00:00:00",
+      "anchor2_price": 152.883,
+      "ch_offset": 5.744448412698404,
+      "zone_width": 0.8940000000000055,
+      "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+    },
+    {
+      "reference_no": 3,
+      "reference_id": "R0919-03",
+      "timeframe": "H4",
+      "structure_level": "LARGE_DOW",
+      "line_id": "NCA_USDJPY#_H4_LARGE_DOW_G004",
+      "generation": 4,
+      "status": "ACTIVE",
+      "direction": "FALLING",
+      "anchor1_time": "2026-07-23T16:00:00",
+      "anchor1_price": 163.982,
+      "anchor2_time": "2026-09-02T04:00:00",
+      "anchor2_price": 160.387,
+      "ch_offset": -5.400641975308645,
+      "zone_width": 0.2179999999999893,
+      "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+    },
+    {
+      "reference_no": 4,
+      "reference_id": "R0919-04",
+      "timeframe": "H4",
+      "structure_level": "MID_DOW",
+      "line_id": "NCA_USDJPY#_H4_MID_DOW_G003",
+      "generation": 3,
+      "status": "ACTIVE",
+      "direction": "FALLING",
+      "anchor1_time": "2026-07-30T16:00:00",
+      "anchor1_price": 162.954,
+      "anchor2_time": "2026-09-02T04:00:00",
+      "anchor2_price": 160.387,
+      "ch_offset": -4.994,
+      "zone_width": 0.0030000000000143245,
+      "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+    },
+    {
+      "reference_no": 5,
+      "reference_id": "R0919-05",
+      "timeframe": "H1",
+      "structure_level": "LARGE_DOW",
+      "line_id": "NCA_USDJPY#_H1_LARGE_DOW_G013",
+      "generation": 13,
+      "status": "ACTIVE",
+      "direction": "FALLING",
+      "anchor1_time": "2026-08-18T09:00:00",
+      "anchor1_price": 159.774,
+      "anchor2_time": "2026-09-02T16:00:00",
+      "anchor2_price": 159.611,
+      "ch_offset": -0.033874659400510154,
+      "zone_width": 0.060000000000002274,
+      "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+    },
+    {
+      "reference_no": 6,
+      "reference_id": "R0919-06",
+      "timeframe": "H1",
+      "structure_level": "MID_DOW",
+      "line_id": "NCA_USDJPY#_H1_MID_DOW_G022",
+      "generation": 22,
+      "status": "ACTIVE",
+      "direction": "FALLING",
+      "anchor1_time": "2026-08-28T13:00:00",
+      "anchor1_price": 159.689,
+      "anchor2_time": "2026-09-02T16:00:00",
+      "anchor2_price": 159.611,
+      "ch_offset": -0.04280487804876998,
+      "zone_width": 0.007000000000005002,
+      "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1",
+      "display_override": {
+        "status": "SUPPRESSED",
+        "reason_code": "USER_CONFIRMED_UNNECESSARY_0919_VISUAL",
+        "reason": "H1 MID_DOW FALLING family is not required in the approved 09/19 visual reference. Suppress on source H1 and all Plan-B mapped destinations, including H4.",
+        "applies_to_source_tf": true,
+        "applies_to_mapped_destinations": true,
+        "audit_id": "ID10IQ200",
+        "confirmed_date": "2026-09-21"
+      }
+    },
+    {
+      "reference_no": 7,
+      "reference_id": "R0919-07",
+      "timeframe": "M15",
+      "structure_level": "LARGE_DOW",
+      "line_id": "NCA_USDJPY#_M15_LARGE_DOW_G012",
+      "generation": 12,
+      "status": "ACTIVE",
+      "direction": "RISING",
+      "anchor1_time": "2026-09-10T18:00:00",
+      "anchor1_price": 153.846,
+      "anchor2_time": "2026-09-17T15:15:00",
+      "anchor2_price": 155.324,
+      "ch_offset": 0.30155370650530244,
+      "zone_width": 0.03700000000000614,
+      "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+    },
+    {
+      "reference_no": 8,
+      "reference_id": "R0919-08",
+      "timeframe": "M15",
+      "structure_level": "MID_DOW",
+      "line_id": "NCA_USDJPY#_M15_MID_DOW_G011",
+      "generation": 11,
+      "status": "ACTIVE",
+      "direction": "RISING",
+      "anchor1_time": "2026-09-14T00:15:00",
+      "anchor1_price": 153.32,
+      "anchor2_time": "2026-09-17T15:15:00",
+      "anchor2_price": 155.324,
+      "ch_offset": 1.2949310344827722,
+      "zone_width": 0,
+      "selection_version": "PROVISIONAL_EXACT_INTERSECTION_0.1"
+    }
+  ],
+  "historical_input_reference": {
+    "source": "Production Normal Run on 2026-09-19; root-cause audit confirms NCA_NormalRun_Exporter BarsToExport=600 for every timeframe.",
+    "BarsToExport": 600,
+    "window_policy": "LAST_600_CLOSED_BARS_PER_TIMEFRAME",
+    "note": "Do not substitute deep NVT history when reproducing the approved 09/19 visual baseline. Deep history is a separate research comparison."
+  },
+  "display_mapping": {
+    "policy": "PLAN_B_APPROVED_0919",
+    "source_to_destinations": {
+      "D1": [
+        "D1"
+      ],
+      "H4": [
+        "H4",
+        "D1"
+      ],
+      "H1": [
+        "H1",
+        "H4"
+      ],
+      "M15": [
+        "M15",
+        "H1"
+      ]
+    },
+    "destination_reselects_source_geometry": false
+  }
+}
