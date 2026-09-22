@@ -15,7 +15,7 @@ def main() -> None:
     entries = {row["rejection_id"]: row for row in ledger["entries"]}
     assert set(entries) >= {
         "RD0919-001", "RD0919-002", "RD0919-003", "RD0919-004",
-        "RD0919-005", "RD0919-006", "RD0919-007",
+        "RD0919-005", "RD0919-006", "RD0919-007", "RD0912-001",
     }
 
     ref = json.loads(REFERENCE.read_text(encoding="utf-8"))
@@ -41,6 +41,7 @@ def main() -> None:
     assert entries["RD0919-005"]["replacement_policy"] == "SEARCH_ALL_CONFIRMED_D1_LOWS_THEN_REQUIRE_BROAD_UNBROKEN_SUPPORT"
     assert entries["RD0919-006"]["replacement_policy"] == "H1_NATIVE_CONFIRMED_PIVOTS"
     assert entries["RD0919-007"]["replacement_policy"] == "MAX_3_WITH_MINIMUM_CENTER_GAP_AND_STRONGER_REACTION_EVIDENCE"
+    assert entries["RD0912-001"]["reason_code"] == "NO_LINE_NO_SYNTHETIC_FALLBACK"
 
     print("NVT9_REJECTED_DRAW_LEDGER_SELFTEST_PASS")
 
