@@ -23,7 +23,10 @@ def main() -> None:
     assert '"--suppress-selected-source-direction", "H1:FALLING"' in b
     assert '"--suppress-selected-source-direction", "D1:RISING"' in b
     assert '"empty_source_policy": "FAIL_IF_CURRENT_AND_RETAINED_PREVIOUS_ARE_BOTH_MISSING"' in b
-    assert '"retained_reference_policy": "H4_CURRENT_ABSENT_THEN_PREVIOUS_REFERENCE_RETAINED"' in b
+    assert '"retained_reference_policy": "H4_CURRENT_THEN_PREVIOUS_THEN_FROZEN_REFERENCE_REVALIDATED_PRE_CUTOFF"' in b
+    assert 'ap.add_argument("--reference-manifest", required=True)' in b
+    assert '"--fallback-reference-source-tf", "H4"' in b
+    assert '"--fallback-reference-manifest", str(Path(args.reference_manifest))' in b
     assert '"source_suppression_policy": "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT"' in b
 
     o = OVERLAY.read_text(encoding="utf-8")
