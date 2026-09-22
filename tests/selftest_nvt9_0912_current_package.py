@@ -37,7 +37,8 @@ def main() -> None:
     assert 'f"X{case_tag}-D1-MAJOR-01-TL"' in o
     assert 'f"X{case_tag}-D1-MAJOR-01-HL"' in o
     assert 'f"X{case_tag}-D1-APPROVED-01-TL"' in o
-    assert 'D1_USER_APPROVED_YELLOW_CIRCLE_LOW_PAIR' in o
+    assert 'D1_APPROVED_OUTER_WICK_ENVELOPE' in o
+    assert 'if visual_truth else None' in o
     assert 'ap.add_argument("--visual-truth")' in o
 
     v = VIEWER.read_text(encoding="utf-8")
