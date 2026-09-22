@@ -45,7 +45,12 @@ def main() -> int:
     truth = load_json(Path(args.visual_truth))
     overlay = load_json(Path(args.overlay_audit))
     base = load_json(Path(args.base_audit))
-    cutoff = datetime.fromisoformat(truth["render_contract"]["cutoff_exclusive"])
+    render_contract = truth["render_contract"]
+    cutoff = datetime.fromisoformat(render_contract["selection_cutoff_exclusive"])
+    if render_contract.get("future_bars_used_for_selection") is not False:
+        raise ValueError("09/12 visual truth must forbid future bars for structure selection")
+    if render_contract.get("extend_selected_reference_geometry_beyond_cutoff") is not True:
+        raise ValueError("09/12 visual truth must preserve rightward projection of selected references")
 
     spec = next(
         x for x in truth["approved_families"]
@@ -100,6 +105,28 @@ def main() -> int:
     if missing_suppress:
         raise ValueError(f"expected rejected base selections survived: {missing_suppress}")
 
+    # H4 must no longer collapse to NO-LINE merely because CURRENT is empty.
+    h4_selection = (base.get("source_selection") or {}).get("H4") or []
+    if len(h4_selection) != 1:
+        raise ValueError(f"H4 retained reference missing: {h4_selection}")
+    h4 = h4_selection[0]
+    if h4.get("generation_role") != "PREVIOUS":
+        raise ValueError(f"H4 fallback is not PREVIOUS/retained: {h4}")
+    if h4.get("display_reason") != "SOURCE_TF_RETAINED_PREVIOUS_FALLBACK":
+        raise ValueError(f"H4 retained fallback reason missing: {h4}")
+    if h4.get("display_roles") != ["TL", "CH"]:
+        raise ValueError(f"H4 retained family must be main TL/CH only: {h4.get('display_roles')}")
+
+    m15_selection = (base.get("source_selection") or {}).get("M15") or []
+    if len(m15_selection) != 1 or m15_selection[0].get("display_roles") != ["TL", "CH"]:
+        raise ValueError(f"M15 historical family must keep main TL/CH only: {m15_selection}")
+
+    selected = base.get("selected_families") or []
+    if not any(x.get("source_tf") == "H4" and x.get("display_tf") == "H4" for x in selected):
+        raise ValueError("retained H4 family not displayed on H4")
+    if not any(x.get("source_tf") == "H4" and x.get("display_tf") == "D1" for x in selected):
+        raise ValueError("retained H4 family not copied to D1")
+
     overlay_cutoff_violations = audit_csv_cutoff(overlay_csv, cutoff)
     base_cutoff_violations = audit_csv_cutoff(Path(args.base_csv), cutoff)
     if overlay_cutoff_violations or base_cutoff_violations:
@@ -125,8 +152,15 @@ def main() -> int:
         "formation_wick_contact_count": resolved.get("formation_wick_contact_count"),
         "formation_mean_wick_gap": resolved.get("formation_mean_wick_gap"),
         "suppressed_base_selections": base.get("suppressed_source_selections") or [],
+        "h4_retained_reference": {
+            "line_id": h4.get("line_id"),
+            "generation_role": h4.get("generation_role"),
+            "display_reason": h4.get("display_reason"),
+            "display_roles": h4.get("display_roles"),
+        },
+        "m15_display_roles": m15_selection[0].get("display_roles"),
         "post_cutoff_anchor_violations": [],
-        "render_contract": truth["render_contract"],
+        "render_contract": render_contract,
     }
     out = Path(args.overlay_audit).parent / "NVT9_0912_VISUAL_TRUTH_VERIFY.json"
     out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
