@@ -28,7 +28,7 @@ enum NVT9_AB_VARIANT
 input NVT9_AB_CASE HistoryCase = CASE_20260912;
 input NVT9_AB_VARIANT Variant = VARIANT_OLD;
 input bool ApplyToAllOpenTargetCharts = true;
-input bool AuditDeleteAllChartObjects = true;
+input bool AuditDeleteAllChartObjects = false;
 input bool ShowCurrentStructuralOverlayOn0912Old = true;
 
 input color D1TLColor = clrYellow;
@@ -167,6 +167,32 @@ int DeleteAuditOwnedObjects(long chartId)
    return deleted;
 }
 
+int DeleteHistoricalSystemObjects(long chartId)
+{
+   int deleted = 0;
+   int total = ObjectsTotal(chartId, -1, -1);
+   for(int i=total-1; i>=0; i--)
+   {
+      string n = ObjectName(chartId, i, -1, -1);
+      if(n == "") continue;
+
+      bool auditOwned =
+         StringFind(n, PREFIX, 0) == 0 ||
+         StringFind(n, XPREFIX, 0) == 0 ||
+         StringFind(n, "NVT9_", 0) == 0;
+
+      bool liveGenerated =
+         StringFind(n, "NCA_", 0) == 0 ||
+         StringFind(n, "NCA_DRAW__", 0) == 0;
+
+      if(auditOwned || liveGenerated)
+      {
+         if(ObjectDelete(chartId, n)) deleted++;
+      }
+   }
+   return deleted;
+}
+
 
 
 bool DrawCaseMarker(long chartId, datetime cutoff)
@@ -249,31 +275,20 @@ int RenderRowsOnChart(string path, long chartId, string symbol, string tf, datet
       string name = PREFIX + objectId;
       if(StringLen(name) > 63) continue;
 
-      bool clipAt0912 = (HistoryCase == CASE_20260912 && Variant == VARIANT_OLD);
-      datetime drawT2 = t2;
-      double drawP2 = p2;
-      if(clipAt0912 && cutoff > t2)
-      {
-         drawT2 = cutoff;
-         if(role == "HL")
-            drawP2 = p1;
-         else
-         {
-            double sec = (double)(t2 - t1);
-            if(sec > 0.0)
-               drawP2 = p1 + (p2 - p1) * ((double)(cutoff - t1) / sec);
-         }
-      }
+      bool projectHistorical0912 = (HistoryCase == CASE_20260912 && Variant == VARIANT_OLD);
 
       ResetLastError();
-      if(!ObjectCreate(chartId, name, OBJ_TREND, 0, t1, p1, drawT2, drawP2))
+      if(!ObjectCreate(chartId, name, OBJ_TREND, 0, t1, p1, t2, p2))
       {
          Print("NVT9 A-B VIEW: ObjectCreate failed chart=", chartId, " err=", GetLastError(), " name=", name);
          ResetLastError();
          continue;
       }
 
-      ObjectSetInteger(chartId, name, OBJPROP_RAY_RIGHT, !clipAt0912);
+      // 09/12 is a selection cutoff, not a visual line-termination point.
+      // The geometry is selected only from pre-cutoff bars, then projected
+      // right as the monitoring reference that existed at that time.
+      ObjectSetInteger(chartId, name, OBJPROP_RAY_RIGHT, projectHistorical0912 ? true : true);
       ObjectSetInteger(chartId, name, OBJPROP_BACK, false);
 
       color tlColor, chColor;
@@ -293,8 +308,16 @@ int RenderRowsOnChart(string path, long chartId, string symbol, string tf, datet
       else if(previous)
       {
          c = (role == "CH") ? chColor : tlColor;
-         style = STYLE_DOT;
-         width = PreviewPreviousWidth;
+         if(HistoryCase == CASE_20260912 && Variant == VARIANT_OLD)
+         {
+            style = STYLE_SOLID;
+            width = PreviewCurrentWidth;
+         }
+         else
+         {
+            style = STYLE_DOT;
+            width = PreviewPreviousWidth;
+         }
       }
       else if(role == "CH")
       {
@@ -340,7 +363,8 @@ int RenderCurrentOverlay0912(long chartId,string symbol,string tf)
       string name=XPREFIX+objectId;
       if(StringLen(name)>63) continue;
       if(!ObjectCreate(chartId,name,OBJ_TREND,0,t1,p1,t2,p2)) continue;
-      ObjectSetInteger(chartId,name,OBJPROP_RAY_RIGHT,false);
+      bool approvedReference = (role=="APPROVED_TL" || role=="APPROVED_CH" || role=="APPROVED_HL");
+      ObjectSetInteger(chartId,name,OBJPROP_RAY_RIGHT,approvedReference);
       ObjectSetInteger(chartId,name,OBJPROP_BACK,false);
       ObjectSetInteger(chartId,name,OBJPROP_SELECTABLE,false);
 
@@ -420,7 +444,8 @@ bool ApplyHistoryToChart(long chartId, string symbol, string path, datetime cuto
 
    string tf = TFNameFromPeriod(period);
    bool isolate0912 = (HistoryCase == CASE_20260912 && Variant == VARIANT_OLD);
-   if(AuditDeleteAllChartObjects || isolate0912) DeleteAllChartObjects(chartId);
+   if(AuditDeleteAllChartObjects) DeleteAllChartObjects(chartId);
+   else if(isolate0912) DeleteHistoricalSystemObjects(chartId);
    else DeleteAuditOwnedObjects(chartId);
 
    int rendered = RenderRowsOnChart(path, chartId, symbol, tf, cutoff);
