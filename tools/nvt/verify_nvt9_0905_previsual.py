@@ -77,6 +77,7 @@ def main() -> int:
 
     source_selection = base.get("source_selection") or {}
     transition_states = base.get("tl_transition_states") or {}
+    transition_warmup_audit = base.get("transition_warmup_audit") or {}
     effective_map = base.get("effective_source_to_display_tfs") or {}
     decisions = base.get("transition_display_decisions") or []
 
@@ -140,6 +141,20 @@ def main() -> int:
     if fam.get("display_roles") != ["TL", "CH"]:
         raise ValueError(f"09/05 H1 owner family must use main TL/CH only: {fam}")
 
+    h1_warmup = transition_warmup_audit.get("H1") or {}
+    selection_anchor_floor = h1_warmup.get("selection_anchor_floor")
+    if not selection_anchor_floor:
+        raise ValueError(f"09/05 H1 transition warmup audit missing selection_anchor_floor: {h1_warmup}")
+    floor_dt = datetime.fromisoformat(selection_anchor_floor)
+    if h1_warmup.get("future_bars_used") is not False:
+        raise ValueError(f"09/05 H1 transition warmup used future bars: {h1_warmup}")
+    for field in ("anchor1_time", "anchor2_time"):
+        value = fam.get(field)
+        if not value or datetime.fromisoformat(value) < floor_dt:
+            raise ValueError(
+                f"09/05 H1 warmup leaked an anchor before 600-bar floor: field={field} value={value} floor={selection_anchor_floor}"
+            )
+
     # M15 must never own a native source. It receives the exact H1 geometry.
     m15_expect = expectations.get("M15") or {}
     if m15_expect.get("native_selector_enabled") is not False:
@@ -201,6 +216,8 @@ def main() -> int:
             "reason_code": h1_state.get("reason_code"),
             "line_id": h1[0].get("line_id"),
             "display_reason": h1[0].get("display_reason"),
+            "transition_warmup_audit": h1_warmup,
+            "selection_anchor_floor": selection_anchor_floor,
         },
         "date_specific_suppressions_applied": summary.get("suppressed_source_directions"),
         "visual_adjudication_status": "PENDING_USER_0905_SCREENSHOT",
