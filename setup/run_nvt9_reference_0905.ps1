@@ -54,6 +54,10 @@ if ($BaseAudit.source_selection.H4.Count -gt 0) {
   $h4 = $BaseAudit.source_selection.H4[0]
   Write-Host ("H4 source: {0} role={1} reason={2} display={3} ref={4}" -f $h4.line_id,$h4.generation_role,$h4.display_reason,(($h4.display_roles) -join '/'),$h4.reference_id)
 } else { Write-Host 'H4 source: NO-LINE at 09/05 previsual replay' }
+if ($BaseAudit.source_selection.H1.Count -gt 0) {
+  $h1 = $BaseAudit.source_selection.H1[0]
+  Write-Host ("H1 source: {0} role={1} reason={2} ref={3}" -f $h1.line_id,$h1.generation_role,$h1.display_reason,$h1.reference_id)
+} else { Write-Host 'H1 source: NO-LINE at 09/05 previsual replay' }
 if ($BaseAudit.source_selection.M15.Count -gt 0) {
   $m15 = $BaseAudit.source_selection.M15[0]
   Write-Host ("M15 main roles: {0} display={1}" -f $m15.line_id,(($m15.display_roles) -join '/'))
