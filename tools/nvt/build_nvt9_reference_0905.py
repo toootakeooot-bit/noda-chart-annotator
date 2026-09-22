@@ -15,6 +15,7 @@ from live_draw.normal_run import (
     TFS,
     merge_rebuilt_states,
     rebuild_timeframe_baseline_0919_from_bars,
+    rebuild_timeframe_from_bars,
     safe_symbol_filename,
     validate_rebuilt_state,
 )
@@ -51,6 +52,8 @@ def main() -> int:
     base_out.mkdir(parents=True, exist_ok=True)
 
     states = []
+    transition_history_states = []
+    transition_history_audits = {}
     coverage = {}
     traces = {}
 
@@ -79,6 +82,30 @@ def main() -> int:
         )
         traces[tf] = audit.get("final_selector_audit")
         states.append(state)
+
+        # Transition ownership must distinguish "no new TL in the current
+        # 600-bar selection window" from "no valid lifecycle reference
+        # existed at all".  Rebuild only H4/H1 chronologically from all
+        # pre-cutoff bars so already-established lines can survive beyond the
+        # rolling selection horizon.  No post-cutoff bar is present.
+        if tf in {"H4", "H1"}:
+            hist_state, hist_audit = rebuild_timeframe_from_bars(
+                eligible, args.symbol, tf
+            )
+            transition_history_states.append(hist_state)
+            transition_history_audits[tf] = {
+                "status": hist_audit.get("status"),
+                "mode": hist_audit.get("mode"),
+                "closed_bars": hist_audit.get("closed_bars"),
+                "transition_count": hist_audit.get("transition_count"),
+                "last_structural_event_time": hist_audit.get("last_structural_event_time"),
+                "full_history_detector": hist_audit.get("full_history_detector"),
+                "last_event_geometry": hist_audit.get("last_event_geometry"),
+                "first_bar": eligible[0].time.isoformat(),
+                "last_bar": eligible[-1].time.isoformat(),
+                "cutoff_exclusive": cutoff.isoformat(),
+                "future_bars_used": False,
+            }
         coverage[tf] = {
             "bar_count": len(bars),
             "first_bar": bars[0].time.isoformat(),
@@ -96,6 +123,21 @@ def main() -> int:
     validation = validate_rebuilt_state(merged, args.symbol)
     state_path = outdir / "state.json"
     write_json(state_path, merged)
+
+    transition_history_state = merge_rebuilt_states(transition_history_states)
+    transition_history_state_path = outdir / "transition_history_state.json"
+    write_json(transition_history_state_path, transition_history_state)
+    write_json(
+        outdir / "transition_history_audit.json",
+        {
+            "schema": "nvt9-0905-transition-history/1.0",
+            "audit_id": "ID10IQ200",
+            "cutoff_exclusive": cutoff.isoformat(),
+            "future_bars_used": False,
+            "purpose": "RETAIN_PREVIOUSLY_ESTABLISHED_TL_STATE_BEYOND_600_BAR_SELECTION_HORIZON",
+            "timeframes": transition_history_audits,
+        },
+    )
     write_json(outdir / "selector_trace.json", {
         "schema": "nvt9-0905-current-selector-trace/1.0",
         "audit_id": "ID10IQ200",
@@ -112,6 +154,7 @@ def main() -> int:
         "--input-dir", str(case_input),
         "--input-prefix", "NVT",
         "--transition-warmup-input-dir", str(transition_warmup_input),
+        "--transition-history-state", str(transition_history_state_path),
         "--output-dir", str(base_out),
         "--fallback-previous-source-tf", "H4",
         "--fallback-previous-source-tf", "H1",
@@ -141,6 +184,10 @@ def main() -> int:
         "transition_warmup_policy": "PRE_CUTOFF_DETECTOR_INITIALIZATION_ONLY_IF_600_BAR_TRANSITION_PASS_HAS_ZERO_CANDIDATES",
         "transition_warmup_candidate_floor": "FIRST_BAR_OF_EACH_600_BAR_SELECTION_WINDOW",
         "transition_warmup_future_bars_used": False,
+        "transition_history_policy": "FULL_PRE_CUTOFF_CHRONOLOGICAL_REPLAY_FOR_RETAINED_STATE_ONLY",
+        "transition_history_future_bars_used": False,
+        "transition_history_state_json": str(transition_history_state_path),
+        "transition_history_audit_json": str(outdir / "transition_history_audit.json"),
         "allowed_empty_source_tfs": ["H4", "H1"],
         "fallback_previous_source_tfs": ["H4", "H1"],
         "fallback_reference_source_tfs": ["H4", "H1"],
