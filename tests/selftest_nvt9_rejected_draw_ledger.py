@@ -17,7 +17,7 @@ def main() -> None:
         "RD0919-001", "RD0919-002", "RD0919-003", "RD0919-004",
         "RD0919-005", "RD0919-006", "RD0919-007", "RD0912-001",
         "RD0912-002", "RD0912-003", "RD0912-004", "RD0912-005", "RD0912-006",
-        "RD0912-007", "RD0912-008",
+        "RD0912-007", "RD0912-008", "RD0912-009", "RD0912-010",
     }
 
     ref = json.loads(REFERENCE.read_text(encoding="utf-8"))
@@ -36,6 +36,8 @@ def main() -> None:
     assert "recent_anchor2_times = {p.time for p in lows[-10:]}" in overlay_text
     assert "build_d1_major_channel" in overlay_text
     assert "build_d1_visual_truth_0912" in overlay_text
+    assert "PAIRWISE_OUTERMOST_WICK_ENVELOPE" in overlay_text
+    assert "formation_wick_breach_count" in overlay_text
     assert "build_d1_retained_reference_0912" in overlay_text
     assert "2025-04-01T00:00:00" in overlay_text
     assert "2025-08-20T00:00:00" in overlay_text
@@ -58,6 +60,8 @@ def main() -> None:
     assert entries["RD0912-006"]["replacement_policy"] == "CHANNEL_ANCHOR_FROM_ORIGINAL_FORMATION_WINDOW"
     assert entries["RD0912-007"]["replacement_policy"] == "PROJECT_TO_CUTOFF_THEN_RAY_RIGHT_FALSE"
     assert entries["RD0912-008"]["replacement_policy"] == "VT0912_D1_001_USER_ANNOTATED_2026_LOW_WINDOWS"
+    assert entries["RD0912-009"]["replacement_policy"] == "DELETE_ALL_CHART_OBJECTS_THEN_DRAW_0912_AUDIT_ONLY"
+    assert entries["RD0912-010"]["replacement_policy"] == "PAIRWISE_OUTERMOST_WICK_ENVELOPE_ZERO_FORMATION_WICK_BREACH"
 
     print("NVT9_REJECTED_DRAW_LEDGER_SELFTEST_PASS")
 
