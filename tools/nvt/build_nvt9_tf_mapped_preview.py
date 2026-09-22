@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 
+from live_draw.geometry import build_channel_candidates
 from live_draw.market_input import load_ohlc_csv
 from live_draw.normal_run import safe_symbol_filename
 from live_draw.turn_detector import detect_turns
@@ -183,6 +184,99 @@ def select_source_families(
         selected.append(item)
     return selected
 
+def build_revalidated_reference_family(
+    reference_manifest: dict,
+    source_tf: str,
+    bars: list,
+    symbol: str,
+    current_price: float,
+    eval_time: datetime,
+    main_roles_only: bool,
+) -> list[dict]:
+    """Revalidate a frozen reference anchor pair using ONLY supplied bars.
+
+    The frozen manifest contributes identity/anchor expectations only.
+    Geometry evidence (confirmed pivots, decision HL, activation, CH offset,
+    zone width) is rebuilt from the pre-cutoff bars.  If the exact reference
+    anchor pair is not a valid candidate in those bars, no fallback is emitted.
+    """
+    turns = detect_turns(bars)
+    candidates = build_channel_candidates(bars, turns.pivots)
+    refs = [
+        x for x in (reference_manifest.get("lines") or [])
+        if x.get("timeframe") == source_tf
+        and x.get("status") in {"ACTIVE", "REFERENCE_RETAINED", "RETIRED"}
+    ]
+    refs.sort(key=lambda x: (
+        0 if x.get("structure_level") == "LARGE_DOW" else 1,
+        int(x.get("reference_no", 9999)),
+    ))
+
+    matched = []
+    for ref in refs:
+        ra1t = datetime.fromisoformat(ref["anchor1_time"])
+        ra2t = datetime.fromisoformat(ref["anchor2_time"])
+        ra1p = float(ref["anchor1_price"])
+        ra2p = float(ref["anchor2_price"])
+        direction = ref["direction"]
+
+        for c in candidates:
+            if c.direction != direction:
+                continue
+            if c.anchor1.time != ra1t or c.anchor2.time != ra2t:
+                continue
+            if abs(float(c.anchor1.price) - ra1p) > 1e-9:
+                continue
+            if abs(float(c.anchor2.price) - ra2p) > 1e-9:
+                continue
+            # All confirmation/activation evidence comes from the supplied
+            # pre-cutoff bar set because build_channel_candidates() ran only
+            # on those bars.
+            state = {
+                "line_id": f"REF0912_{ref['reference_id']}",
+                "symbol": symbol,
+                "timeframe": source_tf,
+                "structure_level": ref["structure_level"],
+                "generation": int(ref.get("generation", 0)),
+                "status": "REFERENCE_RETAINED",
+                "direction": c.direction,
+                "anchor1_time": c.anchor1.time.isoformat(),
+                "anchor1_price": float(c.anchor1.price),
+                "anchor2_time": c.anchor2.time.isoformat(),
+                "anchor2_price": float(c.anchor2.price),
+                "ch_offset": float(c.ch_offset),
+                "zone_width": float(c.zone_width),
+                "selection_version": "FROZEN_REFERENCE_ANCHORS_REVALIDATED_PRE_CUTOFF",
+                "decision_hl_time": c.decision_hl.time.isoformat(),
+                "decision_hl_price": float(c.decision_hl.price),
+                "decision_hl_kind": c.decision_hl.kind,
+                "hl_break_time": c.hl_break_time.isoformat(),
+                "hl_break_mode": c.hl_break_mode,
+                "reference_id": ref["reference_id"],
+                "reference_anchor_revalidated": True,
+                "anchor1_confirmed_by_time": c.anchor1.confirmed_by_time.isoformat(),
+                "anchor2_confirmed_by_time": c.anchor2.confirmed_by_time.isoformat(),
+                "decision_hl_confirmed_by_time": c.decision_hl.confirmed_by_time.isoformat(),
+            }
+            fam = family_record(state, "reference", source_tf, current_price, eval_time)
+            fam["display_reason"] = "SOURCE_TF_FROZEN_REFERENCE_REVALIDATED"
+            fam["display_roles"] = ["TL", "CH"] if main_roles_only else list(ROLES)
+            fam["reference_id"] = ref["reference_id"]
+            fam["reference_anchor_revalidated"] = True
+            matched.append(fam)
+            break
+
+    if not matched:
+        return []
+
+    matched.sort(key=lambda x: (
+        x["distance_to_channel"],
+        0 if x["structure_level"] == "LARGE_DOW" else 1,
+        x["reference_id"],
+    ))
+    return [matched[0]]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
         description="Build a price-relevant local+parent TF research display preview."
@@ -198,6 +292,14 @@ def main() -> int:
         default=[],
         choices=["D1", "H4", "H1", "M15"],
         help="Research-only: if CURRENT is absent, select the nearest PREVIOUS family for this source TF.",
+    )
+    ap.add_argument("--fallback-reference-manifest")
+    ap.add_argument(
+        "--fallback-reference-source-tf",
+        action="append",
+        default=[],
+        choices=["D1", "H4", "H1", "M15"],
+        help="Research-only: if CURRENT/PREVIOUS are absent, revalidate frozen reference anchors using pre-cutoff bars.",
     )
     ap.add_argument(
         "--main-roles-only-source-tf",
@@ -228,6 +330,11 @@ def main() -> int:
     outdir.mkdir(parents=True, exist_ok=True)
     allow_empty_source_tfs = set(args.allow_empty_source_tf or [])
     fallback_previous_source_tfs = set(args.fallback_previous_source_tf or [])
+    fallback_reference_source_tfs = set(args.fallback_reference_source_tf or [])
+    fallback_reference_manifest = (
+        load_json(Path(args.fallback_reference_manifest))
+        if args.fallback_reference_manifest else {}
+    )
     main_roles_only_source_tfs = set(args.main_roles_only_source_tf or [])
     suppress_selected_source_direction = {}
     for item in (args.suppress_selected_source_direction or []):
@@ -325,6 +432,20 @@ def main() -> int:
                 display_reason="SOURCE_TF_RETAINED_PREVIOUS_FALLBACK",
                 main_roles_only=(source_tf in main_roles_only_source_tfs),
             )
+        if len(selected) < per_source and source_tf in fallback_reference_source_tfs:
+            if not fallback_reference_manifest:
+                raise ValueError(
+                    f"fallback reference requested for {source_tf} but no manifest was provided"
+                )
+            selected = build_revalidated_reference_family(
+                fallback_reference_manifest,
+                source_tf,
+                bars_by_tf[source_tf],
+                symbol,
+                current_price,
+                eval_time,
+                main_roles_only=(source_tf in main_roles_only_source_tfs),
+            )
         if len(selected) < per_source:
             if source_tf in allow_empty_source_tfs and len(selected) == 0:
                 source_selection[source_tf] = []
@@ -364,7 +485,10 @@ def main() -> int:
                 for role in fam["display_roles"]:
                     p1, p2 = line_points(s, role)
                     level_code = "L" if s["structure_level"] == "LARGE_DOW" else "M"
-                    gen_role_code = "C" if fam["generation_role"] == "CURRENT" else "P"
+                    gen_role_code = (
+                        "C" if fam["generation_role"] == "CURRENT"
+                        else ("P" if fam["generation_role"] == "PREVIOUS" else "R")
+                    )
                     oid = (
                         f"SRC_{source_tf}_DST_{display_tf}_"
                         f"{level_code}_G{s['generation']}_{gen_role_code}_{role}"
@@ -435,6 +559,8 @@ def main() -> int:
         "source_to_display_tfs": source_to_display,
         "allow_empty_source_tfs": sorted(allow_empty_source_tfs),
         "fallback_previous_source_tfs": sorted(fallback_previous_source_tfs),
+        "fallback_reference_source_tfs": sorted(fallback_reference_source_tfs),
+        "fallback_reference_manifest": args.fallback_reference_manifest,
         "main_roles_only_source_tfs": sorted(main_roles_only_source_tfs),
         "suppress_selected_source_direction": suppress_selected_source_direction,
         "suppressed_source_selections": suppressed_source_selections,
@@ -484,13 +610,16 @@ def main() -> int:
         "selection_policy": {
             "near_price_family_per_source_tf": per_source,
             "generation_scope": (
-                "CURRENT_WITH_EXPLICIT_PREVIOUS_FALLBACK"
-                if fallback_previous_source_tfs else "CURRENT_ONLY"
+                "CURRENT_WITH_EXPLICIT_RETAINED_FALLBACK"
+                if (fallback_previous_source_tfs or fallback_reference_source_tfs)
+                else "CURRENT_ONLY"
             ),
             "far_direction_context_max_families": context_max,
             "allowed_empty_source_tfs": sorted(allow_empty_source_tfs),
             "fallback_previous_source_tfs": sorted(fallback_previous_source_tfs),
             "fallback_previous_semantics": "USE_RETAINED_PREVIOUS_ONLY_WHEN_CURRENT_ABSENT",
+            "fallback_reference_source_tfs": sorted(fallback_reference_source_tfs),
+            "fallback_reference_semantics": "REVALIDATE_FROZEN_REFERENCE_ANCHORS_AGAINST_PRE_CUTOFF_CANDIDATES_ONLY",
             "main_roles_only_source_tfs": sorted(main_roles_only_source_tfs),
             "suppressed_source_directions": suppress_selected_source_direction,
             "suppressed_source_semantics": "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT",
