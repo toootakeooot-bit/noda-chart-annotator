@@ -1,0 +1,34 @@
+{
+  "schema": "nvt9-user-adjudication/1.0",
+  "audit_id": "ID10IQ200",
+  "case_id": "USER_0905_TRANSITION",
+  "market_date": "2026-09-05",
+  "scope": "H1/M15 transition semantics",
+  "source_type": "USER_ADJUDICATION",
+  "exact_anchor_geometry_locked": false,
+  "semantic_confidence": "HIGH",
+  "state_machine": [
+    {
+      "state": "ACTIVE_TL",
+      "meaning": "Existing TL is still structurally active."
+    },
+    {
+      "state": "NO_LINE_HOLD",
+      "meaning": "Existing TL has been broken but there are not yet two meaningful new pivots plus the first confirmed trend structure needed for the next TL."
+    },
+    {
+      "state": "NEXT_TL_ACTIVE",
+      "meaning": "Meaningful highs/lows exist and the first new-direction trend structure has been confirmed, allowing the next TL."
+    }
+  ],
+  "transition_rule": "ACTIVE_TL -> NO_LINE_HOLD -> NEXT_TL_ACTIVE",
+  "prohibited_shortcut": "ACTIVE_TL_BREAK -> IMMEDIATE_NEXT_TL",
+  "pattern_id": "P04",
+  "quality_expectation_during_middle_state": "HOLD",
+  "notes": [
+    "This semantic case is distinct from GT_0004, which is the 2026-09-05 D1 persistent-reference teacher-video case.",
+    "Do not invent exact anchors from this adjudication.",
+    "Use this record to test state transition semantics only until exact replay geometry is frozen."
+  ],
+  "production_writeback": false
+}
