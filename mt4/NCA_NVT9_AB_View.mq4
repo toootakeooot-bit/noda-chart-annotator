@@ -249,15 +249,30 @@ int RenderRowsOnChart(string path, long chartId, string symbol, string tf, datet
       string name = PREFIX + objectId;
       if(StringLen(name) > 63) continue;
 
+      bool clipAt0912 = (HistoryCase == CASE_20260912 && Variant == VARIANT_OLD);
+      datetime drawT2 = t2;
+      double drawP2 = p2;
+      if(clipAt0912 && cutoff > t2)
+      {
+         drawT2 = cutoff;
+         if(role == "HL")
+            drawP2 = p1;
+         else
+         {
+            double sec = (double)(t2 - t1);
+            if(sec > 0.0)
+               drawP2 = p1 + (p2 - p1) * ((double)(cutoff - t1) / sec);
+         }
+      }
+
       ResetLastError();
-      if(!ObjectCreate(chartId, name, OBJ_TREND, 0, t1, p1, t2, p2))
+      if(!ObjectCreate(chartId, name, OBJ_TREND, 0, t1, p1, drawT2, drawP2))
       {
          Print("NVT9 A-B VIEW: ObjectCreate failed chart=", chartId, " err=", GetLastError(), " name=", name);
          ResetLastError();
          continue;
       }
 
-      bool clipAt0912 = (HistoryCase == CASE_20260912 && Variant == VARIANT_OLD);
       ObjectSetInteger(chartId, name, OBJPROP_RAY_RIGHT, !clipAt0912);
       ObjectSetInteger(chartId, name, OBJPROP_BACK, false);
 
