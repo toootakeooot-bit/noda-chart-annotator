@@ -6,6 +6,8 @@ BUILDER = ROOT / "tools" / "nvt" / "build_nvt9_reference_0912.py"
 OVERLAY = ROOT / "tools" / "nvt" / "build_nvt9_structural_overlay_0919.py"
 VIEWER = ROOT / "mt4" / "NCA_NVT9_AB_View.mq4"
 FREEZE = ROOT / "nvt" / "manifests" / "NVT9_0919_VISUAL_AUDIT_FREEZE_V01.json"
+TRUTH = ROOT / "nvt" / "manifests" / "NVT9_0912_VISUAL_TRUTH_V01.json"
+VERIFY = ROOT / "tools" / "nvt" / "verify_nvt9_0912_visual_truth.py"
 
 
 def main() -> None:
@@ -27,6 +29,9 @@ def main() -> None:
     assert 'f"X{case_tag}-D1-CONT-01-TL"' in o
     assert 'f"X{case_tag}-D1-MAJOR-01-TL"' in o
     assert 'f"X{case_tag}-D1-MAJOR-01-HL"' in o
+    assert 'f"X{case_tag}-D1-APPROVED-01-TL"' in o
+    assert 'D1_USER_APPROVED_YELLOW_CIRCLE_LOW_PAIR' in o
+    assert 'ap.add_argument("--visual-truth")' in o
 
     v = VIEWER.read_text(encoding="utf-8")
     assert 'HistoryCase = CASE_20260912' in v
@@ -37,6 +42,19 @@ def main() -> None:
     assert '09/12 NO-LINE accepted' in v
     assert '[D1 MAJOR TL]' in v
     assert '[D1 MAJOR HL]' in v
+    assert '[D1 APPROVED TL]' in v
+    assert '[D1 APPROVED HL]' in v
+    assert 'drawT2 = cutoff' in v
+    assert 'OBJPROP_RAY_RIGHT, !clipAt0912' in v
+    assert 'OBJPROP_RAY_RIGHT,false' in v
+
+    truth = json.loads(TRUTH.read_text(encoding="utf-8"))
+    assert truth["status"] == "ACTIVE_USER_ANNOTATED_TRUTH"
+    assert truth["approved_families"][0]["truth_id"] == "VT0912-D1-001"
+    assert truth["render_contract"]["stop_all_audit_lines_at_cutoff"] is True
+    verify_text = VERIFY.read_text(encoding="utf-8")
+    assert "PASS_0912_VISUAL_TRUTH" in verify_text
+    assert "D1 anchor1 outside approved yellow-circle window" in verify_text
 
     freeze = json.loads(FREEZE.read_text(encoding="utf-8"))
     assert freeze["status"] == "FROZEN_VISUAL_AUDIT_COMPLETE"
