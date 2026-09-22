@@ -55,6 +55,12 @@ if ($BaseAudit.tl_transition_states.H4) {
 }
 if ($BaseAudit.tl_transition_states.H1) {
   Write-Host ("H1 TL state: {0} reason={1}" -f $BaseAudit.tl_transition_states.H1.state,$BaseAudit.tl_transition_states.H1.reason_code)
+  if ($BaseAudit.tl_transition_states.H1.state -eq 'REFERENCE_RETAINED') {
+    Write-Host ("H1 retained line: {0} A1={1} A2={2}" -f $BaseAudit.tl_transition_states.H1.retained_line_id,$BaseAudit.tl_transition_states.H1.retained_anchor1_time,$BaseAudit.tl_transition_states.H1.retained_anchor2_time)
+  }
+}
+if ($BaseAudit.transition_warmup_audit.H1) {
+  Write-Host ("H1 history replay used: {0}" -f $BaseAudit.transition_warmup_audit.H1.history_replay_used)
 }
 foreach ($d in $BaseAudit.transition_display_decisions) {
   Write-Host ("Display ownership: {0} <= {1} because {2}" -f $d.display_tf,$d.parent_source_tf,$d.state_or_reason)
