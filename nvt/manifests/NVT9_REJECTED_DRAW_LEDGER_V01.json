@@ -109,6 +109,49 @@
       "reason": "At the 2026-09-12 cutoff, the 600-closed-bar replay produces zero selected CURRENT H4 families. Do not invent or borrow a replacement H4 source line solely to satisfy a one-family preview assumption.",
       "enforcement": "build_nvt9_reference_0912.py opts H4 into --allow-empty-source-tf; build_nvt9_tf_mapped_preview.py records H4 as an empty source selection and skips its source-copy/HL rows.",
       "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-002",
+      "target_type": "REFERENCE_LINE_FAMILY",
+      "target": "2026-09-12_H1_SELECTED_FALLING_SOURCE",
+      "scope": [
+        "H1",
+        "H4_PLAN_B_COPY"
+      ],
+      "reason_code": "USER_REJECTED_H1_FALLING_AND_MAPPED_H4_COPY",
+      "reason": "09/12 visual audit identified the selected H1 FALLING source family and its mapped H4 copy as unnecessary compared with the frozen 09/19 structure.",
+      "replacement_policy": "SUPPRESS_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT",
+      "enforcement": "build_nvt9_reference_0912.py passes --suppress-selected-source-direction H1:FALLING; preview removes the source, its mapped copies, and its source Decision-HL.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-003",
+      "target_type": "D1_DISPLAY_FAMILY",
+      "target": "2026-09-12_SHALLOW_D1_RISING_BASE_FAMILY",
+      "scope": [
+        "D1"
+      ],
+      "reason_code": "REJECT_SHALLOW_D1_BASE_WHEN_MAJOR_CHANNEL_AVAILABLE",
+      "reason": "09/12 visual audit showed the selected D1 rising base family as a shallow/duplicate structure while the broad multi-month rising TL/CH was missing.",
+      "replacement_policy": "D1_MAJOR_RISING_MULTI_MONTH_SUPPORT_CHANNEL",
+      "enforcement": "09/12 base preview suppresses D1:RISING and structural overlay emits X0912-D1-MAJOR-01 TL/CH/HL when the major channel passes.",
+      "status": "ENFORCED"
+    },
+    {
+      "rejection_id": "RD0912-004",
+      "target_type": "H1_NATIVE_GATE",
+      "target": "H1_FULL_LIFE_UNBROKEN_ONLY",
+      "scope": [
+        "H1_TL",
+        "H1_DECISION_HL",
+        "H1_UPDATED_CH",
+        "H1_REACTION_ZONE"
+      ],
+      "reason_code": "REJECT_PRE_ANCHOR2_BREAK_AS_HARD_H1_GATE",
+      "reason": "A two-anchor H1 TL does not exist as an actionable line before anchor2 forms. Requiring the projected line to remain untouched from anchor1 can suppress the H1-native TL and its Decision HL even when the formed structure is valid after anchor2.",
+      "replacement_policy": "STRICT_FIRST_THEN_POST_ANCHOR2_UNBROKEN_H1_N_STRUCTURE",
+      "enforcement": "build_h1_native_continuation prefers full-life strict candidates, otherwise accepts an H1-native higher-low N structure only if no closed H1 bar breaks the line after anchor2; Decision HL remains tied to that same family.",
+      "status": "ENFORCED"
     }
   ]
 }
