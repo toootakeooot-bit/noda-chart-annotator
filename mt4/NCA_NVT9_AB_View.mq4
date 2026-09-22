@@ -337,6 +337,9 @@ int RenderCurrentOverlay0912(long chartId,string symbol,string tf)
       if(role=="CONT_TL") { c=tlColor; width=3; }
       else if(role=="CONT_CH") { c=chColor; width=2; }
       else if(role=="CONT_HL") { c=tlColor; style=STYLE_DASH; width=2; }
+      else if(role=="MAJOR_TL") { c=D1TLColor; width=4; }
+      else if(role=="MAJOR_CH") { c=D1CHColor; width=3; }
+      else if(role=="MAJOR_HL") { c=D1TLColor; style=STYLE_DASH; width=2; }
       else if(role=="REACTION_ZONE_LOW" || role=="REACTION_ZONE_HIGH") { c=H1TLColor; width=1; }
       else if(role=="UPDATED_CH") { c=H1CHColor; width=3; }
 
@@ -345,7 +348,7 @@ int RenderCurrentOverlay0912(long chartId,string symbol,string tf)
       ObjectSetInteger(chartId,name,OBJPROP_WIDTH,width);
       rendered++;
 
-      if(role=="CONT_TL" || role=="CONT_HL" || role=="UPDATED_CH" || role=="REACTION_ZONE_HIGH")
+      if(role=="CONT_TL" || role=="CONT_HL" || role=="MAJOR_TL" || role=="MAJOR_HL" || role=="UPDATED_CH" || role=="REACTION_ZONE_HIGH")
       {
          string lname=XPREFIX+"LBL_"+objectId;
          if(ObjectFind(chartId,lname)>=0) ObjectDelete(chartId,lname);
@@ -355,6 +358,8 @@ int RenderCurrentOverlay0912(long chartId,string symbol,string tf)
             if(role=="UPDATED_CH") labelText=objectId+" [UPDATED CH]";
             else if(role=="CONT_TL") labelText=objectId+" ["+rowTf+" CONT TL]";
             else if(role=="CONT_HL") labelText=objectId+" ["+rowTf+" DECISION HL]";
+            else if(role=="MAJOR_TL") labelText=objectId+" [D1 MAJOR TL]";
+            else if(role=="MAJOR_HL") labelText=objectId+" [D1 MAJOR HL]";
             else if(role=="REACTION_ZONE_HIGH") labelText=objectId+" [ZONE]";
             ObjectSetText(lname,labelText,8,"Arial",c);
             ObjectSetInteger(chartId,lname,OBJPROP_SELECTABLE,false);
