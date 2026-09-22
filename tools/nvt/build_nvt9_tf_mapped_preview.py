@@ -141,6 +141,9 @@ def select_source_families(
     candidates: list[dict],
     source_tf: str,
     per_source: int,
+    allowed_generation_roles: tuple[str, ...] = ("CURRENT",),
+    display_reason: str = "SOURCE_TF_NEAREST_FAMILY",
+    main_roles_only: bool = False,
 ) -> list[dict]:
     # Selection is made ONCE on the SOURCE timeframe using the source
     # timeframe's own latest closed bar / current price. The chosen geometry
@@ -149,9 +152,7 @@ def select_source_families(
     for c in candidates:
         if c["source_tf"] != source_tf:
             continue
-        # Audit preview reproduces the source chart's aqua CURRENT structure.
-        # PREVIOUS is intentionally excluded from this visual verification.
-        if c["generation_role"] != "CURRENT":
+        if c["generation_role"] not in allowed_generation_roles:
             continue
         by_geom[geometry_key(c["_state"])].append(c)
 
@@ -177,8 +178,8 @@ def select_source_families(
     selected = []
     for c in ranked[:per_source]:
         item = dict(c)
-        item["display_reason"] = "SOURCE_TF_NEAREST_FAMILY"
-        item["display_roles"] = list(ROLES)
+        item["display_reason"] = display_reason
+        item["display_roles"] = ["TL", "CH"] if main_roles_only else list(ROLES)
         selected.append(item)
     return selected
 
@@ -191,6 +192,20 @@ def main() -> int:
     ap.add_argument("--input-dir", required=True)
     ap.add_argument("--input-prefix", default="NVT", choices=["NVT", "NORMAL"])
     ap.add_argument("--output-dir", required=True)
+    ap.add_argument(
+        "--fallback-previous-source-tf",
+        action="append",
+        default=[],
+        choices=["D1", "H4", "H1", "M15"],
+        help="Research-only: if CURRENT is absent, select the nearest PREVIOUS family for this source TF.",
+    )
+    ap.add_argument(
+        "--main-roles-only-source-tf",
+        action="append",
+        default=[],
+        choices=["D1", "H4", "H1", "M15"],
+        help="Research-only: draw only TL/CH for this source TF; suppress zone edges.",
+    )
     ap.add_argument(
         "--suppress-selected-source-direction",
         action="append",
@@ -212,6 +227,8 @@ def main() -> int:
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
     allow_empty_source_tfs = set(args.allow_empty_source_tf or [])
+    fallback_previous_source_tfs = set(args.fallback_previous_source_tf or [])
+    main_roles_only_source_tfs = set(args.main_roles_only_source_tf or [])
     suppress_selected_source_direction = {}
     for item in (args.suppress_selected_source_direction or []):
         if ":" not in item:
@@ -291,7 +308,23 @@ def main() -> int:
         candidate_counts[source_tf] = sum(
             1 for x in candidates if x["generation_role"] == "CURRENT"
         )
-        selected = select_source_families(candidates, source_tf, per_source)
+        selected = select_source_families(
+            candidates,
+            source_tf,
+            per_source,
+            allowed_generation_roles=("CURRENT",),
+            display_reason="SOURCE_TF_NEAREST_FAMILY",
+            main_roles_only=(source_tf in main_roles_only_source_tfs),
+        )
+        if len(selected) < per_source and source_tf in fallback_previous_source_tfs:
+            selected = select_source_families(
+                candidates,
+                source_tf,
+                per_source,
+                allowed_generation_roles=("PREVIOUS",),
+                display_reason="SOURCE_TF_RETAINED_PREVIOUS_FALLBACK",
+                main_roles_only=(source_tf in main_roles_only_source_tfs),
+            )
         if len(selected) < per_source:
             if source_tf in allow_empty_source_tfs and len(selected) == 0:
                 source_selection[source_tf] = []
@@ -401,6 +434,8 @@ def main() -> int:
         "display_sources": display_sources,
         "source_to_display_tfs": source_to_display,
         "allow_empty_source_tfs": sorted(allow_empty_source_tfs),
+        "fallback_previous_source_tfs": sorted(fallback_previous_source_tfs),
+        "main_roles_only_source_tfs": sorted(main_roles_only_source_tfs),
         "suppress_selected_source_direction": suppress_selected_source_direction,
         "suppressed_source_selections": suppressed_source_selections,
         "empty_source_tfs": sorted(tf for tf, fams in source_selection.items() if not fams),
@@ -448,9 +483,12 @@ def main() -> int:
         },
         "selection_policy": {
             "near_price_family_per_source_tf": per_source,
-            "generation_scope": "CURRENT_ONLY",
+            "generation_scope": "CURRENT_WITH_EXPLICIT_PREVIOUS_FALLBACK",
             "far_direction_context_max_families": context_max,
             "allowed_empty_source_tfs": sorted(allow_empty_source_tfs),
+            "fallback_previous_source_tfs": sorted(fallback_previous_source_tfs),
+            "fallback_previous_semantics": "USE_RETAINED_PREVIOUS_ONLY_WHEN_CURRENT_ABSENT",
+            "main_roles_only_source_tfs": sorted(main_roles_only_source_tfs),
             "suppressed_source_directions": suppress_selected_source_direction,
             "suppressed_source_semantics": "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT",
             "empty_source_semantics": "NO_LINE_NO_SYNTHETIC_FALLBACK",
