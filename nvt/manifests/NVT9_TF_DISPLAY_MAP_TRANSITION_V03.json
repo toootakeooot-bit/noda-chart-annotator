@@ -1,0 +1,139 @@
+{
+  "schema": "nvt9-tf-display-map/0.9",
+  "status": "RESEARCH_CANDIDATE_POST_SELECTOR_TRANSITION_OWNERSHIP",
+  "audit_id": "ID10IQ200",
+  "date": "2026-09-22",
+  "symbol": "USDJPY#",
+  "semantics": {
+    "source_tf": "timeframe that creates/owns the structure",
+    "structural_owner_tf": "same as source_tf unless a separate merge/family rule is explicitly confirmed",
+    "display_tf": "native structure is displayed on its own chart unless post-selector lifecycle marks the child TRANSITION_NO_TL; then the configured parent TF owns that display chart",
+    "plan_b_examples": [
+      "D1 ACTIVE -> D1 chart",
+      "H4 ACTIVE/NEW_ACTIVE -> H4 chart",
+      "H4 TRANSITION_NO_TL -> D1 geometry copied to H4",
+      "H1 ACTIVE/NEW_ACTIVE -> H1 chart",
+      "M15 native disabled -> H1 geometry copied to M15"
+    ]
+  },
+  "m15_policy": {
+    "independent_m15_structure_display": false,
+    "native_m15_selector_enabled": false,
+    "m15_structure_owner": "H1",
+    "m15_display_source": "H1",
+    "reason": "M15 is display-only in this audit. Its native movement is too abrupt/noisy for stable ownership; use H1 geometry without reselection."
+  },
+  "scope": {
+    "include_structure_levels": [
+      "LARGE_DOW",
+      "MID_DOW"
+    ],
+    "include_generation_roles": [
+      "CURRENT"
+    ],
+    "include_roles": [
+      "TL",
+      "CH",
+      "TL_ZONE_EDGE",
+      "CH_ZONE_EDGE"
+    ]
+  },
+  "important": [
+    "TL transition state is resolved after source selection and before display mapping.",
+    "TRANSITION_NO_TL means an older activated TL is broken and no replacement N has yet produced two anchors plus a Decision-HL closed-bar break.",
+    "NEW_ACTIVE requires the existing N-structure rules; the transition layer does not invent anchors.",
+    "When H4 is TRANSITION_NO_TL, D1 becomes the H4 display owner.",
+    "M15 native selection is disabled; H1 owns M15 display.",
+    "Destination charts never reselect source geometry.",
+    "No trade authority or production NCA_DRAW writeback is allowed."
+  ],
+  "production_changed": false,
+  "renderer_changed": false,
+  "snapshot_changed": false,
+  "nca_draw_writeback": false,
+  "display_sources": {
+    "D1": [
+      "D1"
+    ],
+    "H4": [
+      "H4",
+      "D1"
+    ],
+    "H1": [
+      "H1"
+    ],
+    "M15": [
+      "H1"
+    ]
+  },
+  "h1_h4_merge_policy": {
+    "allowed": false,
+    "reason": "09/05 transition audit uses explicit lifecycle ownership instead of nonexact H1/H4 merge."
+  },
+  "visibility_policy": {
+    "objective": "Select one native family per enabled source TF, resolve TL lifecycle, then assign display ownership. Parent inheritance occurs only under an explicit transition rule.",
+    "family_unit": "TL+CH family, not individual role",
+    "current_price_metric": "Project TL/CH to the latest closed bar of the display timeframe. Distance is zero when price lies inside the channel; otherwise use distance to the nearest channel boundary.",
+    "near_price_roles": [
+      "TL",
+      "CH",
+      "TL_ZONE_EDGE",
+      "CH_ZONE_EDGE"
+    ],
+    "far_direction_context_max_families": 0,
+    "far_direction_context_roles": [
+      "TL",
+      "CH"
+    ],
+    "fixed_pip_threshold_used": false,
+    "atr_threshold_used": false,
+    "note": "No fixed source-to-adjacent copy except explicit transition inheritance. H4 may inherit D1 only in TRANSITION_NO_TL; M15 always inherits H1 because native M15 is disabled.",
+    "near_price_family_per_source_tf": 1,
+    "far_direction_context_policy": "MANUAL_REVIEW_ONLY_FOR_NOW",
+    "generation_scope": "CURRENT_ONLY"
+  },
+  "plan": "TRANSITION_AWARE_PARENT_INHERITANCE",
+  "source_to_display_tfs": {
+    "D1": [
+      "D1"
+    ],
+    "H4": [
+      "H4"
+    ],
+    "H1": [
+      "H1"
+    ]
+  },
+  "preview_isolation": {
+    "enabled_by_default": true,
+    "delete_scope": "ALL_MT4_CHART_OBJECTS_ON_CURRENT_CHART",
+    "reason": "User confirmed this is a drawing-only audit; all non-preview chart objects may be removed for clean visual verification.",
+    "indicators_themselves_removed": false,
+    "note": "Objects created by indicators are chart objects and may also be removed."
+  },
+  "native_disabled_source_tfs": [
+    "M15"
+  ],
+  "transition_state_source_tfs": [
+    "H4",
+    "H1"
+  ],
+  "transition_inheritance": {
+    "H4": {
+      "parent_source_tf": "D1",
+      "when": [
+        "TRANSITION_NO_TL"
+      ],
+      "suppress_native": true,
+      "reason": "During the gap after the old H4 TL breaks and before a replacement H4 N is activated, display the still-valid D1 structure on H4."
+    },
+    "M15": {
+      "parent_source_tf": "H1",
+      "when": [
+        "NATIVE_DISABLED"
+      ],
+      "suppress_native": true,
+      "reason": "M15 does not own a native TL in this audit; display the exact H1-selected geometry."
+    }
+  }
+}
