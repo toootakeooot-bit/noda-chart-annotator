@@ -106,7 +106,7 @@ def main() -> int:
         "--allow-empty-source-tf", "H4",
         "--allow-empty-source-tf", "H1",
         "--main-roles-only-source-tf", "H4",
-        "--main-roles-only-source-tf", "M15",
+        "--main-roles-only-source-tf", "H1",
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
@@ -126,7 +126,10 @@ def main() -> int:
         "fallback_previous_source_tfs": ["H4", "H1"],
         "fallback_reference_source_tfs": ["H4", "H1"],
         "fallback_reference_manifest": str(Path(args.reference_manifest)),
-        "main_roles_only_source_tfs": ["H4", "M15"],
+        "main_roles_only_source_tfs": ["H4", "H1"],
+        "m15_native_selector_enabled": False,
+        "m15_structural_owner": "H1",
+        "m15_display_policy": "COPY_EXACT_H1_SELECTED_GEOMETRY_NO_RESELECTION",
         "suppressed_source_directions": {},
         "empty_source_policy": "ALLOW_H4_H1_NO_LINE_IF_CURRENT_PREVIOUS_AND_PRE_CUTOFF_REVALIDATED_REFERENCE_ARE_ALL_ABSENT",
         "retained_reference_policy": "H4_H1_CURRENT_THEN_PREVIOUS_THEN_FROZEN_REFERENCE_REVALIDATED_PRE_CUTOFF",
