@@ -16,8 +16,11 @@ def main() -> None:
     assert 'eligible[-600:]' in b
     assert '"future_bars_used": False' in b
     assert '"--fallback-previous-source-tf", "H4"' in b
+    assert '"--fallback-previous-source-tf", "H1"' in b
     assert '"--fallback-reference-source-tf", "H4"' in b
+    assert '"--fallback-reference-source-tf", "H1"' in b
     assert '"--allow-empty-source-tf", "H4"' in b
+    assert '"--allow-empty-source-tf", "H1"' in b
     assert '"--main-roles-only-source-tf", "H4"' in b
     assert '"--main-roles-only-source-tf", "M15"' in b
     assert '--suppress-selected-source-direction' not in b
@@ -46,6 +49,7 @@ def main() -> None:
     assert "PENDING_USER_0905_SCREENSHOT" in verify
     assert "09/05 D1 approved TL has formation wick breach" in verify
     assert "09/05 H4 frozen reference was not revalidated" in verify
+    assert "09/05 H1 frozen reference was not revalidated" in verify
 
     run = RUN.read_text(encoding="utf-8")
     assert "2026-09-05T00:00:00" in run
