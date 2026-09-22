@@ -42,6 +42,7 @@ jobs:
             tools/nvt/build_nvt9_0919_reference.py \
             tools/nvt/diagnose_nvt9_reference_0919.py \
             tools/nvt/build_nvt9_structural_overlay_0919.py \
+            tools/nvt/build_nvt9_reference_0912.py \
             tools/nvt/build_nvt9_v4_visibility_decision.py \
             tools/nvt/build_nvt9_v4_display_template.py \
             tools/nvt/build_nvt9_v6_visibility_preview.py \
@@ -53,6 +54,7 @@ jobs:
             tests/selftest_nvt9_reference0919_viewer_safety.py \
             tests/selftest_nvt9_structural_overlay.py \
             tests/selftest_nvt9_rejected_draw_ledger.py \
+            tests/selftest_nvt9_0912_current_package.py \
             tests/selftest_nvt9_cross_tf.py \
             tests/selftest_nvt9_normal_vs_full_history.py \
             tests/selftest_nvt9_deep_lifecycle_state.py \
@@ -83,6 +85,9 @@ jobs:
 
       - name: Rejected draw ledger self-test
         run: python tests/selftest_nvt9_rejected_draw_ledger.py
+
+      - name: 09/12 current package self-test
+        run: python tests/selftest_nvt9_0912_current_package.py
 
       - name: NormalRun lifecycle replay self-test
         run: python tests/selftest_normal_run.py
