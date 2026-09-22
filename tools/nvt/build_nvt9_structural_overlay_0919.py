@@ -178,12 +178,122 @@ def build_d1_continuation(bars, pivots) -> ContinuationCandidate | None:
     return max(pool, key=support_rank)
 
 
+def build_d1_major_channel(bars, pivots) -> ContinuationCandidate | None:
+    """Build the broad rising D1 support/channel family used for 09/12 audit.
+
+    This is deliberately distinct from the tight continuation family.  It
+    favors a multi-month structure with repeated support contact, rejects
+    lines that are too far below the current market, and requires the line to
+    remain valid after anchor2 is formed.
+    """
+    lows = [p for p in pivots if p.kind == "LOW"]
+    highs = [p for p in pivots if p.kind == "HIGH"]
+    if len(lows) < 2 or not highs or not bars:
+        return None
+
+    mr = max(median_bar_range(bars), 1e-8)
+    tol = max(mr * 0.30, 1e-8)
+    cutoff_time = bars[-1].time
+    cutoff_close = float(bars[-1].close)
+    candidates: list[tuple[ContinuationCandidate, float]] = []
+
+    for i, a in enumerate(lows[:-1]):
+        anchor_age_days = (cutoff_time - a.time).total_seconds() / 86400.0
+        if anchor_age_days > 480.0:
+            continue
+        for b in lows[i + 1:]:
+            duration_days = (b.time - a.time).total_seconds() / 86400.0
+            if duration_days < 120.0:
+                continue
+            if b.price <= a.price:
+                continue
+
+            between = [h for h in highs if a.time < h.time < b.time]
+            if not between:
+                continue
+            slope = slope_per_second(a.time, a.price, b.time, b.price)
+            if slope <= 0:
+                continue
+
+            # The line becomes actionable only after anchor2 exists.  From that
+            # point forward, a meaningful D1 support must not be closed through.
+            if any(
+                bar.time > b.time
+                and bar.close < line_value(bar.time, a.time, a.price, slope) - tol
+                for bar in bars
+            ):
+                continue
+
+            projected = line_value(cutoff_time, a.time, a.price, slope)
+            gap = cutoff_close - projected
+            if gap < -tol:
+                continue
+            if gap > max(mr * 5.0, 6.0):
+                continue
+
+            contacts = sum(
+                1
+                for p in lows
+                if p.time >= a.time
+                and abs(p.price - line_value(p.time, a.time, a.price, slope)) <= tol
+            )
+            decision_hl = max(between, key=lambda p: (p.price, p.time))
+
+            hl_break_time = None
+            for bar in bars:
+                if bar.time <= b.time:
+                    continue
+                if bar.close > decision_hl.price:
+                    hl_break_time = bar.time
+                    break
+
+            high_pool = [h for h in highs if h.time >= a.time]
+            residuals = [
+                (h.price - line_value(h.time, a.time, a.price, slope), h)
+                for h in high_pool
+            ]
+            residuals = [(off, h) for off, h in residuals if off > tol]
+            if not residuals:
+                continue
+            ch_offset, ch_anchor = max(residuals, key=lambda x: (x[0], x[1].time))
+
+            cand = ContinuationCandidate(
+                anchor1=a,
+                anchor2=b,
+                decision_hl=decision_hl,
+                slope=slope,
+                tl_contacts=contacts,
+                duration_days=duration_days,
+                unbroken_close=True,
+                hl_break_time=hl_break_time,
+                ch_anchor=ch_anchor,
+                ch_offset=ch_offset,
+                tolerance=tol,
+            )
+            candidates.append((cand, gap))
+
+    if not candidates:
+        return None
+
+    # Major structure: repeated support evidence first, then broader span,
+    # while preferring the line that still sits reasonably close to price.
+    return max(
+        candidates,
+        key=lambda item: (
+            item[0].tl_contacts,
+            item[0].duration_days,
+            -item[1],
+            item[0].anchor2.time,
+        ),
+    )[0]
+
+
 def build_h1_native_continuation(bars, pivots) -> ContinuationCandidate | None:
     """Build a native H1 rising TL/CH/Decision-HL family.
 
-    This deliberately does not reuse a mapped M15 line.  It uses H1-confirmed
-    pivots, prefers a recent structural pullback anchor2, and requires the
-    support line to remain unbroken by closed H1 bars.
+    Strict candidates are preferred.  If none survive, a formation-valid H1
+    N-structure may be used when the line remains unbroken after anchor2.
+    This keeps H1 ownership native and avoids falling back to mapped M15.
     """
     lows = [p for p in pivots if p.kind == "LOW"]
     highs = [p for p in pivots if p.kind == "HIGH"]
@@ -191,7 +301,7 @@ def build_h1_native_continuation(bars, pivots) -> ContinuationCandidate | None:
         return None
 
     tol = max(median_bar_range(bars) * 0.28, 1e-8)
-    recent_anchor2_times = {p.time for p in lows[-8:]}
+    recent_anchor2_times = {p.time for p in lows[-10:]}
     candidates: list[ContinuationCandidate] = []
 
     for i, a in enumerate(lows[:-1]):
@@ -199,7 +309,7 @@ def build_h1_native_continuation(bars, pivots) -> ContinuationCandidate | None:
             if b.time not in recent_anchor2_times:
                 continue
             duration_days = (b.time - a.time).total_seconds() / 86400.0
-            if duration_days < 2.0:
+            if duration_days < 1.0:
                 continue
             if b.price <= a.price:
                 continue
@@ -210,22 +320,25 @@ def build_h1_native_continuation(bars, pivots) -> ContinuationCandidate | None:
             decision_hl = max(between, key=lambda p: (p.price, p.time))
             slope = slope_per_second(a.time, a.price, b.time, b.price)
 
-            broken = False
-            for bar in bars:
-                if bar.time < a.time:
-                    continue
-                if bar.close < line_value(bar.time, a.time, a.price, slope) - tol:
-                    broken = True
-                    break
-            if broken:
+            broken_full_life = any(
+                bar.time >= a.time
+                and bar.close < line_value(bar.time, a.time, a.price, slope) - tol
+                for bar in bars
+            )
+            broken_after_anchor2 = any(
+                bar.time > b.time
+                and bar.close < line_value(bar.time, a.time, a.price, slope) - tol
+                for bar in bars
+            )
+            if broken_after_anchor2:
                 continue
 
-            contacts = 0
-            for p in lows:
-                if p.time < a.time:
-                    continue
-                if abs(p.price - line_value(p.time, a.time, a.price, slope)) <= tol:
-                    contacts += 1
+            contacts = sum(
+                1
+                for p in lows
+                if p.time >= a.time
+                and abs(p.price - line_value(p.time, a.time, a.price, slope)) <= tol
+            )
 
             hl_break_time = None
             for bar in bars:
@@ -235,8 +348,6 @@ def build_h1_native_continuation(bars, pivots) -> ContinuationCandidate | None:
                     hl_break_time = bar.time
                     break
 
-            # Base CH belongs to the structure that existed by anchor2.
-            # Later highs are reserved for Updated-CH adjudication.
             residuals = [
                 (h.price - line_value(h.time, a.time, a.price, slope), h)
                 for h in between
@@ -254,7 +365,7 @@ def build_h1_native_continuation(bars, pivots) -> ContinuationCandidate | None:
                     slope=slope,
                     tl_contacts=contacts,
                     duration_days=duration_days,
-                    unbroken_close=True,
+                    unbroken_close=not broken_full_life,
                     hl_break_time=hl_break_time,
                     ch_anchor=ch_anchor,
                     ch_offset=ch_offset,
@@ -265,11 +376,12 @@ def build_h1_native_continuation(bars, pivots) -> ContinuationCandidate | None:
     if not candidates:
         return None
 
+    strict = [c for c in candidates if c.unbroken_close]
+    pool = strict if strict else candidates
+
     cutoff_time = bars[-1].time
     cutoff_close = float(bars[-1].close)
 
-    # Prefer the newest meaningful H1 pullback structure first.  Within the
-    # same anchor2 epoch, prefer the tightest unbroken support and more contacts.
     def rank(c: ContinuationCandidate):
         projected = line_value(cutoff_time, c.anchor1.time, c.anchor1.price, c.slope)
         gap = max(0.0, cutoff_close - projected)
@@ -280,7 +392,7 @@ def build_h1_native_continuation(bars, pivots) -> ContinuationCandidate | None:
             c.duration_days,
         )
 
-    return max(candidates, key=rank)
+    return max(pool, key=rank)
 
 
 @dataclass
