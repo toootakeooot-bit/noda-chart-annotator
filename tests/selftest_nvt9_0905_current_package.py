@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILDER = ROOT / "tools" / "nvt" / "build_nvt9_reference_0905.py"
 VERIFY = ROOT / "tools" / "nvt" / "verify_nvt9_0905_previsual.py"
 TRUTH = ROOT / "nvt" / "manifests" / "NVT9_0905_VISUAL_TRUTH_V01.json"
+POLICY = ROOT / "nvt" / "manifests" / "NVT9_TF_DISPLAY_MAP_H1_TO_M15_V02.json"
 VIEWER = ROOT / "mt4" / "NCA_NVT9_AB_View.mq4"
 OVERLAY = ROOT / "tools" / "nvt" / "build_nvt9_structural_overlay_0919.py"
 RUN = ROOT / "setup" / "run_nvt9_reference_0905.ps1"
@@ -23,10 +24,21 @@ def main() -> None:
     assert '"--allow-empty-source-tf", "H4"' in b
     assert '"--allow-empty-source-tf", "H1"' in b
     assert '"--main-roles-only-source-tf", "H4"' in b
-    assert '"--main-roles-only-source-tf", "M15"' in b
+    assert '"--main-roles-only-source-tf", "H1"' in b
+    assert '"--main-roles-only-source-tf", "M15"' not in b
+    assert '"m15_native_selector_enabled": False' in b
+    assert '"m15_structural_owner": "H1"' in b
     assert '--suppress-selected-source-direction' not in b
     assert '"suppressed_source_directions": {}' in b
     assert '"NO_0905_DATE_SPECIFIC_SUPPRESSION_BEFORE_VISUAL_ADJUDICATION"' in b
+
+    policy = json.loads(POLICY.read_text(encoding="utf-8"))
+    assert policy["native_disabled_source_tfs"] == ["M15"]
+    assert policy["m15_policy"]["native_m15_selector_enabled"] is False
+    assert policy["m15_policy"]["m15_structure_owner"] == "H1"
+    assert "M15" not in policy["source_to_display_tfs"]
+    assert policy["source_to_display_tfs"]["H1"] == ["H1", "H4", "M15"]
+    assert policy["display_sources"]["M15"] == ["H1"]
 
     truth = json.loads(TRUTH.read_text(encoding="utf-8"))
     assert truth["case_date"] == "2026-09-05"
@@ -57,10 +69,15 @@ def main() -> None:
     assert "09/05 D1 approved TL has formation wick breach" in verify
     assert "09/05 H4 frozen reference was not revalidated" in verify
     assert "09/05 H1 frozen reference was not revalidated" in verify
+    assert "09/05 M15 native source must be disabled" in verify
+    assert "09/05 M15 display source is not H1" in verify
+    assert "09/05 H1/M15 geometry mismatch" in verify
 
     run = RUN.read_text(encoding="utf-8")
     assert "2026-09-05T00:00:00" in run
     assert "build_nvt9_reference_0905.py" in run
+    assert "NVT9_TF_DISPLAY_MAP_H1_TO_M15_V02.json" in run
+    assert "M15 source: DISABLED" in run
     assert "--case-tag '0905'" in run
     assert "verify_nvt9_0905_previsual.py" in run
     assert "READY - 09/05 FIRST VISUAL AUDIT" in run
