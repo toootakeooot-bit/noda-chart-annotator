@@ -71,10 +71,14 @@ def main() -> int:
     if int(resolved.get("formation_wick_breach_count", -1)) != 0:
         raise ValueError(f"09/05 D1 approved TL has formation wick breach: {resolved}")
 
-    # M15 generalized display rule: main TL/CH only.
-    m15 = (base.get("source_selection") or {}).get("M15") or []
-    if len(m15) != 1 or m15[0].get("display_roles") != ["TL", "CH"]:
-        raise ValueError(f"09/05 M15 must keep main TL/CH only: {m15}")
+    # M15 structural ownership is delegated to H1.
+    # M15 must not select its own native family.  If H1 has a selected family,
+    # that exact geometry must be copied to the M15 display without reselection.
+    source_selection = base.get("source_selection") or {}
+    if "M15" in source_selection and source_selection.get("M15"):
+        raise ValueError(f"09/05 M15 native source must be disabled: {source_selection.get('M15')}")
+    if "M15" not in set(base.get("native_disabled_source_tfs") or []):
+        raise ValueError("09/05 M15 is not marked native-disabled in the display policy")
 
     # H4 is intentionally unresolved before first 09/05 screenshot:
     # CURRENT/PREVIOUS/revalidated REFERENCE are all acceptable, and NO-LINE is
@@ -89,13 +93,35 @@ def main() -> int:
         if fam.get("display_roles") != ["TL", "CH"]:
             raise ValueError(f"09/05 H4 must keep main TL/CH only: {fam}")
 
-    h1 = (base.get("source_selection") or {}).get("H1") or []
+    h1 = source_selection.get("H1") or []
     if h1:
         fam = h1[0]
         if fam.get("generation_role") not in {"CURRENT", "PREVIOUS", "REFERENCE"}:
             raise ValueError(f"09/05 H1 has unsupported generation role: {fam}")
         if fam.get("generation_role") == "REFERENCE" and fam.get("reference_anchor_revalidated") is not True:
             raise ValueError(f"09/05 H1 frozen reference was not revalidated: {fam}")
+        if fam.get("display_roles") != ["TL", "CH"]:
+            raise ValueError(f"09/05 H1 owner family must use main TL/CH only: {fam}")
+
+    m15_display = [
+        x for x in (base.get("selected_families") or [])
+        if x.get("display_tf") == "M15"
+    ]
+    if h1:
+        if len(m15_display) != 1:
+            raise ValueError(f"09/05 M15 must contain exactly one H1-owned family: {m15_display}")
+        copied = m15_display[0]
+        if copied.get("source_tf") != "H1":
+            raise ValueError(f"09/05 M15 display source is not H1: {copied}")
+        if copied.get("copied_without_reselection") is not True:
+            raise ValueError(f"09/05 H1->M15 geometry was reselected: {copied}")
+        if copied.get("geometry_signature") != h1[0].get("geometry_signature"):
+            raise ValueError(
+                f"09/05 H1/M15 geometry mismatch: h1={h1[0].get('geometry_signature')} "
+                f"m15={copied.get('geometry_signature')}"
+            )
+    elif m15_display:
+        raise ValueError(f"09/05 M15 has geometry while H1 is NO-LINE: {m15_display}")
 
     report = {
         "schema": "nvt9-0905-previsual-verification/1.0",
@@ -106,7 +132,17 @@ def main() -> int:
         "d1_anchor1": d1.get("anchor1"),
         "d1_anchor2": d1.get("anchor2"),
         "d1_formation_wick_breach_count": resolved.get("formation_wick_breach_count"),
-        "m15_line_id": m15[0].get("line_id"),
+        "m15_native_selector_enabled": False,
+        "m15_structural_owner": "H1",
+        "m15_display": (
+            {
+                "source_tf": m15_display[0].get("source_tf"),
+                "line_id": m15_display[0].get("line_id"),
+                "geometry_signature": m15_display[0].get("geometry_signature"),
+                "copied_without_reselection": m15_display[0].get("copied_without_reselection"),
+            }
+            if m15_display else {"source_tf": "H1", "line_id": None, "state": "NO_LINE_WITH_H1"}
+        ),
         "h4_status": (
             {
                 "line_id": h4[0].get("line_id"),
