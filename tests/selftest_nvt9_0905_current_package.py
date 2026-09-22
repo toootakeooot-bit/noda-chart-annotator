@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILDER = ROOT / "tools" / "nvt" / "build_nvt9_reference_0905.py"
 VERIFY = ROOT / "tools" / "nvt" / "verify_nvt9_0905_previsual.py"
 TRUTH = ROOT / "nvt" / "manifests" / "NVT9_0905_VISUAL_TRUTH_V01.json"
-POLICY = ROOT / "nvt" / "manifests" / "NVT9_TF_DISPLAY_MAP_H1_TO_M15_V02.json"
+POLICY = ROOT / "nvt" / "manifests" / "NVT9_TF_DISPLAY_MAP_TRANSITION_V03.json"
 VIEWER = ROOT / "mt4" / "NCA_NVT9_AB_View.mq4"
 OVERLAY = ROOT / "tools" / "nvt" / "build_nvt9_structural_overlay_0919.py"
 RUN = ROOT / "setup" / "run_nvt9_reference_0905.ps1"
@@ -37,8 +37,14 @@ def main() -> None:
     assert policy["m15_policy"]["native_m15_selector_enabled"] is False
     assert policy["m15_policy"]["m15_structure_owner"] == "H1"
     assert "M15" not in policy["source_to_display_tfs"]
-    assert policy["source_to_display_tfs"]["H1"] == ["H1", "H4", "M15"]
-    assert policy["display_sources"]["M15"] == ["H1"]
+    assert policy["source_to_display_tfs"]["D1"] == ["D1"]
+    assert policy["source_to_display_tfs"]["H4"] == ["H4"]
+    assert policy["source_to_display_tfs"]["H1"] == ["H1"]
+    assert policy["transition_state_source_tfs"] == ["H4", "H1"]
+    assert policy["transition_inheritance"]["H4"]["parent_source_tf"] == "D1"
+    assert policy["transition_inheritance"]["H4"]["when"] == ["TRANSITION_NO_TL"]
+    assert policy["transition_inheritance"]["M15"]["parent_source_tf"] == "H1"
+    assert policy["transition_inheritance"]["M15"]["when"] == ["NATIVE_DISABLED"]
 
     truth = json.loads(TRUTH.read_text(encoding="utf-8"))
     assert truth["case_date"] == "2026-09-05"
@@ -69,6 +75,9 @@ def main() -> None:
     assert "09/05 D1 approved TL has formation wick breach" in verify
     assert "09/05 H4 frozen reference was not revalidated" in verify
     assert "09/05 H1 frozen reference was not revalidated" in verify
+    assert "09/05 H4 transition state mismatch" in verify
+    assert "09/05 H4 display is not inherited from D1" in verify
+    assert "09/05 H1 must be ACTIVE/NEW_ACTIVE before M15 inheritance" in verify
     assert "09/05 M15 native source must be disabled" in verify
     assert "09/05 M15 display source is not H1" in verify
     assert "09/05 H1/M15 geometry mismatch" in verify
@@ -76,7 +85,10 @@ def main() -> None:
     run = RUN.read_text(encoding="utf-8")
     assert "2026-09-05T00:00:00" in run
     assert "build_nvt9_reference_0905.py" in run
-    assert "NVT9_TF_DISPLAY_MAP_H1_TO_M15_V02.json" in run
+    assert "NVT9_TF_DISPLAY_MAP_TRANSITION_V03.json" in run
+    assert "H4 TL state:" in run
+    assert "H1 TL state:" in run
+    assert "Display ownership:" in run
     assert "M15 source: DISABLED" in run
     assert "--case-tag '0905'" in run
     assert "verify_nvt9_0905_previsual.py" in run
