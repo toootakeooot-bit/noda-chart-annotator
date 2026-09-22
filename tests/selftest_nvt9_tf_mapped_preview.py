@@ -306,6 +306,37 @@ def main() -> int:
         assert allowed_audit["selection_policy"]["empty_source_semantics"] == "NO_LINE_NO_SYNTHETIC_FALLBACK"
         assert not any(x["source_tf"] == "H4" for x in allowed_audit["selected_families"])
 
+        # Explicit source-direction suppression removes the selected source,
+        # its source HL, and every Plan-B copy without selecting a replacement.
+        suppress_state = json.loads(json.dumps(state))
+        suppress_state["slots"]["USDJPY#|H1|LARGE_DOW"]["current"]["direction"] = "FALLING"
+        suppress_state["slots"]["USDJPY#|H1|MID_DOW"]["current"]["direction"] = "FALLING"
+        suppress_path = root / "suppress_state.json"
+        suppress_path.write_text(json.dumps(suppress_state), encoding="utf-8")
+        suppress_out = root / "suppress_out"
+        suppress_proc = subprocess.run(
+            [
+                sys.executable, str(tool),
+                "--state", str(suppress_path),
+                "--policy", str(policy),
+                "--input-dir", str(input_dir),
+                "--output-dir", str(suppress_out),
+                "--suppress-selected-source-direction", "H1:FALLING",
+            ],
+            capture_output=True, text=True,
+        )
+        assert suppress_proc.returncode == 0, suppress_proc.stderr + suppress_proc.stdout
+        suppress_audit = json.loads(
+            (suppress_out / "NVT9_USDJPY_TF_MAPPED_PREVIEW_0919_AUDIT.json").read_text(encoding="utf-8")
+        )
+        assert suppress_audit["source_selection"]["H1"] == []
+        assert suppress_audit["suppressed_source_selections"][0]["source_tf"] == "H1"
+        assert suppress_audit["suppressed_source_selections"][0]["direction"] == "FALLING"
+        assert "H1" not in suppress_audit["hl_candidates"]
+        assert suppress_audit["source_presence_problems"] == []
+        assert not any(x["source_tf"] == "H1" for x in suppress_audit["selected_families"])
+        assert suppress_audit["selection_policy"]["suppressed_source_semantics"] == "REMOVE_SOURCE_AND_ALL_PLAN_B_COPIES_NO_REPLACEMENT"
+
     print("NVT9 TF DISPLAY MAP SELFTEST PASS")
     return 0
 
