@@ -107,6 +107,22 @@ def main() -> None:
     assert empty.state == "TRANSITION_NO_TL"
     assert empty.reason_code == "NO_ACTIVATED_N_STRUCTURE_YET"
 
+    # Warmup context may precede the 600-bar window, but such old bars may
+    # initialize the detector only.  A candidate with A1 before the selection
+    # floor must be rejected even if otherwise ACTIVE.
+    floored = resolve_tl_transition_from_candidates(
+        active_bars,
+        "USDJPY#",
+        "H1",
+        [active_c],
+        3,
+        None,
+        candidate_anchor_floor=active_bars[1].time,
+    )
+    assert floored.state == "TRANSITION_NO_TL"
+    assert floored.reason_code == "NO_ACTIVATED_N_STRUCTURE_YET"
+    assert floored.candidate_count == 0
+
     print("TL_TRANSITION_SELFTEST_PASS")
 
 
