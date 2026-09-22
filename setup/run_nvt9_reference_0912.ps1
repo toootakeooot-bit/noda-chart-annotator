@@ -24,7 +24,7 @@ Write-Host 'Production: unchanged'
 Write-Host ''
 
 Write-Host '[1/4] Build no-lookahead 600-bar base'
-& $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_reference_0912.py') --input-dir $InputDir --output-dir $OutDir --policy $Policy --symbol $Symbol --cutoff '2026-09-12T00:00:00'
+& $Python (Join-Path $RepoRoot 'tools\nvt\build_nvt9_reference_0912.py') --input-dir $InputDir --output-dir $OutDir --policy $Policy --reference-manifest $Reference --symbol $Symbol --cutoff '2026-09-12T00:00:00'
 if ($LASTEXITCODE -ne 0) { Write-Host '09/12 BASE BUILD FAILED'; exit $LASTEXITCODE }
 
 Write-Host ''
@@ -55,7 +55,7 @@ Write-Host ("Suppressed base selections: {0}" -f (($BaseAudit.suppressed_source_
 Write-Host ("Empty source TFs:           {0}" -f (($BaseAudit.empty_source_tfs) -join ', '))
 if ($BaseAudit.source_selection.H4.Count -gt 0) {
   $h4 = $BaseAudit.source_selection.H4[0]
-  Write-Host ("H4 retained: {0} role={1} reason={2} display={3}" -f $h4.line_id,$h4.generation_role,$h4.display_reason,(($h4.display_roles) -join '/'))
+  Write-Host ("H4 retained: {0} role={1} reason={2} display={3} ref={4}" -f $h4.line_id,$h4.generation_role,$h4.display_reason,(($h4.display_roles) -join '/'),$h4.reference_id)
 }
 if ($BaseAudit.source_selection.M15.Count -gt 0) {
   $m15 = $BaseAudit.source_selection.M15[0]
