@@ -104,6 +104,27 @@ def main() -> int:
     if h4_decision[0].get("state_or_reason") != "TRANSITION_NO_TL":
         raise ValueError(f"09/05 H4 ownership reason mismatch: {h4_decision}")
 
+    d1 = source_selection.get("D1") or []
+    if len(d1) != 1:
+        raise ValueError(f"09/05 D1 parent family missing for H4 transition: {d1}")
+    if d1[0].get("display_roles") != ["TL", "CH"]:
+        raise ValueError(f"09/05 D1 parent family must use main TL/CH only: {d1[0]}")
+    h4_display = [
+        x for x in (base.get("selected_families") or [])
+        if x.get("display_tf") == "H4"
+    ]
+    if len(h4_display) != 1:
+        raise ValueError(f"09/05 H4 must contain exactly one D1-owned family: {h4_display}")
+    if h4_display[0].get("source_tf") != "D1":
+        raise ValueError(f"09/05 H4 display source is not D1: {h4_display[0]}")
+    if h4_display[0].get("copied_without_reselection") is not True:
+        raise ValueError(f"09/05 D1->H4 geometry was reselected: {h4_display[0]}")
+    if h4_display[0].get("geometry_signature") != d1[0].get("geometry_signature"):
+        raise ValueError(
+            f"09/05 D1/H4 geometry mismatch: d1={d1[0].get('geometry_signature')} "
+            f"h4={h4_display[0].get('geometry_signature')}"
+        )
+
     # H1 must have a real ACTIVE/NEW_ACTIVE N.  It is the structural owner
     # used on H1 and copied to M15.
     h1_expect = expectations.get("H1") or {}
@@ -171,6 +192,9 @@ def main() -> int:
             "state": h4_state.get("state"),
             "reason_code": h4_state.get("reason_code"),
             "display_owner_tf": "D1",
+            "parent_line_id": d1[0].get("line_id"),
+            "geometry_signature": h4_display[0].get("geometry_signature"),
+            "copied_without_reselection": h4_display[0].get("copied_without_reselection"),
         },
         "h1_status": {
             "state": h1_state.get("state"),
