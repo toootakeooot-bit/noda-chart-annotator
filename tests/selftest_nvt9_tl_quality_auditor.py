@@ -133,6 +133,55 @@ def main() -> int:
     assert hold_owner["cause_layer"] == "OWNERSHIP"
     assert "OWNERSHIP_UNRESOLVED" in reason_codes(hold_owner)
 
+    # Explicit ambiguity must HOLD even when runtime visibility falls back to source_tf.
+    same_tf_fallback = base_record()
+    same_tf_fallback["source_tf"] = "H4"
+    same_tf_fallback["owner_tf"] = "H4"
+    same_tf_fallback["cross_tf"] = {
+        "classification": "AMBIGUOUS_KEEP_VISIBLE",
+        "mapping_allowed": True,
+        "owner_confirmed": False,
+        "ownership_ambiguous": True,
+        "candidate_owner_tf": "D1",
+    }
+    same_tf_hold = mod.audit_line(same_tf_fallback)
+    assert same_tf_hold["Quality"] == "HOLD"
+    assert same_tf_hold["OwnershipReadiness"] == "HOLD"
+    assert same_tf_hold["checks"]["Cross-TF"] == "HOLD"
+    assert "OWNERSHIP_UNRESOLVED" in reason_codes(same_tf_hold)
+    assert "P09" in {x["pattern_id"] for x in same_tf_hold["reasons"]}
+
+    # Explicit local ownership confirmation is PASS and gets P21.
+    local_confirmed = base_record()
+    local_confirmed["source_tf"] = "H4"
+    local_confirmed["owner_tf"] = "H4"
+    local_confirmed["cross_tf"] = {
+        "classification": "LOCAL_OWNED_DISTINCT",
+        "mapping_allowed": True,
+        "owner_confirmed": True,
+        "ownership_ambiguous": False,
+    }
+    local_result = mod.audit_line(local_confirmed)
+    assert local_result["Quality"] == "GOOD"
+    assert local_result["OwnershipReadiness"] == "PASS"
+    assert "P21" in local_result["matched_patterns"]
+
+    # Higher timeframe owner may be confirmed while parent-family match remains unresolved.
+    higher_owner = base_record()
+    higher_owner["source_tf"] = "H1"
+    higher_owner["owner_tf"] = "H4"
+    higher_owner["cross_tf"] = {
+        "classification": "HIGHER_TF_OWNER_PARENT_UNRESOLVED",
+        "mapping_allowed": True,
+        "owner_confirmed": True,
+        "ownership_ambiguous": False,
+        "parent_family_unresolved": True,
+    }
+    higher_result = mod.audit_line(higher_owner)
+    assert higher_result["Quality"] == "GOOD"
+    assert higher_result["OwnershipReadiness"] == "PASS"
+    assert "P08" in higher_result["matched_patterns"]
+
     # Candidate-generation and selector failures must be separated.
     missing_candidate = base_record()
     missing_candidate["candidate"] = {"candidate_present": False}
