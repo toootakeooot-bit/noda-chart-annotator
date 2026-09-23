@@ -6,6 +6,7 @@ on:
       - feature/nvt-validation-v1
       - feature/nvt9-tl-quality-auditor-v1
       - feature/nvt9-tl-audit-evidence-v1
+      - feature/nvt9-tl-ownership-join-v1
   pull_request:
     branches:
       - feature/nvt-validation-v1
@@ -49,6 +50,7 @@ jobs:
             tools/nvt/tl_quality_auditor.py \
             tools/nvt/build_nvt9_tl_quality_history_replay.py \
             tools/nvt/build_nvt9_tl_audit_evidence.py \
+            tools/nvt/build_nvt9_tl_quality_ownership_join.py \
             tests/selftest_normal_run.py \
             tests/selftest_nvt9_cross_tf.py \
             tests/selftest_nvt9_normal_vs_full_history.py \
@@ -67,7 +69,8 @@ jobs:
             tests/selftest_nvt9_v7_preview_ready.py \
             tests/selftest_nvt9_tl_quality_auditor.py \
             tests/selftest_nvt9_tl_quality_history_replay.py \
-            tests/selftest_nvt9_tl_audit_evidence.py
+            tests/selftest_nvt9_tl_audit_evidence.py \
+            tests/selftest_nvt9_tl_quality_ownership_join.py
 
       - name: NormalRun lifecycle replay self-test
         run: python tests/selftest_normal_run.py
@@ -122,3 +125,6 @@ jobs:
 
       - name: TL audit evidence sidecar self-test
         run: python tests/selftest_nvt9_tl_audit_evidence.py
+
+      - name: TL quality ownership join self-test
+        run: python tests/selftest_nvt9_tl_quality_ownership_join.py
