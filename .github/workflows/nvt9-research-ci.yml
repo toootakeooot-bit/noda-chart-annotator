@@ -8,6 +8,7 @@ on:
       - feature/nvt9-tl-audit-evidence-v1
       - feature/nvt9-tl-ownership-join-v1
       - feature/nvt9-tl-stage1-gate-v1
+      - feature/nvt9-tl-transition-minimal-v1
   pull_request:
     branches:
       - feature/nvt-validation-v1
@@ -32,6 +33,7 @@ jobs:
       - name: Compile NVT9 research tools
         run: |
           python -m py_compile \
+            tools/live_draw/tl_transition.py \
             tools/nvt/build_cross_tf_review.py \
             tools/nvt/audit_nvt9_normal_vs_full_history.py \
             tools/nvt/build_nvt9_deep_lifecycle_state.py \
@@ -53,6 +55,7 @@ jobs:
             tools/nvt/build_nvt9_tl_audit_evidence.py \
             tools/nvt/build_nvt9_tl_quality_ownership_join.py \
             tools/nvt/evaluate_nvt9_tl_quality_stage1_gate.py \
+            tests/selftest_tl_transition.py \
             tests/selftest_normal_run.py \
             tests/selftest_nvt9_cross_tf.py \
             tests/selftest_nvt9_normal_vs_full_history.py \
@@ -134,3 +137,6 @@ jobs:
 
       - name: TL Quality Stage-1 readiness gate self-test
         run: python tests/selftest_nvt9_tl_quality_stage1_gate.py
+
+      - name: TL transition state self-test
+        run: python tests/selftest_tl_transition.py
