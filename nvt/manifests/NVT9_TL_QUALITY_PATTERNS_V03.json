@@ -1,0 +1,249 @@
+{
+  "schema": "nvt9-tl-quality-patterns/1.1",
+  "audit_id": "ID10IQ200",
+  "version": "NVT9_TL_QUALITY_PATTERNS_V03",
+  "supersedes": "NVT9_TL_QUALITY_PATTERNS_V02",
+  "mode": "AUDIT_ONLY",
+  "production_mutation": false,
+  "principles": {
+    "history_use": "Historical/teacher pattern match supports interpretation and confidence but never overrides a failed line-level hard gate.",
+    "ground_truth_vs_generated": "Teacher expectation and generated-line audit are reported separately.",
+    "break_rule": "Structural break requires a later closed-bar close beyond the relevant level; wick-only penetration is not a confirmed break.",
+    "no_line_rule": "After an active TL breaks, do not promote the next TL until valid pivots, anchors, structure and required break evidence exist.",
+    "cross_tf_rule": "source_tf and owner/display_tf are separate concepts; lower-timeframe structure may be displayed on a higher timeframe only when ownership evidence supports it.",
+    "supersession_rule": "When later reviewed Ground Truth explicitly supersedes an older probe interpretation, retain both records and mark the older interpretation superseded rather than silently deleting it.",
+    "ownership_fallback_rule": "When an ownership artifact explicitly marks a line ambiguous, source_tf visibility fallback remains HOLD and must not be interpreted as confirmed local ownership."
+  },
+  "teacher_cases": [
+    {
+      "case_id": "GT_0004",
+      "source_id": "NVT_VIDEO_20260905",
+      "market_date": "2026-09-05",
+      "timeframe": "D1",
+      "role": "PERSISTENT_REFERENCE",
+      "patterns": [
+        "P16"
+      ],
+      "teacher_expectation": "KEEP_ORIGINAL_RISING_REFERENCE",
+      "source_authority": "GROUND_TRUTH_DRAFT_HIGH_CONFIDENCE"
+    },
+    {
+      "case_id": "USER_0905_TRANSITION",
+      "market_date": "2026-09-05",
+      "timeframe": "H1/M15",
+      "role": "POST_BREAK_NO_LINE_TRANSITION",
+      "patterns": [
+        "P04"
+      ],
+      "teacher_expectation": "HOLD_UNTIL_NEW_STRUCTURE",
+      "source_authority": "USER_ADJUDICATION_SEMANTIC_ONLY",
+      "exact_geometry_locked": false
+    },
+    {
+      "case_id": "GT_0005",
+      "source_id": "NVT_VIDEO_20260912",
+      "market_date": "2026-09-12",
+      "timeframe": "H1",
+      "role": "VALID_SUPPRESSED_TURN_LINE",
+      "patterns": [
+        "P17"
+      ],
+      "teacher_expectation": "VALID_BUT_DISPLAY_SUPPRESSED",
+      "source_authority": "GROUND_TRUTH_DRAFT_HIGH_SEMANTIC_CONFIDENCE"
+    },
+    {
+      "case_id": "GT_0006",
+      "source_id": "NVT_VIDEO_20260912",
+      "market_date": "2026-09-12",
+      "timeframe": "H1",
+      "role": "MULTIPLE_VALID_SELECTOR_PREFERENCE",
+      "patterns": [
+        "P18",
+        "P19"
+      ],
+      "teacher_expectation": "PREFER_GENTLER_VALID_LINE; LONG_WICK_MAY_BE_NOISE",
+      "source_authority": "GROUND_TRUTH_DRAFT_HIGH_PATTERN_CONFIDENCE",
+      "probe_note": "NVT5 teacher-window probe found zero exact window matches; this is diagnostic HOLD, not a hard anchor lock."
+    },
+    {
+      "case_id": "NVT8_HOLDOUT_0919",
+      "source_id": "NVT8_HOLDOUT_41B3868CFDD2",
+      "market_date": "2026-09-19",
+      "role": "STRICT_HELDOUT_BASELINE",
+      "patterns": [
+        "P01",
+        "P07",
+        "P09"
+      ],
+      "teacher_expectation": "STRICT_NVT8_EVENT_ASSERTIONS_PASS; CROSS_TF_OWNERSHIP_REMAINS_SEPARATE_EVIDENCE",
+      "source_authority": "STRICT_HELDOUT_TEACHER_VISUAL_EVIDENCE"
+    },
+    {
+      "case_id": "GT_0007",
+      "source_id": "NVT_VIDEO_20260808",
+      "market_date": "2026-08-08",
+      "timeframe": "H1",
+      "role": "PARENT_NO_LINE_LOWER_TF_OWNERSHIP",
+      "patterns": [
+        "P20"
+      ],
+      "teacher_expectation": "NO_H1_TL; INTERNAL_LINE_BELONGS_TO_M15",
+      "source_authority": "GROUND_TRUTH_DRAFT_HIGH_CONFIDENCE"
+    }
+  ],
+  "patterns": [
+    {
+      "id": "P01",
+      "name": "NORMAL_MAJOR_TL",
+      "default_quality": "GOOD",
+      "layer": "STRUCTURE"
+    },
+    {
+      "id": "P02",
+      "name": "OUTER_TL_PREFERRED",
+      "default_quality": "GOOD",
+      "layer": "ANCHOR"
+    },
+    {
+      "id": "P03",
+      "name": "INNER_TL_OVERSELECTED",
+      "default_quality": "BAD",
+      "layer": "ANCHOR",
+      "reason_code": "OUTER_STRUCTURE_MISMATCH"
+    },
+    {
+      "id": "P04",
+      "name": "NO_LINE_AFTER_BREAK",
+      "default_quality": "HOLD",
+      "layer": "STRUCTURE",
+      "reason_code": "NO_LINE_HOLD"
+    },
+    {
+      "id": "P05",
+      "name": "NEXT_TL_AFTER_NEW_DOW",
+      "default_quality": "GOOD",
+      "layer": "STRUCTURE"
+    },
+    {
+      "id": "P06",
+      "name": "WICK_ONLY_BREAK",
+      "default_quality": "HOLD",
+      "layer": "STRUCTURE",
+      "reason_code": "WICK_ONLY_BREAK"
+    },
+    {
+      "id": "P07",
+      "name": "CLOSED_BAR_BREAK",
+      "default_quality": "GOOD",
+      "layer": "STRUCTURE"
+    },
+    {
+      "id": "P08",
+      "name": "CROSS_TF_CONFIRMED",
+      "default_quality": "GOOD",
+      "layer": "OWNERSHIP"
+    },
+    {
+      "id": "P09",
+      "name": "CROSS_TF_OWNERSHIP_UNRESOLVED",
+      "default_quality": "HOLD",
+      "layer": "OWNERSHIP",
+      "reason_code": "OWNERSHIP_UNRESOLVED"
+    },
+    {
+      "id": "P10",
+      "name": "REFERENCE_RETAINED",
+      "default_quality": "GOOD",
+      "layer": "LIFECYCLE"
+    },
+    {
+      "id": "P11",
+      "name": "REANCHORED_CURRENT",
+      "default_quality": "GOOD",
+      "layer": "LIFECYCLE"
+    },
+    {
+      "id": "P12",
+      "name": "SELECTOR_WRONG_WITH_VALID_CANDIDATE",
+      "default_quality": "BAD",
+      "layer": "SELECTOR",
+      "reason_code": "SELECTOR_ERROR"
+    },
+    {
+      "id": "P13",
+      "name": "REQUIRED_CANDIDATE_ABSENT",
+      "default_quality": "BAD",
+      "layer": "CANDIDATE_GENERATION",
+      "reason_code": "CANDIDATE_GENERATION_ERROR"
+    },
+    {
+      "id": "P14",
+      "name": "SMALL_DOW_PROMOTED_TO_MAJOR",
+      "default_quality": "BAD",
+      "layer": "STRUCTURE",
+      "reason_code": "SMALL_DOW_MAJOR_PROMOTION"
+    },
+    {
+      "id": "P15",
+      "name": "LATEST_ONLY_PRECEDENCE",
+      "default_quality": "BAD",
+      "layer": "SELECTOR",
+      "reason_code": "LATEST_ONLY_PRECEDENCE"
+    },
+    {
+      "id": "P16",
+      "name": "PERSISTENT_REFERENCE_RETAINED",
+      "default_quality": "GOOD",
+      "layer": "LIFECYCLE",
+      "source_case": "GT_0004",
+      "meaning": "A long-retained monitoring TL may remain the correct reference even when a newer geometric re-anchor exists."
+    },
+    {
+      "id": "P17",
+      "name": "VALID_SUPPRESSED_TURN_LINE",
+      "default_quality": "GOOD",
+      "layer": "LIFECYCLE",
+      "source_case": "GT_0005",
+      "meaning": "A structurally valid small-Dow TURN_LINE may be intentionally suppressed because it is steep/short-lived and would clutter the chart."
+    },
+    {
+      "id": "P18",
+      "name": "GENTLER_VALID_ALTERNATIVE_PREFERENCE",
+      "default_quality": "GOOD",
+      "layer": "SELECTOR",
+      "source_case": "GT_0006",
+      "meaning": "Among several structurally valid lines, prefer the gentler line when teacher evidence explicitly establishes that selection preference."
+    },
+    {
+      "id": "P19",
+      "name": "TEACHER_WINDOW_ABSENT_DIAGNOSTIC",
+      "default_quality": "HOLD",
+      "layer": "CANDIDATE_GENERATION",
+      "reason_code": "TEACHER_WINDOW_ABSENT_DIAGNOSTIC",
+      "source_case": "GT_0006",
+      "meaning": "Reviewed approximate teacher anchor windows contain no candidate. Because exact anchors are not locked, treat this as a diagnostic HOLD rather than hard BAD."
+    },
+    {
+      "id": "P20",
+      "name": "PARENT_NO_LINE_LOWER_TF_OWNERSHIP",
+      "default_quality": "GOOD",
+      "layer": "OWNERSHIP",
+      "source_case": "GT_0007",
+      "meaning": "Zero TL on the parent timeframe can be correct when the internal wave line structurally belongs to the lower timeframe."
+    },
+    {
+      "id": "P21",
+      "name": "LOCAL_OWNER_CONFIRMED",
+      "default_quality": "GOOD",
+      "layer": "OWNERSHIP",
+      "meaning": "Explicit ownership evidence confirms that the TL belongs to its source timeframe; source_tf fallback alone does not qualify."
+    }
+  ],
+  "stage_1_policy": {
+    "generated_line_audit": "GOOD/HOLD/BAD with AuditReadiness and missing_evidence",
+    "teacher_case_replay": "Report teacher expectation separately from generated-line Quality",
+    "automatic_correction": false,
+    "determinism_required": true,
+    "ownership_join": "Explicit ownership adjudication is joined after per-line structural evidence. Ambiguous ownership produces HOLD without making the underlying TL structurally BAD."
+  }
+}
