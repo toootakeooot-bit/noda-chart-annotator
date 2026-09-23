@@ -186,6 +186,51 @@ def main() -> int:
     assert result["superseded_or_conflicting_history"]
     assert result["unresolved_evidence_gaps"]
 
+    # A separately verified exact transition replay may satisfy the 09/05
+    # geometry lock without mutating the original semantic adjudication file.
+    transition_lock = {
+        "schema": "nvt9-0905-transition-exact-replay/1.0",
+        "case_date": "2026-09-05",
+        "cutoff_exclusive": "2026-09-05T00:00:00",
+        "status": "PASS_0905_TRANSITION_EXACT_REPLAY",
+        "transition_exact_geometry_locked": True,
+        "teacher_ground_truth_exact_anchors_locked": False,
+        "lock": {
+            "transition_exact_geometry_locked": True,
+            "failed_checks": [],
+        },
+    }
+    locked = mod.build_replay(
+        gt_dir=repo / "nvt" / "ground_truth",
+        teacher_anchor_probe=probe,
+        cross_tf_0919=None,
+        strict_heldout_0919=None,
+        user_0905=user_0905,
+        transition_lock_0905=transition_lock,
+    )
+    locked_transition = locked["user_adjudication_0905_transition"]
+    assert locked_transition["exact_anchor_geometry_locked"] is True
+    assert locked_transition["source_adjudication_exact_anchor_geometry_locked"] is False
+    assert locked_transition["transition_exact_replay_lock_applied"] is True
+    assert locked_transition["transition_exact_replay_status"] == "PASS_0905_TRANSITION_EXACT_REPLAY"
+    assert locked["unresolved_evidence_gaps"] == []
+
+    # A malformed or blocked artifact must not unlock the replay.
+    bad_lock = dict(transition_lock)
+    bad_lock["status"] = "BLOCKED_0905_TRANSITION_EXACT_REPLAY"
+    bad_lock["transition_exact_geometry_locked"] = False
+    blocked_lock = mod.build_replay(
+        gt_dir=repo / "nvt" / "ground_truth",
+        teacher_anchor_probe=probe,
+        cross_tf_0919=None,
+        strict_heldout_0919=None,
+        user_0905=user_0905,
+        transition_lock_0905=bad_lock,
+    )
+    assert blocked_lock["user_adjudication_0905_transition"]["exact_anchor_geometry_locked"] is False
+    assert blocked_lock["user_adjudication_0905_transition"]["transition_exact_replay_lock_applied"] is False
+    assert blocked_lock["unresolved_evidence_gaps"]
+
     again = mod.build_replay(
         gt_dir=repo / "nvt" / "ground_truth",
         teacher_anchor_probe=probe,

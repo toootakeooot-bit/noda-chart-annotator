@@ -44,6 +44,28 @@ def load_json(path: Path | None) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def valid_0905_transition_lock(payload: dict[str, Any] | None) -> tuple[bool, list[str]]:
+    failures: list[str] = []
+    if not isinstance(payload, dict):
+        return False, ["LOCK_NOT_SUPPLIED"]
+    if payload.get("schema") != "nvt9-0905-transition-exact-replay/1.0":
+        failures.append("BAD_SCHEMA")
+    if payload.get("case_date") != "2026-09-05":
+        failures.append("BAD_CASE_DATE")
+    if payload.get("cutoff_exclusive") != "2026-09-05T00:00:00":
+        failures.append("BAD_CUTOFF")
+    if payload.get("status") != "PASS_0905_TRANSITION_EXACT_REPLAY":
+        failures.append("LOCK_STATUS_NOT_PASS")
+    if payload.get("transition_exact_geometry_locked") is not True:
+        failures.append("TRANSITION_GEOMETRY_NOT_LOCKED")
+    lock = payload.get("lock") or {}
+    if lock.get("transition_exact_geometry_locked") is not True:
+        failures.append("INNER_LOCK_NOT_TRUE")
+    if lock.get("failed_checks"):
+        failures.append("FAILED_CHECKS_PRESENT")
+    return not failures, failures
+
+
 def walk_dicts(value: Any) -> Iterable[dict[str, Any]]:
     if isinstance(value, dict):
         yield value
@@ -325,6 +347,7 @@ def build_replay(
     cross_tf_0919: dict[str, Any] | None,
     strict_heldout_0919: dict[str, Any] | None,
     user_0905: dict[str, Any] | None,
+    transition_lock_0905: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     teacher_cases = []
     probe_index = {}
@@ -346,14 +369,26 @@ def build_replay(
     ]
 
     user_transition = None
+    lock_valid, lock_failures = valid_0905_transition_lock(transition_lock_0905)
     if isinstance(user_0905, dict):
+        source_locked = user_0905.get("exact_anchor_geometry_locked") is True
+        effective_locked = source_locked or lock_valid
         user_transition = {
             "case_id": user_0905.get("case_id"),
             "market_date": user_0905.get("market_date"),
             "scope": user_0905.get("scope"),
             "pattern_id": user_0905.get("pattern_id"),
             "quality_expectation_during_middle_state": user_0905.get("quality_expectation_during_middle_state"),
-            "exact_anchor_geometry_locked": user_0905.get("exact_anchor_geometry_locked"),
+            "exact_anchor_geometry_locked": effective_locked,
+            "source_adjudication_exact_anchor_geometry_locked": source_locked,
+            "transition_exact_replay_lock_applied": lock_valid,
+            "transition_exact_replay_lock_failures": lock_failures,
+            "transition_exact_replay_status": (
+                transition_lock_0905.get("status") if isinstance(transition_lock_0905, dict) else None
+            ),
+            "transition_exact_replay_cutoff": (
+                transition_lock_0905.get("cutoff_exclusive") if isinstance(transition_lock_0905, dict) else None
+            ),
             "transition_rule": user_0905.get("transition_rule"),
         }
 
@@ -402,6 +437,7 @@ def main() -> int:
     ap.add_argument("--teacher-anchor-probe")
     ap.add_argument("--cross-tf-0919")
     ap.add_argument("--strict-heldout-0919")
+    ap.add_argument("--transition-lock-0905")
     ap.add_argument(
         "--user-0905",
         default=str(ROOT / "nvt" / "adjudication" / "NVT9_USER_0905_TRANSITION_V01.json"),
@@ -415,6 +451,7 @@ def main() -> int:
         cross_tf_0919=load_json(Path(args.cross_tf_0919)) if args.cross_tf_0919 else None,
         strict_heldout_0919=load_json(Path(args.strict_heldout_0919)) if args.strict_heldout_0919 else None,
         user_0905=load_json(Path(args.user_0905)) if args.user_0905 else None,
+        transition_lock_0905=load_json(Path(args.transition_lock_0905)) if args.transition_lock_0905 else None,
     )
 
     out = Path(args.output)
