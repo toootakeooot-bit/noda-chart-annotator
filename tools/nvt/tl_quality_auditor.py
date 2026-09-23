@@ -369,20 +369,30 @@ def audit_line(record: dict[str, Any]) -> dict[str, Any]:
             message="TL precedence is based only on recency, ignoring still-valid older structure.",
         )
 
-    if source_tf is not None and owner_tf is not None and str(source_tf) != str(owner_tf):
-        mapping_allowed = _bool(record, cross_tf, "mapping_allowed", "cross_tf_allowed")
-        owner_confirmed = _bool(record, cross_tf, "owner_confirmed", "ownership_confirmed")
-        ownership_ambiguous = _bool(record, cross_tf, "ownership_ambiguous", "ambiguous")
-        if mapping_allowed is True and owner_confirmed is True:
-            matched_patterns.append("P08")
-        elif ownership_ambiguous is True or owner_confirmed is False:
+    mapping_allowed = _bool(record, cross_tf, "mapping_allowed", "cross_tf_allowed")
+    owner_confirmed = _bool(record, cross_tf, "owner_confirmed", "ownership_confirmed")
+    ownership_ambiguous = _bool(record, cross_tf, "ownership_ambiguous", "ambiguous")
+    ownership_evidence_present = any(
+        value is not None
+        for value in (
+            mapping_allowed,
+            owner_confirmed,
+            ownership_ambiguous,
+            _first(cross_tf, "classification"),
+            _first(cross_tf, "relation"),
+            _first(cross_tf, "candidate_owner_tf"),
+        )
+    )
+
+    if ownership_evidence_present:
+        if ownership_ambiguous is True or owner_confirmed is False:
             _add(
                 findings,
                 pattern_id="P09",
                 layer="OWNERSHIP",
                 reason_code="OWNERSHIP_UNRESOLVED",
                 disposition="HOLD",
-                message="Cross-timeframe mapping is plausible but ownership evidence is unresolved.",
+                message="Ownership evidence is unresolved; source-timeframe fallback visibility must not be mistaken for confirmed ownership.",
             )
         elif mapping_allowed is False:
             _add(
@@ -393,6 +403,12 @@ def audit_line(record: dict[str, Any]) -> dict[str, Any]:
                 disposition="BAD",
                 message="Requested source_tf to owner_tf mapping is explicitly disallowed.",
             )
+        elif owner_confirmed is True:
+            if source_tf is not None and owner_tf is not None and str(source_tf) != str(owner_tf):
+                if mapping_allowed is True:
+                    matched_patterns.append("P08")
+            elif source_tf is not None and owner_tf is not None and str(source_tf) == str(owner_tf):
+                matched_patterns.append("P21")
 
     lifecycle_value = _first(record, "lifecycle", "generation_role", default=_first(lifecycle, "state"))
     if lifecycle_value is not None:
@@ -494,14 +510,16 @@ def audit_line(record: dict[str, Any]) -> dict[str, Any]:
         cross_tf_state: CheckState = "FAIL"
     elif any(f.layer == "OWNERSHIP" and f.disposition == "HOLD" for f in findings):
         cross_tf_state = "HOLD"
+    elif ownership_evidence_present and owner_confirmed is True:
+        cross_tf_state = "PASS"
     elif source_tf is not None and owner_tf is not None and str(source_tf) != str(owner_tf):
         cross_tf_state = "PASS" if "P08" in matched_patterns else "UNKNOWN"
     else:
-        cross_tf_state = "PASS" if source_tf is not None else "UNKNOWN"
+        cross_tf_state = "PASS" if source_tf is not None and not ownership_evidence_present else "UNKNOWN"
 
     matched_patterns = list(dict.fromkeys(matched_patterns))
     negative_pattern_ids = {"P03", "P04", "P06", "P09", "P12", "P13", "P14", "P15", "P19"}
-    positive_pattern_ids = {"P01", "P02", "P05", "P07", "P08", "P10", "P11", "P16", "P17", "P18"}
+    positive_pattern_ids = {"P01", "P02", "P05", "P07", "P08", "P10", "P11", "P16", "P17", "P18", "P21"}
     historical_positive = [p for p in matched_patterns if p in positive_pattern_ids]
     historical_negative = [p for p in matched_patterns if p in negative_pattern_ids]
     history_state: CheckState = "PASS" if historical_positive else "HOLD" if historical_negative else "UNKNOWN"
@@ -589,6 +607,7 @@ def audit_line(record: dict[str, Any]) -> dict[str, Any]:
         "Confidence": confidence,
         "AuditReadiness": audit_readiness,
         "missing_evidence": missing_evidence,
+        "OwnershipReadiness": cross_tf_state,
         "cause_layer": primary,
         "checks": checks,
         "matched_patterns": matched_patterns,
