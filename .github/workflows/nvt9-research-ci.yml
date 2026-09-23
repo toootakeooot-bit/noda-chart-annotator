@@ -9,6 +9,7 @@ on:
       - feature/nvt9-tl-ownership-join-v1
       - feature/nvt9-tl-stage1-gate-v1
       - feature/nvt9-tl-transition-minimal-v1
+      - feature/nvt9-0905-exact-replay-v1
   pull_request:
     branches:
       - feature/nvt-validation-v1
@@ -55,6 +56,7 @@ jobs:
             tools/nvt/build_nvt9_tl_audit_evidence.py \
             tools/nvt/build_nvt9_tl_quality_ownership_join.py \
             tools/nvt/evaluate_nvt9_tl_quality_stage1_gate.py \
+            tools/nvt/build_nvt9_0905_transition_exact_replay.py \
             tests/selftest_tl_transition.py \
             tests/selftest_normal_run.py \
             tests/selftest_nvt9_cross_tf.py \
@@ -76,7 +78,8 @@ jobs:
             tests/selftest_nvt9_tl_quality_history_replay.py \
             tests/selftest_nvt9_tl_audit_evidence.py \
             tests/selftest_nvt9_tl_quality_ownership_join.py \
-            tests/selftest_nvt9_tl_quality_stage1_gate.py
+            tests/selftest_nvt9_tl_quality_stage1_gate.py \
+            tests/selftest_nvt9_0905_transition_exact_replay.py
 
       - name: NormalRun lifecycle replay self-test
         run: python tests/selftest_normal_run.py
@@ -140,3 +143,6 @@ jobs:
 
       - name: TL transition state self-test
         run: python tests/selftest_tl_transition.py
+
+      - name: 09/05 exact transition replay self-test
+        run: python tests/selftest_nvt9_0905_transition_exact_replay.py
